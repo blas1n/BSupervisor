@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("app_startup", database_engine=str(engine.url))
+    logger.info("app_startup", database_engine=engine.url.render_as_string(hide_password=True))
     yield
     await engine.dispose()
     logger.info("app_shutdown")

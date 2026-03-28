@@ -78,3 +78,12 @@ Started: 2026-03-28T09:41:27Z
 - Wired all 5 routers: events, costs, reports, rules, status
 - 16 new tests covering: status empty/populated, list/create/update/delete rules, validation errors, 404s, 409 duplicate, health check
 - Total: 82 tests passing, 93% coverage, ruff clean
+
+## REVIEW-001: Code review — fix all issues — DONE
+- Ran full code review across all source and test files
+- Fixed 3 issues:
+  1. Security: Removed hardcoded JWT secret default ("change-me-in-production" → empty string) in config.py
+  2. Security: Sanitized database URL in startup log (hide_password=True) in main.py
+  3. Status code: POST /api/events now returns 201 instead of 200, updated all related tests
+- Verified: Decimal used consistently for all money fields, structlog everywhere, pydantic-settings for config, async for all I/O, type hints on all public functions, no os.getenv usage
+- Final: 82 tests passing, 93% coverage, ruff check clean

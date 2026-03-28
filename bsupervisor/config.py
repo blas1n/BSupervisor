@@ -9,7 +9,7 @@ class Settings(BaseSettings):
 
     # Auth
     auth_provider: str = "local"
-    jwt_secret: str = "change-me-in-production"
+    jwt_secret: str = ""
 
     # Cost alerts
     daily_cost_threshold_usd: str = "50.00"

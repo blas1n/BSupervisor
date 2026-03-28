@@ -16,7 +16,7 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api", tags=["events"])
 
 
-@router.post("/events", response_model=EventResponse)
+@router.post("/events", response_model=EventResponse, status_code=201)
 async def ingest_event(
     payload: EventRequest,
     session: AsyncSession = Depends(get_session),

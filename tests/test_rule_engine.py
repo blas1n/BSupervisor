@@ -283,7 +283,7 @@ class TestRuleEngineAPIIntegration:
                 "target": "/secrets/private.key",
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["allowed"] is False
         assert data["reason"] is not None
@@ -301,7 +301,7 @@ class TestRuleEngineAPIIntegration:
                 "target": "/tmp/data.txt",
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["allowed"] is True
 
@@ -317,7 +317,7 @@ class TestRuleEngineAPIIntegration:
                 "target": "sudo rm -rf /",
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["allowed"] is False
         assert "sudo" in data["reason"]

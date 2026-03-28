@@ -25,7 +25,7 @@ def valid_event_payload():
 async def test_ingest_valid_event(client, db_session, valid_event_payload):
     response = await client.post("/api/events", json=valid_event_payload)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["allowed"] is True
     assert "event_id" in data
@@ -41,7 +41,7 @@ async def test_ingest_event_without_optional_fields(client, db_session):
     }
     response = await client.post("/api/events", json=payload)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["allowed"] is True
     assert "event_id" in data
@@ -60,7 +60,7 @@ async def test_ingest_event_missing_required_field(client, db_session):
 async def test_ingest_event_stores_in_db(client, db_session, valid_event_payload):
     response = await client.post("/api/events", json=valid_event_payload)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     event_id = response.json()["event_id"]
 
     result = await db_session.execute(select(AuditEvent).where(AuditEvent.id == uuid.UUID(event_id)))
@@ -78,7 +78,7 @@ async def test_ingest_event_stores_in_db(client, db_session, valid_event_payload
 async def test_ingest_event_stores_timestamp(client, db_session, valid_event_payload):
     response = await client.post("/api/events", json=valid_event_payload)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     event_id = response.json()["event_id"]
 
     result = await db_session.execute(select(AuditEvent).where(AuditEvent.id == uuid.UUID(event_id)))
@@ -97,7 +97,7 @@ async def test_ingest_event_auto_timestamp_when_omitted(client, db_session):
     }
     response = await client.post("/api/events", json=payload)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     event_id = response.json()["event_id"]
 
     result = await db_session.execute(select(AuditEvent).where(AuditEvent.id == uuid.UUID(event_id)))
