@@ -38,7 +38,7 @@
       "title": "Daily report generator",
       "description": "Create bsupervisor/core/reporter.py. Reporter class: async generate_daily_report(date) -> DailyReport. Aggregates: total events, blocked count, cost breakdown by agent and model, top agents by activity. Output both JSON and Markdown summary. Add GET /api/reports/daily?date=YYYY-MM-DD endpoint. Write tests first.",
       "acceptanceCriteria": "Daily report aggregates all metrics. Markdown output is human-readable. JSON output has all fields. Tests verify report generation with sample data.",
-      "passes": false,
+      "passes": true,
       "priority": 5
     },
     {

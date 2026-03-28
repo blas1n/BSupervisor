@@ -47,3 +47,17 @@ Started: 2026-03-28T09:41:27Z
 - Wired costs router into main.py
 - 14 new tests: record creation, multi-record, daily cost filtering by agent/date, daily total, API valid/invalid/persistence/precision
 - Total: 53 tests passing, 97% coverage, ruff clean
+
+## TASK-005: Daily report generator — DONE
+- Created bsupervisor/core/reporter.py with Reporter class
+  - generate_daily_report(date): aggregates events, costs, persists DailyReport
+  - to_markdown(report): renders human-readable Markdown summary
+  - Queries: total events, blocked count, total cost, cost by agent, cost by model, top agents (top 10)
+  - Date filtering via timestamp range (start/end of day UTC)
+  - Uses func.coalesce for zero-safe cost aggregation
+- Created bsupervisor/api/reports.py with GET /api/reports/daily?date=YYYY-MM-DD
+  - Returns JSON with report_id, date, total_events, blocked_count, total_cost_usd, report_json, markdown
+  - 422 for missing or invalid date parameter
+- Wired reports router into main.py
+- 13 new tests: empty day, events aggregation, cost aggregation, cost by agent/model, top agents, DB persistence, date filtering, markdown output, API endpoint (valid/missing/invalid date/empty)
+- Total: 66 tests passing, 97% coverage, ruff clean
