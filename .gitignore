@@ -17,3 +17,4 @@ htmlcov/
 .ruff_cache/
 .mypy_cache/
 *.log
+.agent/
