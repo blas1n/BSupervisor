@@ -41,3 +41,65 @@ class CostResponse(BaseModel):
     tokens_in: int
     tokens_out: int
     cost_usd: str
+
+
+# ---------------------------------------------------------------------------
+# Status
+# ---------------------------------------------------------------------------
+
+VALID_RULE_ACTIONS = {"block", "warn", "log"}
+
+
+class StatusResponse(BaseModel):
+    total_events_today: int
+    blocked_count_today: int
+    total_cost_today: str
+
+
+# ---------------------------------------------------------------------------
+# Rules CRUD
+# ---------------------------------------------------------------------------
+
+
+class RuleCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    description: str = Field(..., min_length=1)
+    condition: dict
+    action: str = Field(..., min_length=1, max_length=50)
+    enabled: bool = True
+
+    model_config = {"extra": "forbid"}
+
+    @classmethod
+    def model_validate(cls, *args, **kwargs):
+        obj = super().model_validate(*args, **kwargs)
+        if obj.action not in VALID_RULE_ACTIONS:
+            raise ValueError(f"action must be one of {VALID_RULE_ACTIONS}")
+        return obj
+
+    def model_post_init(self, __context) -> None:
+        if self.action not in VALID_RULE_ACTIONS:
+            raise ValueError(f"action must be one of {VALID_RULE_ACTIONS}")
+
+
+class RuleUpdateRequest(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = Field(None, min_length=1)
+    condition: dict | None = None
+    action: str | None = Field(None, min_length=1, max_length=50)
+    enabled: bool | None = None
+
+    model_config = {"extra": "forbid"}
+
+    def model_post_init(self, __context) -> None:
+        if self.action is not None and self.action not in VALID_RULE_ACTIONS:
+            raise ValueError(f"action must be one of {VALID_RULE_ACTIONS}")
+
+
+class RuleResponse(BaseModel):
+    id: str
+    name: str
+    description: str
+    condition: dict
+    action: str
+    enabled: bool

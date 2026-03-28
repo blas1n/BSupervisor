@@ -61,3 +61,20 @@ Started: 2026-03-28T09:41:27Z
 - Wired reports router into main.py
 - 13 new tests: empty day, events aggregation, cost aggregation, cost by agent/model, top agents, DB persistence, date filtering, markdown output, API endpoint (valid/missing/invalid date/empty)
 - Total: 66 tests passing, 97% coverage, ruff clean
+
+## TASK-006: API routes + health check + app wiring — DONE
+- Created GET /api/status endpoint in bsupervisor/api/status.py
+  - Returns today's total_events, blocked_count, total_cost (Decimal normalized)
+  - Date filtering via UTC day boundaries
+- Created rules CRUD router in bsupervisor/api/rules.py
+  - GET /api/rules: list all rules ordered by name
+  - POST /api/rules (201): create rule with validation (action must be block/warn/log)
+  - PUT /api/rules/{id}: partial update, 404 if not found
+  - DELETE /api/rules/{id} (204): delete rule, 404 if not found
+  - 409 on duplicate rule name
+- Added Pydantic schemas: RuleCreateRequest, RuleUpdateRequest, RuleResponse, StatusResponse
+  - Action validation via model_post_init (block/warn/log only)
+- Set up FastAPI lifespan in main.py: engine.dispose() on shutdown
+- Wired all 5 routers: events, costs, reports, rules, status
+- 16 new tests covering: status empty/populated, list/create/update/delete rules, validation errors, 404s, 409 duplicate, health check
+- Total: 82 tests passing, 93% coverage, ruff clean

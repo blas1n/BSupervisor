@@ -46,7 +46,7 @@
       "title": "API routes + health check + app wiring",
       "description": "Wire all endpoints into FastAPI app in bsupervisor/main.py. Add GET /api/status (total events today, blocked count, total cost). Add GET /api/rules (list rules), POST /api/rules (create), PUT /api/rules/{id} (update), DELETE /api/rules/{id}. Set up lifespan with DB engine init/close. Write tests first.",
       "acceptanceCriteria": "All CRUD routes work. Status endpoint returns today's summary. Lifespan properly initializes and closes DB. Tests cover all routes.",
-      "passes": false,
+      "passes": true,
       "priority": 6
     },
     {
