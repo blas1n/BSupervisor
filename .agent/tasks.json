@@ -22,7 +22,7 @@
       "title": "Rule engine",
       "description": "Create bsupervisor/core/rule_engine.py. RuleEngine class: async evaluate(event: AuditEvent) -> RuleResult (allowed: bool, rule_name: str | None, reason: str | None). Built-in rules: (1) Block file_delete on *.env, *.key, *.pem. (2) Block shell_exec with sudo/rm -rf/chmod 777. (3) Warn when cost per agent exceeds daily threshold. Rules loaded from DB (AuditRule model). Wire into event ingestion endpoint. Write tests first.",
       "acceptanceCriteria": "RuleEngine evaluates events against rules. Dangerous actions are blocked. Warnings are logged. Tests cover block, warn, and allow scenarios with various event types.",
-      "passes": false,
+      "passes": true,
       "priority": 3
     },
     {

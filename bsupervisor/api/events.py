@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bsupervisor.api.schemas import EventRequest, EventResponse
+from bsupervisor.core.rule_engine import RuleEngine
 from bsupervisor.models.audit_event import AuditEvent
 from bsupervisor.models.database import get_session
 
@@ -20,10 +21,6 @@ async def ingest_event(
     payload: EventRequest,
     session: AsyncSession = Depends(get_session),
 ) -> EventResponse:
-    # Stub rule engine: always allow
-    allowed = True
-    reason = None
-
     timestamp = payload.timestamp or datetime.now(timezone.utc)
 
     event = AuditEvent(
@@ -33,9 +30,15 @@ async def ingest_event(
         action=payload.action,
         target=payload.target,
         metadata_json=payload.metadata,
-        allowed=allowed,
+        allowed=True,
         timestamp=timestamp,
     )
+
+    # Evaluate rules before persisting
+    rule_engine = RuleEngine(session)
+    rule_result = await rule_engine.evaluate(event)
+    event.allowed = rule_result.allowed
+
     session.add(event)
     await session.commit()
     await session.refresh(event)
@@ -45,11 +48,11 @@ async def ingest_event(
         event_id=str(event.id),
         agent_id=event.agent_id,
         event_type=event.event_type,
-        allowed=allowed,
+        allowed=rule_result.allowed,
     )
 
     return EventResponse(
         event_id=str(event.id),
-        allowed=allowed,
-        reason=reason,
+        allowed=rule_result.allowed,
+        reason=rule_result.reason,
     )

@@ -23,3 +23,16 @@ Started: 2026-03-28T09:41:27Z
 - 6 new tests: valid event, optional fields, missing required (422), DB storage, timestamp handling
 - Total: 16 tests passing, 97% coverage, ruff clean
 
+## TASK-003: Rule engine — DONE
+- Created bsupervisor/core/rule_engine.py with RuleEngine class and RuleResult dataclass
+- Built-in rules:
+  - block_sensitive_file_delete: blocks file_delete on *.env, *.key, *.pem
+  - block_dangerous_shell: blocks shell_exec with sudo, rm -rf, chmod 777
+  - cost_threshold_warning: warns when agent daily cost exceeds threshold (configurable, default $50)
+- DB rules: loads enabled AuditRule records, matches condition JSON against event fields
+  - Supports event_type, action, target_pattern (fnmatch glob), agent_id matching
+  - Actions: block (deny), warn (allow + reason), log (allow silently)
+- Wired RuleEngine into POST /api/events endpoint (replaces stub)
+- 23 new tests covering: block, warn, allow, DB rules, disabled rules, API integration
+- Total: 39 tests passing, 96% coverage, ruff clean
+
