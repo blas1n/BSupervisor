@@ -1,0 +1,25 @@
+# Progress Log
+Started: 2026-03-28T09:41:27Z
+
+## TASK-001: Core models + config + Alembic setup — DONE
+- Created 4 SQLAlchemy models: AuditEvent, AuditRule, CostRecord, DailyReport
+- Base class with UUIDPrimaryKeyMixin and TimestampMixin for shared fields
+- UUID primary keys, DateTime with timezone for timestamps
+- Decimal(20,8) precision for cost_usd fields (CostRecord, DailyReport)
+- JSON columns for metadata_json, condition, report_json
+- Async database engine + session factory in models/database.py
+- Updated alembic/env.py to use Base.metadata for autogenerate
+- Tests: 10 passing (8 model tests + 2 config tests), 98.72% coverage
+- Ruff check: all clean
+
+## TASK-002: Event ingestion API — DONE
+- Created POST /api/events endpoint in bsupervisor/api/events.py
+- Pydantic schemas (EventRequest, EventResponse) in bsupervisor/api/schemas.py
+- Validates required fields (agent_id, source, event_type, action, target), optional metadata/timestamp
+- Stores events in audit_events table via async SQLAlchemy session
+- Returns {event_id, allowed, reason} — stub rule engine always allows
+- Wired events router into main.py app
+- Updated tests/conftest.py to override get_session dependency for test DB isolation
+- 6 new tests: valid event, optional fields, missing required (422), DB storage, timestamp handling
+- Total: 16 tests passing, 97% coverage, ruff clean
+

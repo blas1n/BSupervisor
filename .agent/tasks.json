@@ -1,0 +1,61 @@
+{
+  "branchName": "main",
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "Core models + config + Alembic setup",
+      "description": "Create SQLAlchemy async models in bsupervisor/models/: AuditEvent (id, agent_id, source, event_type, action, target, metadata JSON, timestamp, allowed bool), AuditRule (id, name, description, condition JSON, action: block/warn/log, enabled bool), CostRecord (id, agent_id, model, tokens_in int, tokens_out int, cost_usd Decimal, timestamp), DailyReport (id, date, total_events int, blocked_count int, total_cost_usd Decimal, report_json JSON). Set up async SQLAlchemy engine with asyncpg. Create initial Alembic migration. Write tests first.",
+      "acceptanceCriteria": "All 4 models defined. Alembic migration creates tables. Tests verify model creation and field types using aiosqlite.",
+      "passes": true,
+      "priority": 1
+    },
+    {
+      "id": "TASK-002",
+      "title": "Event ingestion API",
+      "description": "Create POST /api/events endpoint in bsupervisor/api/events.py. Accept JSON: {agent_id, source, event_type, action, target, metadata, timestamp}. Validate with Pydantic. Store in audit_events table. Return {allowed: true/false, reason: str}. The allowed decision comes from rule engine (stub for now: always allow). Write tests first.",
+      "acceptanceCriteria": "POST /api/events accepts valid events, stores them, returns allowed decision. Invalid requests get 422. Tests cover valid event, invalid event, and storage verification.",
+      "passes": true,
+      "priority": 2
+    },
+    {
+      "id": "TASK-003",
+      "title": "Rule engine",
+      "description": "Create bsupervisor/core/rule_engine.py. RuleEngine class: async evaluate(event: AuditEvent) -> RuleResult (allowed: bool, rule_name: str | None, reason: str | None). Built-in rules: (1) Block file_delete on *.env, *.key, *.pem. (2) Block shell_exec with sudo/rm -rf/chmod 777. (3) Warn when cost per agent exceeds daily threshold. Rules loaded from DB (AuditRule model). Wire into event ingestion endpoint. Write tests first.",
+      "acceptanceCriteria": "RuleEngine evaluates events against rules. Dangerous actions are blocked. Warnings are logged. Tests cover block, warn, and allow scenarios with various event types.",
+      "passes": false,
+      "priority": 3
+    },
+    {
+      "id": "TASK-004",
+      "title": "Cost tracking",
+      "description": "Create bsupervisor/core/cost_tracker.py. CostTracker class: async record_cost(agent_id, model, tokens_in, tokens_out, cost_usd) -> None, async get_daily_cost(agent_id, date) -> Decimal, async get_daily_total(date) -> Decimal. Store in cost_records table. Add POST /api/costs endpoint for cost event ingestion. Write tests first.",
+      "acceptanceCriteria": "Cost events are stored and aggregated. Daily cost per agent and total are queryable. Tests verify recording and aggregation with Decimal precision.",
+      "passes": false,
+      "priority": 4
+    },
+    {
+      "id": "TASK-005",
+      "title": "Daily report generator",
+      "description": "Create bsupervisor/core/reporter.py. Reporter class: async generate_daily_report(date) -> DailyReport. Aggregates: total events, blocked count, cost breakdown by agent and model, top agents by activity. Output both JSON and Markdown summary. Add GET /api/reports/daily?date=YYYY-MM-DD endpoint. Write tests first.",
+      "acceptanceCriteria": "Daily report aggregates all metrics. Markdown output is human-readable. JSON output has all fields. Tests verify report generation with sample data.",
+      "passes": false,
+      "priority": 5
+    },
+    {
+      "id": "TASK-006",
+      "title": "API routes + health check + app wiring",
+      "description": "Wire all endpoints into FastAPI app in bsupervisor/main.py. Add GET /api/status (total events today, blocked count, total cost). Add GET /api/rules (list rules), POST /api/rules (create), PUT /api/rules/{id} (update), DELETE /api/rules/{id}. Set up lifespan with DB engine init/close. Write tests first.",
+      "acceptanceCriteria": "All CRUD routes work. Status endpoint returns today's summary. Lifespan properly initializes and closes DB. Tests cover all routes.",
+      "passes": false,
+      "priority": 6
+    },
+    {
+      "id": "REVIEW-001",
+      "title": "Code review — fix all issues including minor ones",
+      "description": "Review all changes. Verify: test coverage >= 80%, ruff check passes, all endpoints documented, no security issues, Decimal used for money, structlog for logging.",
+      "acceptanceCriteria": "ruff check bsupervisor/ passes. pytest tests/ --cov=bsupervisor --cov-fail-under=80 passes. All routes return proper status codes.",
+      "passes": false,
+      "priority": 99
+    }
+  ]
+}
