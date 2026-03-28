@@ -126,6 +126,21 @@ class TestBlockDangerousShellExec:
         result = await engine.evaluate(event)
         assert result.allowed is True
 
+    async def test_no_false_positive_substring_match(self, db_session: AsyncSession):
+        """Pattern appearing as substring of a word should NOT trigger a block."""
+        engine = RuleEngine(db_session)
+        event = _make_event(event_type="shell_exec", target="cat remove-rfid-tags.txt")
+        result = await engine.evaluate(event)
+        assert result.allowed is True
+
+    async def test_block_chained_dangerous_command(self, db_session: AsyncSession):
+        """Dangerous command after && or ; should still be blocked."""
+        engine = RuleEngine(db_session)
+        event = _make_event(event_type="shell_exec", target="echo hello && sudo reboot")
+        result = await engine.evaluate(event)
+        assert result.allowed is False
+        assert "sudo" in result.reason
+
 
 # --- Built-in rule: warn on cost threshold ---
 

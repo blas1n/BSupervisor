@@ -1,5 +1,7 @@
 """Rule engine for evaluating agent actions against safety rules."""
 
+import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -18,6 +20,10 @@ logger = structlog.get_logger(__name__)
 
 SENSITIVE_EXTENSIONS = (".env", ".key", ".pem")
 DANGEROUS_SHELL_PATTERNS = ("sudo", "rm -rf", "chmod 777")
+
+_rules_cache: list[AuditRule] | None = None
+_rules_cache_ts: float = 0.0
+_RULES_CACHE_TTL = 30.0  # seconds
 
 
 @dataclass
@@ -84,8 +90,10 @@ class RuleEngine:
         if event.event_type != "shell_exec":
             return RuleResult(allowed=True)
 
+        target_lower = event.target.lower()
         for pattern in DANGEROUS_SHELL_PATTERNS:
-            if pattern in event.target:
+            # Check if pattern appears as a distinct command segment
+            if re.search(r'(?:^|\s|;|&&|\|\|)' + re.escape(pattern), target_lower):
                 return RuleResult(
                     allowed=False,
                     rule_name="builtin:block_dangerous_shell",
@@ -94,9 +102,16 @@ class RuleEngine:
         return RuleResult(allowed=True)
 
     async def _check_db_rules(self, event: AuditEvent) -> RuleResult:
-        stmt = select(AuditRule).where(AuditRule.enabled.is_(True))
-        result = await self.session.execute(stmt)
-        rules = result.scalars().all()
+        global _rules_cache, _rules_cache_ts  # noqa: PLW0603
+
+        now = time.monotonic()
+        if _rules_cache is None or (now - _rules_cache_ts) >= _RULES_CACHE_TTL:
+            stmt = select(AuditRule).where(AuditRule.enabled.is_(True))
+            result = await self.session.execute(stmt)
+            _rules_cache = list(result.scalars().all())
+            _rules_cache_ts = now
+
+        rules = _rules_cache
 
         for rule in rules:
             if self._condition_matches(event, rule.condition):
