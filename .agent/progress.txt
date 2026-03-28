@@ -36,3 +36,14 @@ Started: 2026-03-28T09:41:27Z
 - 23 new tests covering: block, warn, allow, DB rules, disabled rules, API integration
 - Total: 39 tests passing, 96% coverage, ruff clean
 
+## TASK-004: Cost tracking — DONE
+- Created bsupervisor/core/cost_tracker.py with CostTracker class
+  - record_cost(): creates CostRecord with timestamp, commits, returns record
+  - get_daily_cost(agent_id, date): aggregates cost_usd for agent on given date
+  - get_daily_total(date): aggregates cost_usd across all agents on given date
+  - Uses func.coalesce to return Decimal("0") when no records exist
+- Added Pydantic schemas: CostRequest (with ge=0 validation on tokens), CostResponse
+- Created POST /api/costs endpoint (201 status) in bsupervisor/api/costs.py
+- Wired costs router into main.py
+- 14 new tests: record creation, multi-record, daily cost filtering by agent/date, daily total, API valid/invalid/persistence/precision
+- Total: 53 tests passing, 97% coverage, ruff clean

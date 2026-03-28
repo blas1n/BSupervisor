@@ -30,7 +30,7 @@
       "title": "Cost tracking",
       "description": "Create bsupervisor/core/cost_tracker.py. CostTracker class: async record_cost(agent_id, model, tokens_in, tokens_out, cost_usd) -> None, async get_daily_cost(agent_id, date) -> Decimal, async get_daily_total(date) -> Decimal. Store in cost_records table. Add POST /api/costs endpoint for cost event ingestion. Write tests first.",
       "acceptanceCriteria": "Cost events are stored and aggregated. Daily cost per agent and total are queryable. Tests verify recording and aggregation with Decimal precision.",
-      "passes": false,
+      "passes": true,
       "priority": 4
     },
     {

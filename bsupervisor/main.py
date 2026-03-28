@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from bsupervisor.api.costs import router as costs_router
 from bsupervisor.api.events import router as events_router
 
 app = FastAPI(
@@ -9,6 +10,7 @@ app = FastAPI(
 )
 
 app.include_router(events_router)
+app.include_router(costs_router)
 
 
 @app.get("/api/health")
