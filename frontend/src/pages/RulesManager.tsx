@@ -245,10 +245,10 @@ export function RulesManager() {
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="rule-modal-title">
           <div className="w-full max-w-lg rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-50">
+              <h3 id="rule-modal-title" className="text-base font-semibold text-gray-50">
                 {editingId ? "Edit Rule" : "Create Rule"}
               </h3>
               <button

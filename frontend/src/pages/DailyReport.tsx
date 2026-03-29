@@ -8,8 +8,18 @@ import {
 } from "lucide-react";
 import { mockDailyReport } from "../lib/mock-data";
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function parseMarkdown(md: string): string {
-  let html = md;
+  // Escape HTML entities first to prevent XSS
+  let html = escapeHtml(md);
 
   // Headers
   html = html.replace(

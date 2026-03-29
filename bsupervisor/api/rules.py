@@ -78,8 +78,11 @@ async def update_rule(
     if rule is None:
         raise HTTPException(status_code=404, detail="Rule not found")
 
+    _ALLOWED_UPDATE_FIELDS = {"name", "description", "condition", "action", "enabled"}
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
+        if field not in _ALLOWED_UPDATE_FIELDS:
+            continue
         setattr(rule, field, value)
 
     await session.commit()

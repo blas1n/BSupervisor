@@ -1,10 +1,8 @@
 """Tests for SQLAlchemy models."""
 
-import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

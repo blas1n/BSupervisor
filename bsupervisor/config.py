@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,12 +15,12 @@ class Settings(BaseSettings):
     supabase_url: str = ""
 
     # Cost alerts
-    daily_cost_threshold_usd: str = "50.00"
+    daily_cost_threshold_usd: Decimal = Decimal("50.00")
 
     # Webhook (optional)
     webhook_url: str = ""
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 settings = Settings()

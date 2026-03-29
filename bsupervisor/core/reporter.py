@@ -129,9 +129,8 @@ class Reporter:
         return result.scalar_one()
 
     async def _sum_costs(self, start: datetime, end: datetime) -> Decimal:
-        stmt = (
-            select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0")))
-            .where(CostRecord.timestamp >= start, CostRecord.timestamp <= end)
+        stmt = select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0"))).where(
+            CostRecord.timestamp >= start, CostRecord.timestamp <= end
         )
         result = await self._session.execute(stmt)
         return result.scalar_one()

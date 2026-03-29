@@ -21,17 +21,16 @@ export function AuthCallback() {
       searchParams.get("access_token");
     const email =
       hashParams.get("email") ||
-      searchParams.get("email") ||
-      "user@bsvibe.dev";
+      searchParams.get("email");
     const name =
       hashParams.get("name") || searchParams.get("name") || undefined;
 
-    if (token) {
+    if (token && email) {
       setAuth(token, { email, name });
       navigate("/", { replace: true });
     } else {
       const err = searchParams.get("error");
-      setError(err || "Authentication failed. No token received.");
+      setError(err || "Authentication failed. No token or email received.");
     }
   }, [searchParams, setAuth, navigate]);
 

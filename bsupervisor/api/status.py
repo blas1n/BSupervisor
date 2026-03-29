@@ -28,7 +28,9 @@ async def get_status(
 
     total_events = (
         await session.execute(
-            select(func.count()).select_from(AuditEvent).where(AuditEvent.timestamp >= start, AuditEvent.timestamp <= end)
+            select(func.count())
+            .select_from(AuditEvent)
+            .where(AuditEvent.timestamp >= start, AuditEvent.timestamp <= end)
         )
     ).scalar_one()
 

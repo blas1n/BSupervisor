@@ -4,7 +4,6 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bsupervisor.models.audit_event import AuditEvent

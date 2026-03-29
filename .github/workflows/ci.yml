@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  lint-and-test:
+  backend:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,10 +24,32 @@ jobs:
         run: uv sync --dev
 
       - name: Lint check
-        run: uv run ruff check bsupervisor/
+        run: uv run ruff check bsupervisor/ tests/
 
       - name: Format check
-        run: uv run ruff format --check bsupervisor/
+        run: uv run ruff format --check bsupervisor/ tests/
 
       - name: Run tests with coverage
         run: uv run pytest tests/ --cov=bsupervisor --cov-fail-under=80
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: cd frontend && pnpm install --frozen-lockfile
+
+      - name: Type check and build
+        run: cd frontend && pnpm build

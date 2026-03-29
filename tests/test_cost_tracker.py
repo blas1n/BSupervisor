@@ -3,7 +3,6 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,12 +71,20 @@ class TestCostTrackerGetDailyCost:
         today = datetime.now(timezone.utc).date()
 
         record1 = CostRecord(
-            agent_id="agent-1", model="gpt-4", tokens_in=100, tokens_out=50,
-            cost_usd=Decimal("0.005"), timestamp=datetime.now(timezone.utc),
+            agent_id="agent-1",
+            model="gpt-4",
+            tokens_in=100,
+            tokens_out=50,
+            cost_usd=Decimal("0.005"),
+            timestamp=datetime.now(timezone.utc),
         )
         record2 = CostRecord(
-            agent_id="agent-2", model="gpt-4", tokens_in=200, tokens_out=100,
-            cost_usd=Decimal("0.010"), timestamp=datetime.now(timezone.utc),
+            agent_id="agent-2",
+            model="gpt-4",
+            tokens_in=200,
+            tokens_out=100,
+            cost_usd=Decimal("0.010"),
+            timestamp=datetime.now(timezone.utc),
         )
         db_session.add_all([record1, record2])
         await db_session.commit()
@@ -94,7 +101,10 @@ class TestCostTrackerGetDailyCost:
         tracker = CostTracker(db_session)
 
         record = CostRecord(
-            agent_id="agent-1", model="gpt-4", tokens_in=100, tokens_out=50,
+            agent_id="agent-1",
+            model="gpt-4",
+            tokens_in=100,
+            tokens_out=50,
             cost_usd=Decimal("0.005"),
             timestamp=datetime(2025, 1, 15, 12, 0, 0, tzinfo=timezone.utc),
         )
@@ -114,12 +124,20 @@ class TestCostTrackerGetDailyTotal:
         today = datetime.now(timezone.utc).date()
 
         record1 = CostRecord(
-            agent_id="agent-1", model="gpt-4", tokens_in=100, tokens_out=50,
-            cost_usd=Decimal("0.005"), timestamp=datetime.now(timezone.utc),
+            agent_id="agent-1",
+            model="gpt-4",
+            tokens_in=100,
+            tokens_out=50,
+            cost_usd=Decimal("0.005"),
+            timestamp=datetime.now(timezone.utc),
         )
         record2 = CostRecord(
-            agent_id="agent-2", model="claude-3", tokens_in=200, tokens_out=100,
-            cost_usd=Decimal("0.010"), timestamp=datetime.now(timezone.utc),
+            agent_id="agent-2",
+            model="claude-3",
+            tokens_in=200,
+            tokens_out=100,
+            cost_usd=Decimal("0.010"),
+            timestamp=datetime.now(timezone.utc),
         )
         db_session.add_all([record1, record2])
         await db_session.commit()
@@ -135,13 +153,16 @@ class TestCostTrackerGetDailyTotal:
 
 class TestCostAPI:
     async def test_post_cost_valid(self, client) -> None:
-        resp = await client.post("/api/costs", json={
-            "agent_id": "agent-1",
-            "model": "gpt-4",
-            "tokens_in": 100,
-            "tokens_out": 50,
-            "cost_usd": "0.005",
-        })
+        resp = await client.post(
+            "/api/costs",
+            json={
+                "agent_id": "agent-1",
+                "model": "gpt-4",
+                "tokens_in": 100,
+                "tokens_out": 50,
+                "cost_usd": "0.005",
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["agent_id"] == "agent-1"
@@ -152,20 +173,26 @@ class TestCostAPI:
         assert "cost_id" in data
 
     async def test_post_cost_missing_field(self, client) -> None:
-        resp = await client.post("/api/costs", json={
-            "agent_id": "agent-1",
-            "model": "gpt-4",
-        })
+        resp = await client.post(
+            "/api/costs",
+            json={
+                "agent_id": "agent-1",
+                "model": "gpt-4",
+            },
+        )
         assert resp.status_code == 422
 
     async def test_post_cost_persists_to_db(self, client, db_session: AsyncSession) -> None:
-        await client.post("/api/costs", json={
-            "agent_id": "agent-1",
-            "model": "gpt-4",
-            "tokens_in": 100,
-            "tokens_out": 50,
-            "cost_usd": "0.005",
-        })
+        await client.post(
+            "/api/costs",
+            json={
+                "agent_id": "agent-1",
+                "model": "gpt-4",
+                "tokens_in": 100,
+                "tokens_out": 50,
+                "cost_usd": "0.005",
+            },
+        )
 
         result = await db_session.execute(select(CostRecord))
         record = result.scalar_one()
@@ -173,33 +200,42 @@ class TestCostAPI:
         assert record.cost_usd == Decimal("0.005")
 
     async def test_post_cost_negative_tokens_rejected(self, client) -> None:
-        resp = await client.post("/api/costs", json={
-            "agent_id": "agent-1",
-            "model": "gpt-4",
-            "tokens_in": -1,
-            "tokens_out": 50,
-            "cost_usd": "0.005",
-        })
+        resp = await client.post(
+            "/api/costs",
+            json={
+                "agent_id": "agent-1",
+                "model": "gpt-4",
+                "tokens_in": -1,
+                "tokens_out": 50,
+                "cost_usd": "0.005",
+            },
+        )
         assert resp.status_code == 422
 
     async def test_post_cost_extra_fields_rejected(self, client) -> None:
-        resp = await client.post("/api/costs", json={
-            "agent_id": "agent-1",
-            "model": "gpt-4",
-            "tokens_in": 100,
-            "tokens_out": 50,
-            "cost_usd": "0.005",
-            "extra_field": "bad",
-        })
+        resp = await client.post(
+            "/api/costs",
+            json={
+                "agent_id": "agent-1",
+                "model": "gpt-4",
+                "tokens_in": 100,
+                "tokens_out": 50,
+                "cost_usd": "0.005",
+                "extra_field": "bad",
+            },
+        )
         assert resp.status_code == 422
 
     async def test_post_cost_decimal_precision(self, client) -> None:
-        resp = await client.post("/api/costs", json={
-            "agent_id": "agent-1",
-            "model": "gpt-4",
-            "tokens_in": 100,
-            "tokens_out": 50,
-            "cost_usd": "0.00000123",
-        })
+        resp = await client.post(
+            "/api/costs",
+            json={
+                "agent_id": "agent-1",
+                "model": "gpt-4",
+                "tokens_in": 100,
+                "tokens_out": 50,
+                "cost_usd": "0.00000123",
+            },
+        )
         assert resp.status_code == 201
         assert resp.json()["cost_usd"] == "0.00000123"

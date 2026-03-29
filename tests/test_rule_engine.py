@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bsupervisor.core.rule_engine import RuleEngine, RuleResult, invalidate_rules_cache
@@ -358,20 +357,26 @@ class TestInvalidateRulesCache:
         rule_engine_mod._rules_cache = [AuditRule(name="old", description="old", condition={}, action="log")]
         rule_engine_mod._rules_cache_ts = 999.0
 
-        await client.post("/api/rules", json={
-            "name": "new-rule",
-            "description": "A new rule",
-            "condition": {"event_type": "test"},
-            "action": "block",
-        })
+        await client.post(
+            "/api/rules",
+            json={
+                "name": "new-rule",
+                "description": "A new rule",
+                "condition": {"event_type": "test"},
+                "action": "block",
+            },
+        )
 
         assert rule_engine_mod._rules_cache is None
 
     async def test_cache_invalidated_on_rule_update(self, client, db_session: AsyncSession):
         """Updating a rule should invalidate the cache."""
         rule = AuditRule(
-            name="update-me", description="desc",
-            condition={"event_type": "test"}, action="warn", enabled=True,
+            name="update-me",
+            description="desc",
+            condition={"event_type": "test"},
+            action="warn",
+            enabled=True,
         )
         db_session.add(rule)
         await db_session.commit()
@@ -387,8 +392,11 @@ class TestInvalidateRulesCache:
     async def test_cache_invalidated_on_rule_delete(self, client, db_session: AsyncSession):
         """Deleting a rule should invalidate the cache."""
         rule = AuditRule(
-            name="delete-me", description="desc",
-            condition={"event_type": "test"}, action="block", enabled=True,
+            name="delete-me",
+            description="desc",
+            condition={"event_type": "test"},
+            action="block",
+            enabled=True,
         )
         db_session.add(rule)
         await db_session.commit()

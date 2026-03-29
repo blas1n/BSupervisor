@@ -1,5 +1,6 @@
 """Rule engine for evaluating agent actions against safety rules."""
 
+import asyncio
 import re
 import time
 from dataclasses import dataclass
@@ -24,6 +25,7 @@ DANGEROUS_SHELL_PATTERNS = ("sudo", "rm -rf", "chmod 777")
 _rules_cache: list[AuditRule] | None = None
 _rules_cache_ts: float = 0.0
 _RULES_CACHE_TTL = 30.0  # seconds
+_rules_cache_lock = asyncio.Lock()
 
 
 def invalidate_rules_cache() -> None:
@@ -47,7 +49,7 @@ class RuleEngine:
         daily_cost_threshold: Decimal | None = None,
     ) -> None:
         self.session = session
-        self.daily_cost_threshold = daily_cost_threshold or Decimal(settings.daily_cost_threshold_usd)
+        self.daily_cost_threshold = daily_cost_threshold or settings.daily_cost_threshold_usd
 
     async def evaluate(self, event: AuditEvent) -> RuleResult:
         """Evaluate an event against all rules. Returns the first matching result."""
@@ -100,7 +102,7 @@ class RuleEngine:
         target_lower = event.target.lower()
         for pattern in DANGEROUS_SHELL_PATTERNS:
             # Check if pattern appears as a distinct command segment
-            if re.search(r'(?:^|\s|;|&&|\|\|)' + re.escape(pattern), target_lower):
+            if re.search(r"(?:^|\s|;|&&|\|\|)" + re.escape(pattern), target_lower):
                 return RuleResult(
                     allowed=False,
                     rule_name="builtin:block_dangerous_shell",
@@ -113,10 +115,13 @@ class RuleEngine:
 
         now = time.monotonic()
         if _rules_cache is None or (now - _rules_cache_ts) >= _RULES_CACHE_TTL:
-            stmt = select(AuditRule).where(AuditRule.enabled.is_(True))
-            result = await self.session.execute(stmt)
-            _rules_cache = list(result.scalars().all())
-            _rules_cache_ts = now
+            async with _rules_cache_lock:
+                # Double-check after acquiring lock
+                if _rules_cache is None or (time.monotonic() - _rules_cache_ts) >= _RULES_CACHE_TTL:
+                    stmt = select(AuditRule).where(AuditRule.enabled.is_(True))
+                    result = await self.session.execute(stmt)
+                    _rules_cache = list(result.scalars().all())
+                    _rules_cache_ts = time.monotonic()
 
         rules = _rules_cache
 
