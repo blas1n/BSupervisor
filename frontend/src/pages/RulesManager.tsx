@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -7,10 +7,16 @@ import {
   Pencil,
   Trash2,
   Filter,
+  Loader2,
 } from "lucide-react";
 import { SeverityBadge } from "../components/SeverityBadge";
 import { cn, formatNumber } from "../lib/utils";
-import { mockRules } from "../lib/mock-data";
+import {
+  fetchRules,
+  createRule,
+  updateRule,
+  deleteRule as apiDeleteRule,
+} from "../lib/api";
 import type { Rule } from "../lib/api";
 
 const ruleTypes = ["action", "pattern", "rate", "cost"];
@@ -36,12 +42,30 @@ const emptyForm: RuleFormData = {
 };
 
 export function RulesManager() {
-  const [rules, setRules] = useState<Rule[]>(mockRules);
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<RuleFormData>(emptyForm);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    loadRules();
+  }, []);
+
+  async function loadRules() {
+    try {
+      const data = await fetchRules();
+      setRules(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load rules");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filtered = rules.filter((r) => {
     const matchesSearch =
@@ -70,31 +94,57 @@ export function RulesManager() {
     setModalOpen(true);
   }
 
-  function handleSave() {
-    if (editingId) {
-      setRules((prev) =>
-        prev.map((r) => (r.id === editingId ? { ...r, ...form } : r)),
-      );
-    } else {
-      const newRule: Rule = {
-        id: `rule-${Date.now()}`,
-        ...form,
-        enabled: true,
-        built_in: false,
-        hit_count: 0,
-      };
-      setRules((prev) => [...prev, newRule]);
+  async function handleSave() {
+    setSaving(true);
+    try {
+      if (editingId) {
+        const updated = await updateRule(editingId, form);
+        setRules((prev) => prev.map((r) => (r.id === editingId ? updated : r)));
+      } else {
+        const created = await createRule(form);
+        setRules((prev) => [...prev, created]);
+      }
+      setModalOpen(false);
+    } catch {
+      // keep modal open on error
+    } finally {
+      setSaving(false);
     }
-    setModalOpen(false);
   }
 
-  function handleDelete(id: string) {
-    setRules((prev) => prev.filter((r) => r.id !== id));
+  async function handleDelete(id: string) {
+    try {
+      await apiDeleteRule(id);
+      setRules((prev) => prev.filter((r) => r.id !== id));
+    } catch {
+      // ignore
+    }
   }
 
-  function toggleEnabled(id: string) {
-    setRules((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)),
+  async function toggleEnabled(id: string) {
+    const rule = rules.find((r) => r.id === id);
+    if (!rule) return;
+    try {
+      const updated = await updateRule(id, { enabled: !rule.enabled });
+      setRules((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    } catch {
+      // ignore
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-accent/30 bg-accent/10 px-4 py-8 text-center text-sm text-accent">
+        {error}
+      </div>
     );
   }
 
@@ -235,7 +285,7 @@ export function RulesManager() {
                   colSpan={8}
                   className="px-5 py-8 text-center text-sm text-gray-500"
                 >
-                  No rules match your search
+                  {rules.length === 0 ? "No rules configured" : "No rules match your search"}
                 </td>
               </tr>
             )}
@@ -369,10 +419,10 @@ export function RulesManager() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={!form.name || !form.pattern}
+                disabled={!form.name || !form.pattern || saving}
                 className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-dark disabled:opacity-40"
               >
-                {editingId ? "Update" : "Create"}
+                {saving ? "Saving..." : editingId ? "Update" : "Create"}
               </button>
             </div>
           </div>

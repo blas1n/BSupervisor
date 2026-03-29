@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -17,17 +17,17 @@ import {
   ShieldCheck,
   CircleDot,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { StatCard } from "../components/StatCard";
 import { SeverityBadge } from "../components/SeverityBadge";
 import { formatNumber, formatTime, eventSeverityColor, cn } from "../lib/utils";
 import {
-  mockStatus,
-  mockTimelineData,
-  mockEvents,
-  mockTopRules,
-} from "../lib/mock-data";
-import type { StatusMetrics, Event } from "../lib/api";
+  fetchStatus,
+  fetchEvents,
+  fetchRules,
+} from "../lib/api";
+import type { StatusMetrics, Event, Rule } from "../lib/api";
 
 function SeverityIcon({ severity }: { severity: string }) {
   const color = eventSeverityColor(severity);
@@ -41,14 +41,74 @@ function SeverityIcon({ severity }: { severity: string }) {
   }
 }
 
+function buildTimelineData(events: Event[]) {
+  const buckets: Record<string, { safe: number; warning: number; blocked: number }> = {};
+  const now = new Date();
+  for (let i = 23; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 3600000);
+    const hour = `${String(d.getHours()).padStart(2, "0")}:00`;
+    buckets[hour] = { safe: 0, warning: 0, blocked: 0 };
+  }
+  for (const event of events) {
+    const d = new Date(event.timestamp);
+    const hour = `${String(d.getHours()).padStart(2, "0")}:00`;
+    if (buckets[hour]) {
+      buckets[hour][event.severity]++;
+    }
+  }
+  return Object.entries(buckets).map(([hour, counts]) => ({ hour, ...counts }));
+}
+
+function buildTopRules(rules: Rule[]) {
+  return [...rules]
+    .sort((a, b) => b.hit_count - a.hit_count)
+    .slice(0, 5)
+    .map((r) => ({ name: r.name, hits: r.hit_count, severity: r.severity }));
+}
+
 export function Dashboard() {
-  const [status, setStatus] = useState<StatusMetrics>(mockStatus);
-  const [events, setEvents] = useState<Event[]>(mockEvents);
+  const [status, setStatus] = useState<StatusMetrics | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setStatus(mockStatus);
-    setEvents(mockEvents);
+    async function load() {
+      try {
+        const [s, e, r] = await Promise.all([fetchStatus(), fetchEvents(), fetchRules()]);
+        setStatus(s);
+        setEvents(e);
+        setRules(r);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
+
+  const timelineData = useMemo(() => buildTimelineData(events), [events]);
+  const topRules = useMemo(() => buildTopRules(rules), [rules]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-accent/30 bg-accent/10 px-4 py-8 text-center text-sm text-accent">
+        {error}
+      </div>
+    );
+  }
+
+  if (!status) return null;
 
   const hasCriticalViolations = status.violations > 0;
 
@@ -123,7 +183,7 @@ export function Dashboard() {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockTimelineData}>
+              <AreaChart data={timelineData}>
                 <defs>
                   <linearGradient id="gradSafe" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
@@ -196,33 +256,37 @@ export function Dashboard() {
             </span>
           </div>
           <div className="h-64 space-y-0.5 overflow-y-auto pr-1">
-            {events.slice(0, 20).map((event) => (
-              <div
-                key={event.id}
-                className="flex items-start gap-2.5 rounded-md px-2.5 py-2 transition-colors hover:bg-gray-850"
-              >
-                <SeverityIcon severity={event.severity} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-xs font-medium text-gray-100">
-                      {event.action}
-                    </p>
-                    <span className="flex-shrink-0 font-mono text-[10px] text-gray-500">
-                      {formatTime(event.timestamp)}
-                    </span>
-                  </div>
-                  <p className="truncate text-[11px] text-gray-500">
-                    {event.agent_id}
-                    {event.rule_name && (
-                      <span className="text-gray-600">
-                        {" "}
-                        &middot; {event.rule_name}
+            {events.length === 0 ? (
+              <p className="py-8 text-center text-sm text-gray-500">No events yet</p>
+            ) : (
+              events.slice(0, 20).map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-start gap-2.5 rounded-md px-2.5 py-2 transition-colors hover:bg-gray-850"
+                >
+                  <SeverityIcon severity={event.severity} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-xs font-medium text-gray-100">
+                        {event.action}
+                      </p>
+                      <span className="flex-shrink-0 font-mono text-[10px] text-gray-500">
+                        {formatTime(event.timestamp)}
                       </span>
-                    )}
-                  </p>
+                    </div>
+                    <p className="truncate text-[11px] text-gray-500">
+                      {event.agent_id}
+                      {event.rule_name && (
+                        <span className="text-gray-600">
+                          {" "}
+                          &middot; {event.rule_name}
+                        </span>
+                      )}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -232,36 +296,40 @@ export function Dashboard() {
         <h2 className="mb-4 text-sm font-semibold text-gray-300">
           Top Triggered Rules
         </h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-800 text-left text-xs font-medium text-gray-500">
-              <th className="pb-3 pr-4">Rule</th>
-              <th className="pb-3 pr-4">Severity</th>
-              <th className="pb-3 text-right">Hits</th>
-            </tr>
-          </thead>
-          <tbody>
-            {mockTopRules.map((rule) => (
-              <tr
-                key={rule.name}
-                className="border-b border-gray-800/50 last:border-0"
-              >
-                <td className="py-3 pr-4 font-medium text-gray-100">
-                  <div className="flex items-center gap-2">
-                    <CircleDot className="h-3.5 w-3.5 text-gray-500" />
-                    {rule.name}
-                  </div>
-                </td>
-                <td className="py-3 pr-4">
-                  <SeverityBadge severity={rule.severity} />
-                </td>
-                <td className="py-3 text-right font-mono text-gray-300">
-                  {formatNumber(rule.hits)}
-                </td>
+        {topRules.length === 0 ? (
+          <p className="py-4 text-center text-sm text-gray-500">No rules configured</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-800 text-left text-xs font-medium text-gray-500">
+                <th className="pb-3 pr-4">Rule</th>
+                <th className="pb-3 pr-4">Severity</th>
+                <th className="pb-3 text-right">Hits</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {topRules.map((rule) => (
+                <tr
+                  key={rule.name}
+                  className="border-b border-gray-800/50 last:border-0"
+                >
+                  <td className="py-3 pr-4 font-medium text-gray-100">
+                    <div className="flex items-center gap-2">
+                      <CircleDot className="h-3.5 w-3.5 text-gray-500" />
+                      {rule.name}
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4">
+                    <SeverityBadge severity={rule.severity} />
+                  </td>
+                  <td className="py-3 text-right font-mono text-gray-300">
+                    {formatNumber(rule.hits)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

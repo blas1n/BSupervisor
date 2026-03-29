@@ -1,12 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   Download,
   FileText,
   Calendar,
+  Loader2,
 } from "lucide-react";
-import { mockDailyReport } from "../lib/mock-data";
+import { fetchDailyReport } from "../lib/api";
+import type { DailyReportData } from "../lib/api";
 
 function escapeHtml(text: string): string {
   return text
@@ -102,12 +104,34 @@ function parseMarkdown(md: string): string {
 export function DailyReport() {
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
+  const [report, setReport] = useState<DailyReportData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const report = mockDailyReport;
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchDailyReport(date);
+        if (!cancelled) setReport(data);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load report");
+          setReport(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [date]);
 
   const renderedHtml = useMemo(
-    () => parseMarkdown(report.markdown),
-    [report.markdown],
+    () => (report ? parseMarkdown(report.markdown) : ""),
+    [report],
   );
 
   function changeDate(delta: number) {
@@ -164,10 +188,24 @@ export function DailyReport() {
 
       {/* Report card */}
       <div className="rounded-xl border border-gray-800 bg-gray-900 p-8">
-        <div
-          className="prose-dark"
-          dangerouslySetInnerHTML={{ __html: renderedHtml }}
-        />
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+          </div>
+        ) : error ? (
+          <p className="py-12 text-center text-sm text-gray-500">
+            No report available for this date
+          </p>
+        ) : report ? (
+          <div
+            className="prose-dark"
+            dangerouslySetInnerHTML={{ __html: renderedHtml }}
+          />
+        ) : (
+          <p className="py-12 text-center text-sm text-gray-500">
+            No report available for this date
+          </p>
+        )}
       </div>
     </div>
   );

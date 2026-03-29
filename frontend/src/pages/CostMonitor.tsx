@@ -9,9 +9,9 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
+import { DollarSign, TrendingUp, AlertTriangle, Loader2 } from "lucide-react";
 import { cn, formatNumber } from "../lib/utils";
-import { mockCosts } from "../lib/mock-data";
+import { fetchCosts } from "../lib/api";
 import type { CostData } from "../lib/api";
 
 function Sparkline({ data, anomaly }: { data: number[]; anomaly?: boolean }) {
@@ -44,11 +44,39 @@ function Sparkline({ data, anomaly }: { data: number[]; anomaly?: boolean }) {
 }
 
 export function CostMonitor() {
-  const [costs, setCosts] = useState<CostData>(mockCosts);
+  const [costs, setCosts] = useState<CostData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setCosts(mockCosts);
+    async function load() {
+      try {
+        const data = await fetchCosts();
+        setCosts(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load cost data");
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  if (error || !costs) {
+    return (
+      <div className="rounded-lg border border-accent/30 bg-accent/10 px-4 py-8 text-center text-sm text-accent">
+        {error ?? "No cost data available"}
+      </div>
+    );
+  }
 
   const isOverBudget = costs.budget_percentage > 100;
   const isWarning = costs.budget_percentage > 80;
@@ -189,63 +217,67 @@ export function CostMonitor() {
         <h2 className="mb-4 text-sm font-semibold text-gray-300">
           Cost Breakdown by Agent
         </h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-800 text-left text-xs font-medium text-gray-500">
-              <th className="pb-3 pr-4">Agent</th>
-              <th className="pb-3 pr-4 text-right">Requests</th>
-              <th className="pb-3 pr-4 text-right">Tokens</th>
-              <th className="pb-3 pr-4 text-right">Cost</th>
-              <th className="pb-3 pr-4 text-right">%</th>
-              <th className="pb-3 text-right">7d Trend</th>
-            </tr>
-          </thead>
-          <tbody>
-            {costs.agents.map((agent) => {
-              const isAnomaly = costs.anomalies.includes(agent.agent_id);
-              return (
-                <tr
-                  key={agent.agent_id}
-                  className={cn(
-                    "border-b border-gray-800/50 last:border-0",
-                    isAnomaly && "bg-accent/5",
-                  )}
-                >
-                  <td className="py-3.5 pr-4">
-                    <div className="flex items-center gap-2">
-                      {isAnomaly && (
-                        <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-accent" />
-                      )}
-                      <span className="font-medium text-gray-100">
-                        {agent.agent_name}
-                      </span>
-                      {isAnomaly && (
-                        <span className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">
-                          Anomaly
+        {costs.agents.length === 0 ? (
+          <p className="py-4 text-center text-sm text-gray-500">No agent cost data</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-800 text-left text-xs font-medium text-gray-500">
+                <th className="pb-3 pr-4">Agent</th>
+                <th className="pb-3 pr-4 text-right">Requests</th>
+                <th className="pb-3 pr-4 text-right">Tokens</th>
+                <th className="pb-3 pr-4 text-right">Cost</th>
+                <th className="pb-3 pr-4 text-right">%</th>
+                <th className="pb-3 text-right">7d Trend</th>
+              </tr>
+            </thead>
+            <tbody>
+              {costs.agents.map((agent) => {
+                const isAnomaly = costs.anomalies.includes(agent.agent_id);
+                return (
+                  <tr
+                    key={agent.agent_id}
+                    className={cn(
+                      "border-b border-gray-800/50 last:border-0",
+                      isAnomaly && "bg-accent/5",
+                    )}
+                  >
+                    <td className="py-3.5 pr-4">
+                      <div className="flex items-center gap-2">
+                        {isAnomaly && (
+                          <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-accent" />
+                        )}
+                        <span className="font-medium text-gray-100">
+                          {agent.agent_name}
                         </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-3.5 pr-4 text-right font-mono text-gray-300">
-                    {formatNumber(agent.requests)}
-                  </td>
-                  <td className="py-3.5 pr-4 text-right font-mono text-gray-300">
-                    {(agent.tokens / 1000).toFixed(0)}k
-                  </td>
-                  <td className="py-3.5 pr-4 text-right font-mono font-medium text-gray-100">
-                    {agent.cost}
-                  </td>
-                  <td className="py-3.5 pr-4 text-right text-gray-400">
-                    {agent.percentage.toFixed(1)}%
-                  </td>
-                  <td className="py-3.5 text-right">
-                    <Sparkline data={agent.daily_costs} anomaly={isAnomaly} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                        {isAnomaly && (
+                          <span className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+                            Anomaly
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3.5 pr-4 text-right font-mono text-gray-300">
+                      {formatNumber(agent.requests)}
+                    </td>
+                    <td className="py-3.5 pr-4 text-right font-mono text-gray-300">
+                      {(agent.tokens / 1000).toFixed(0)}k
+                    </td>
+                    <td className="py-3.5 pr-4 text-right font-mono font-medium text-gray-100">
+                      {agent.cost}
+                    </td>
+                    <td className="py-3.5 pr-4 text-right text-gray-400">
+                      {agent.percentage.toFixed(1)}%
+                    </td>
+                    <td className="py-3.5 text-right">
+                      <Sparkline data={agent.daily_costs} anomaly={isAnomaly} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
