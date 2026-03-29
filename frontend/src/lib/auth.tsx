@@ -10,14 +10,61 @@ interface AuthState {
 interface AuthContextValue extends AuthState {
   login: () => void;
   logout: () => void;
-  setAuth: (token: string, user: { email: string; name?: string }) => void;
+  setAuth: (token: string, user: { email: string; name?: string }, refreshToken?: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const AUTH_BASE = "https://auth.bsvibe.dev";
 const TOKEN_KEY = "bsupervisor_token";
+const REFRESH_TOKEN_KEY = "bsupervisor_refresh_token";
 const USER_KEY = "bsupervisor_user";
+
+/** Decode JWT payload without verification (browser-side, for display only). */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract access_token and refresh_token from the URL hash fragment.
+ * Returns null if no access_token is found.
+ * Cleans the hash from the URL after extraction.
+ */
+export function consumeHashTokens(): {
+  accessToken: string;
+  refreshToken: string | null;
+} | null {
+  const hash = window.location.hash.substring(1);
+  if (!hash) return null;
+
+  const params = new URLSearchParams(hash);
+  const accessToken = params.get("access_token");
+  if (!accessToken) return null;
+
+  const refreshToken = params.get("refresh_token");
+
+  // Clean hash from URL
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+
+  return { accessToken, refreshToken };
+}
+
+/** Extract user info from a JWT access token. */
+export function userFromToken(token: string): { email: string; name?: string } | null {
+  const payload = decodeJwtPayload(token);
+  if (!payload) return null;
+
+  const email = (payload.email ?? payload.sub ?? "") as string;
+  if (!email) return null;
+
+  const name = (payload.name ?? payload.user_name ?? undefined) as string | undefined;
+  return { email, name };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
@@ -50,14 +97,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setState({ token: null, user: null, isLoading: false });
   }, []);
 
   const setAuth = useCallback(
-    (token: string, user: { email: string; name?: string }) => {
+    (token: string, user: { email: string; name?: string }, refreshToken?: string) => {
       localStorage.setItem(TOKEN_KEY, token);
       localStorage.setItem(USER_KEY, JSON.stringify(user));
+      if (refreshToken) {
+        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      }
       setState({ token, user, isLoading: false });
     },
     [],

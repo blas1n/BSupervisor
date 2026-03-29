@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Shield, Loader2 } from "lucide-react";
-import { useAuth } from "../lib/auth";
+import { useAuth, consumeHashTokens, userFromToken } from "../lib/auth";
 
 export function AuthCallback() {
   const [searchParams] = useSearchParams();
@@ -10,28 +10,33 @@ export function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Extract from hash fragment first (OAuth implicit flow), fallback to query params
-    const hash = window.location.hash.substring(1);
-    const hashParams = new URLSearchParams(hash);
+    // 1. Try hash fragment first (OAuth implicit flow from auth.bsvibe.dev)
+    const hashResult = consumeHashTokens();
 
-    const token =
-      hashParams.get("access_token") ||
-      hashParams.get("token") ||
-      searchParams.get("token") ||
-      searchParams.get("access_token");
-    const email =
-      hashParams.get("email") ||
-      searchParams.get("email");
-    const name =
-      hashParams.get("name") || searchParams.get("name") || undefined;
+    if (hashResult) {
+      const user = userFromToken(hashResult.accessToken);
+      if (user) {
+        setAuth(hashResult.accessToken, user, hashResult.refreshToken ?? undefined);
+        navigate("/", { replace: true });
+        return;
+      }
+      // Token exists but no user info decodable — fall through to error
+    }
+
+    // 2. Fallback: query params (legacy or alternative flows)
+    const token = searchParams.get("access_token") || searchParams.get("token");
+    const email = searchParams.get("email");
 
     if (token && email) {
+      const name = searchParams.get("name") || undefined;
       setAuth(token, { email, name });
       navigate("/", { replace: true });
-    } else {
-      const err = searchParams.get("error");
-      setError(err || "Authentication failed. No token or email received.");
+      return;
     }
+
+    // 3. Error
+    const err = searchParams.get("error");
+    setError(err || "Authentication failed. No valid token received.");
   }, [searchParams, setAuth, navigate]);
 
   if (error) {

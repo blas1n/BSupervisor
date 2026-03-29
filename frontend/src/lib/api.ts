@@ -20,6 +20,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("bsupervisor_token");
+      localStorage.removeItem("bsupervisor_refresh_token");
       localStorage.removeItem("bsupervisor_user");
       window.location.href = "/login";
     }
