@@ -16,9 +16,9 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const AUTH_BASE = "https://auth.bsvibe.dev";
-const TOKEN_KEY = "bsupervisor_token";
-const REFRESH_TOKEN_KEY = "bsupervisor_refresh_token";
-const USER_KEY = "bsupervisor_user";
+export const TOKEN_KEY = "bsupervisor_token";
+export const REFRESH_TOKEN_KEY = "bsupervisor_refresh_token";
+export const USER_KEY = "bsupervisor_user";
 
 /** Decode JWT payload without verification (browser-side, for display only). */
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
@@ -82,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState({ token, user, isLoading: false });
       } catch {
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
         setState({ token: null, user: null, isLoading: false });
       }

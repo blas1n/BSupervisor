@@ -1,4 +1,5 @@
 import axios from "axios";
+import { TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from "./auth";
 
 const api = axios.create({
   baseURL: "/api",
@@ -7,7 +8,7 @@ const api = axios.create({
 
 // Attach auth token to every request
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("bsupervisor_token");
+  const token = localStorage.getItem(TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -19,9 +20,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("bsupervisor_token");
-      localStorage.removeItem("bsupervisor_refresh_token");
-      localStorage.removeItem("bsupervisor_user");
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
       window.location.href = "/login";
     }
     return Promise.reject(error);
