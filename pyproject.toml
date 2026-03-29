@@ -11,7 +11,7 @@ dependencies = [
     "pydantic>=2.5.0",
     "pydantic-settings>=2.0.0",
     "structlog>=23.0.0",
-    "bsvibe-auth[fastapi] @ git+https://github.com/blas1n/BSVibe-Auth.git@v0.2.0#subdirectory=python",
+    "bsvibe-auth[fastapi] @ git+https://github.com/blas1n/BSVibe-Auth.git@v0.4.0#subdirectory=python",
 ]
 
 [tool.pytest.ini_options]
