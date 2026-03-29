@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gray-50: #f2f3f7;
+  --color-gray-100: #e4e6ee;
+  --color-gray-200: #c8cbdb;
+  --color-gray-300: #a8adc6;
+  --color-gray-400: #8187a8;
+  --color-gray-500: #5a5f7d;
+  --color-gray-600: #3d4160;
+  --color-gray-700: #2a2d42;
+  --color-gray-800: #1e2033;
+  --color-gray-850: #181926;
+  --color-gray-900: #111218;
+  --color-gray-950: #0a0b0f;
+
+  --color-accent: #f43f5e;
+  --color-accent-light: #fb7185;
+  --color-accent-dark: #e11d48;
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-gray-950);
+  color: var(--color-gray-100);
+  margin: 0;
+}
+
+/* Recharts overrides */
+.recharts-cartesian-grid line {
+  stroke: var(--color-gray-800);
+}
+
+.recharts-text {
+  fill: var(--color-gray-400);
+  font-size: 12px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-gray-700);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gray-600);
+}
+
+/* Pulse animation for live indicators */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  border-color: var(--color-gray-700);
+  box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.05);
+}
