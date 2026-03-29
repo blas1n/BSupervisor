@@ -49,6 +49,7 @@ def do_run_migrations(connection) -> None:
 
 def run_migrations_online() -> None:
     import asyncio
+
     asyncio.run(run_async_migrations())
 
 
