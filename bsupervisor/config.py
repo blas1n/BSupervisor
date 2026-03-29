@@ -11,8 +11,7 @@ class Settings(BaseSettings):
 
     # Auth
     auth_provider: str = "local"
-    jwt_secret: str = ""
-    supabase_url: str = ""
+    bsvibe_auth_url: str = "https://auth.bsvibe.dev"
 
     # Cost alerts
     daily_cost_threshold_usd: Decimal = Decimal("50.00")
