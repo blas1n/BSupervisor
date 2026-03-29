@@ -51,6 +51,7 @@ export function RulesManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<RuleFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     loadRules();
@@ -78,10 +79,12 @@ export function RulesManager() {
   function openCreate() {
     setEditingId(null);
     setForm(emptyForm);
+    setSaveError(null);
     setModalOpen(true);
   }
 
   function openEdit(rule: Rule) {
+    setSaveError(null);
     setEditingId(rule.id);
     setForm({
       name: rule.name,
@@ -96,6 +99,7 @@ export function RulesManager() {
 
   async function handleSave() {
     setSaving(true);
+    setSaveError(null);
     try {
       if (editingId) {
         const updated = await updateRule(editingId, form);
@@ -105,30 +109,32 @@ export function RulesManager() {
         setRules((prev) => [...prev, created]);
       }
       setModalOpen(false);
-    } catch {
-      // keep modal open on error
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save rule");
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(id: string) {
+    const prev = rules;
+    setRules((r) => r.filter((rule) => rule.id !== id));
     try {
       await apiDeleteRule(id);
-      setRules((prev) => prev.filter((r) => r.id !== id));
     } catch {
-      // ignore
+      setRules(prev);
     }
   }
 
   async function toggleEnabled(id: string) {
     const rule = rules.find((r) => r.id === id);
     if (!rule) return;
+    const prev = rules;
+    setRules((r) => r.map((item) => (item.id === id ? { ...item, enabled: !item.enabled } : item)));
     try {
-      const updated = await updateRule(id, { enabled: !rule.enabled });
-      setRules((prev) => prev.map((r) => (r.id === id ? updated : r)));
+      await updateRule(id, { enabled: !rule.enabled });
     } catch {
-      // ignore
+      setRules(prev);
     }
   }
 
@@ -410,6 +416,9 @@ export function RulesManager() {
               </div>
             </div>
 
+            {saveError && (
+              <p className="mt-4 text-xs text-accent">{saveError}</p>
+            )}
             <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={() => setModalOpen(false)}
