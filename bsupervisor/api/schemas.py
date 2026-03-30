@@ -24,6 +24,16 @@ class EventResponse(BaseModel):
     reason: str | None = None
 
 
+class EventListItem(BaseModel):
+    id: str
+    timestamp: str
+    agent_id: str
+    action: str
+    severity: str
+    rule_name: str | None = None
+    details: str | None = None
+
+
 class CostRequest(BaseModel):
     agent_id: str = Field(..., min_length=1, max_length=255)
     model: str = Field(..., min_length=1, max_length=255)
@@ -43,6 +53,25 @@ class CostResponse(BaseModel):
     cost_usd: str
 
 
+class CostAgentEntry(BaseModel):
+    agent_id: str
+    agent_name: str
+    requests: int
+    tokens: int
+    cost: str
+    percentage: float
+    daily_costs: list[float]
+
+
+class CostDataResponse(BaseModel):
+    budget: str
+    spent: str
+    budget_percentage: float
+    trend: list[dict]
+    agents: list[CostAgentEntry]
+    anomalies: list[str]
+
+
 # ---------------------------------------------------------------------------
 # Status
 # ---------------------------------------------------------------------------
@@ -51,9 +80,10 @@ VALID_RULE_ACTIONS = {"block", "warn", "log"}
 
 
 class StatusResponse(BaseModel):
-    total_events_today: int
-    blocked_count_today: int
-    total_cost_today: str
+    events_today: int
+    violations: int
+    blocked_actions: int
+    cost_total: str
 
 
 # ---------------------------------------------------------------------------
@@ -63,30 +93,30 @@ class StatusResponse(BaseModel):
 
 class RuleCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    description: str = Field(..., min_length=1)
-    condition: dict
+    type: str = Field(default="pattern", min_length=1, max_length=50)
+    pattern: str = Field(default="", max_length=1024)
+    severity: str = Field(default="medium", min_length=1, max_length=50)
     action: str = Field(..., min_length=1, max_length=50)
+    description: str = Field(default="", max_length=2000)
     enabled: bool = True
 
     model_config = {"extra": "forbid"}
-
-    @classmethod
-    def model_validate(cls, *args, **kwargs):
-        obj = super().model_validate(*args, **kwargs)
-        if obj.action not in VALID_RULE_ACTIONS:
-            raise ValueError(f"action must be one of {VALID_RULE_ACTIONS}")
-        return obj
 
     def model_post_init(self, __context) -> None:
         if self.action not in VALID_RULE_ACTIONS:
             raise ValueError(f"action must be one of {VALID_RULE_ACTIONS}")
 
+    def to_condition(self) -> dict:
+        return {"type": self.type, "pattern": self.pattern, "severity": self.severity}
+
 
 class RuleUpdateRequest(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=255)
-    description: str | None = Field(None, min_length=1)
-    condition: dict | None = None
+    type: str | None = Field(None, min_length=1, max_length=50)
+    pattern: str | None = Field(None, max_length=1024)
+    severity: str | None = Field(None, min_length=1, max_length=50)
     action: str | None = Field(None, min_length=1, max_length=50)
+    description: str | None = None
     enabled: bool | None = None
 
     model_config = {"extra": "forbid"}
@@ -95,11 +125,25 @@ class RuleUpdateRequest(BaseModel):
         if self.action is not None and self.action not in VALID_RULE_ACTIONS:
             raise ValueError(f"action must be one of {VALID_RULE_ACTIONS}")
 
+    def to_condition_updates(self, existing: dict) -> dict:
+        cond = dict(existing)
+        if self.type is not None:
+            cond["type"] = self.type
+        if self.pattern is not None:
+            cond["pattern"] = self.pattern
+        if self.severity is not None:
+            cond["severity"] = self.severity
+        return cond
+
 
 class RuleResponse(BaseModel):
     id: str
     name: str
-    description: str
-    condition: dict
+    type: str
+    pattern: str
+    severity: str
     action: str
+    description: str
     enabled: bool
+    built_in: bool
+    hit_count: int

@@ -21,13 +21,18 @@ router = APIRouter(prefix="/api", tags=["rules"])
 
 
 def _rule_to_response(rule: AuditRule) -> RuleResponse:
+    condition = rule.condition or {}
     return RuleResponse(
         id=str(rule.id),
         name=rule.name,
-        description=rule.description,
-        condition=rule.condition,
+        type=condition.get("type", "pattern"),
+        pattern=condition.get("pattern", ""),
+        severity=condition.get("severity", "medium"),
         action=rule.action,
+        description=rule.description,
         enabled=rule.enabled,
+        built_in=False,
+        hit_count=0,
     )
 
 
@@ -49,8 +54,8 @@ async def create_rule(
 ) -> RuleResponse:
     rule = AuditRule(
         name=payload.name,
-        description=payload.description,
-        condition=payload.condition,
+        description=payload.description or payload.name,
+        condition=payload.to_condition(),
         action=payload.action,
         enabled=payload.enabled,
     )
@@ -78,12 +83,17 @@ async def update_rule(
     if rule is None:
         raise HTTPException(status_code=404, detail="Rule not found")
 
-    _ALLOWED_UPDATE_FIELDS = {"name", "description", "condition", "action", "enabled"}
     update_data = payload.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        if field not in _ALLOWED_UPDATE_FIELDS:
-            continue
-        setattr(rule, field, value)
+    if "name" in update_data:
+        rule.name = update_data["name"]
+    if "description" in update_data:
+        rule.description = update_data["description"]
+    if "action" in update_data:
+        rule.action = update_data["action"]
+    if "enabled" in update_data:
+        rule.enabled = update_data["enabled"]
+    if any(k in update_data for k in ("type", "pattern", "severity")):
+        rule.condition = payload.to_condition_updates(rule.condition or {})
 
     await session.commit()
     await session.refresh(rule)

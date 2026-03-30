@@ -361,9 +361,11 @@ class TestInvalidateRulesCache:
             "/api/rules",
             json={
                 "name": "new-rule",
-                "description": "A new rule",
-                "condition": {"event_type": "test"},
+                "type": "pattern",
+                "pattern": "test",
+                "severity": "medium",
                 "action": "block",
+                "description": "A new rule",
             },
         )
 

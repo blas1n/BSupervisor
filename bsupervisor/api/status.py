@@ -52,7 +52,8 @@ async def get_status(
     ).scalar_one()
 
     return StatusResponse(
-        total_events_today=total_events,
-        blocked_count_today=blocked_count,
-        total_cost_today=str(total_cost.normalize()),
+        events_today=total_events,
+        violations=blocked_count,
+        blocked_actions=blocked_count,
+        cost_total=f"${total_cost.normalize()}",
     )
