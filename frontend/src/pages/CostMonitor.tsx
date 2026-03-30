@@ -160,10 +160,10 @@ export function CostMonitor() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h4 className="text-lg font-bold tracking-tight text-gray-50">
-              Cost Trend
+              30-Day Cost Trend
             </h4>
             <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">
-              30-Day Overview
+              Daily Spending Overview
             </p>
           </div>
           <div className="flex items-center gap-4">

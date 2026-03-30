@@ -195,7 +195,7 @@ export function Dashboard() {
         {/* Blocked Actions */}
         <div className="bg-gray-900 p-6 rounded-xl border border-gray-800/40">
           <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-4">
-            Blocked Actions
+            Blocked
           </p>
           <div className="flex items-end justify-between">
             <h3 className="text-3xl font-extrabold tracking-tighter text-gray-50">
@@ -231,10 +231,10 @@ export function Dashboard() {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h4 className="text-lg font-bold tracking-tight text-gray-50">
-                System Telemetry
+                24h Event Timeline
               </h4>
               <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">
-                Real-time Safety Drift (24h)
+                Real-time Safety Drift
               </p>
             </div>
             <div className="flex gap-4">
@@ -355,7 +355,7 @@ export function Dashboard() {
         <div className="bg-gray-900 p-6 rounded-xl border border-gray-800/40 flex flex-col h-[400px]">
           <div className="flex justify-between items-center mb-4">
             <h4 className="text-sm font-bold uppercase tracking-widest text-gray-400">
-              Live Telemetry
+              Live Event Feed
             </h4>
             <span className="flex h-2 w-2 rounded-full bg-success animate-pulse" />
           </div>

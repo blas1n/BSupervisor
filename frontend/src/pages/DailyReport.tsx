@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { fetchDailyReport } from "../lib/api";
 import type { DailyReportData } from "../lib/api";
 import { MaterialIcon } from "../components/MaterialIcon";
@@ -153,7 +154,7 @@ export function DailyReport() {
             onClick={() => changeDate(-1)}
             className="rounded-lg border border-gray-800/40 p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200"
           >
-            <MaterialIcon icon="chevron_left" className="text-lg" />
+            <ChevronLeft className="h-5 w-5" />
           </button>
           <span className="min-w-56 text-center text-sm font-semibold text-gray-100">
             {displayDate}
@@ -163,7 +164,7 @@ export function DailyReport() {
             disabled={date >= today}
             className="rounded-lg border border-gray-800/40 p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:opacity-30"
           >
-            <MaterialIcon icon="chevron_right" className="text-lg" />
+            <ChevronRight className="h-5 w-5" />
           </button>
         </div>
 
