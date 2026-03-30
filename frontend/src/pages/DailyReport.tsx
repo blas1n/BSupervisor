@@ -1,14 +1,26 @@
 import { useState, useMemo, useEffect } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  FileText,
-  Calendar,
-  Loader2,
-} from "lucide-react";
 import { fetchDailyReport } from "../lib/api";
 import type { DailyReportData } from "../lib/api";
+import { cn } from "../lib/utils";
+
+function MaterialIcon({
+  icon,
+  className,
+  filled,
+}: {
+  icon: string;
+  className?: string;
+  filled?: boolean;
+}) {
+  return (
+    <span
+      className={cn("material-symbols-outlined", className)}
+      style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}
+    >
+      {icon}
+    </span>
+  );
+}
 
 function escapeHtml(text: string): string {
   return text
@@ -59,7 +71,7 @@ function parseMarkdown(md: string): string {
         .filter(Boolean)
         .map(
           (c: string) =>
-            `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500">${c}</th>`,
+            `<th class="px-6 py-4 text-left text-[10px] uppercase font-bold tracking-widest text-gray-500">${c}</th>`,
         )
         .join("");
       const rows = body
@@ -72,13 +84,13 @@ function parseMarkdown(md: string): string {
             .filter(Boolean)
             .map(
               (c: string) =>
-                `<td class="px-4 py-2 text-sm text-gray-300">${c}</td>`,
+                `<td class="px-6 py-4 text-sm text-gray-300">${c}</td>`,
             )
             .join("");
-          return `<tr class="border-b border-gray-800/50">${tds}</tr>`;
+          return `<tr class="border-b border-gray-800/30">${tds}</tr>`;
         })
         .join("");
-      return `<div class="my-4 overflow-hidden rounded-lg border border-gray-800"><table class="w-full"><thead><tr class="border-b border-gray-800 bg-gray-850">${ths}</tr></thead><tbody>${rows}</tbody></table></div>`;
+      return `<div class="my-4 overflow-hidden rounded-xl border border-gray-800/40"><table class="w-full"><thead class="bg-gray-950"><tr>${ths}</tr></thead><tbody>${rows}</tbody></table></div>`;
     },
   );
 
@@ -151,16 +163,16 @@ export function DailyReport() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="mx-auto max-w-4xl space-y-6">
       {/* Date navigation */}
-      <div className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900 px-4 py-3">
+      <div className="flex items-center justify-between rounded-xl border border-gray-800/40 bg-gray-900 px-6 py-4">
         <div className="flex items-center gap-3">
-          <Calendar className="h-4 w-4 text-gray-500" />
+          <MaterialIcon icon="calendar_today" className="text-lg text-gray-500" />
           <button
             onClick={() => changeDate(-1)}
-            className="rounded-md border border-gray-700 p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200"
+            className="rounded-lg border border-gray-800/40 p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <MaterialIcon icon="chevron_left" className="text-lg" />
           </button>
           <span className="min-w-56 text-center text-sm font-semibold text-gray-100">
             {displayDate}
@@ -168,29 +180,32 @@ export function DailyReport() {
           <button
             onClick={() => changeDate(1)}
             disabled={date >= today}
-            className="rounded-md border border-gray-700 p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:opacity-30"
+            className="rounded-lg border border-gray-800/40 p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:opacity-30"
           >
-            <ChevronRight className="h-4 w-4" />
+            <MaterialIcon icon="chevron_right" className="text-lg" />
           </button>
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200">
-            <Download className="h-3.5 w-3.5" />
+          <button className="flex items-center gap-2 rounded-xl border border-gray-800/40 px-3 py-2 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200">
+            <MaterialIcon icon="download" className="text-sm" />
             PDF
           </button>
-          <button className="flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200">
-            <FileText className="h-3.5 w-3.5" />
+          <button className="flex items-center gap-2 rounded-xl border border-gray-800/40 px-3 py-2 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200">
+            <MaterialIcon icon="description" className="text-sm" />
             Markdown
           </button>
         </div>
       </div>
 
       {/* Report card */}
-      <div className="rounded-xl border border-gray-800 bg-gray-900 p-8">
+      <div className="rounded-xl border border-gray-800/40 bg-gray-900 p-8">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+            <MaterialIcon
+              icon="progress_activity"
+              className="animate-spin text-gray-500 text-3xl"
+            />
           </div>
         ) : error ? (
           <p className="py-12 text-center text-sm text-gray-500">

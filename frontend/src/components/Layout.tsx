@@ -1,22 +1,31 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard,
-  ShieldCheck,
-  FileText,
-  DollarSign,
-  Shield,
-  LogOut,
-  User,
-  ChevronRight,
-} from "lucide-react";
 import { cn } from "../lib/utils";
 import { useAuth } from "../lib/auth";
 
+function MaterialIcon({
+  icon,
+  className,
+  filled,
+}: {
+  icon: string;
+  className?: string;
+  filled?: boolean;
+}) {
+  return (
+    <span
+      className={cn("material-symbols-outlined", className)}
+      style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}
+    >
+      {icon}
+    </span>
+  );
+}
+
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/rules", icon: ShieldCheck, label: "Rules" },
-  { to: "/reports", icon: FileText, label: "Reports" },
-  { to: "/costs", icon: DollarSign, label: "Costs" },
+  { to: "/", icon: "dashboard", label: "Dashboard" },
+  { to: "/rules", icon: "shield", label: "Rules" },
+  { to: "/reports", icon: "description", label: "Reports" },
+  { to: "/costs", icon: "account_balance_wallet", label: "Costs" },
 ];
 
 const pageTitles: Record<string, string> = {
@@ -46,7 +55,7 @@ export function Layout() {
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-dark shadow-lg shadow-accent/20">
-            <Shield className="h-5 w-5 text-gray-50" />
+            <MaterialIcon icon="shield" className="text-lg text-gray-50" filled />
           </div>
           <div>
             <span className="text-sm font-bold text-gray-50">BSupervisor</span>
@@ -61,10 +70,10 @@ export function Layout() {
 
         {/* Nav */}
         <nav className="mt-4 flex flex-1 flex-col gap-0.5 px-3">
-          <p className="mb-2 px-3 text-[10px] font-semibold tracking-wider text-gray-600 uppercase">
+          <p className="mb-2 px-3 text-[10px] font-bold tracking-widest text-gray-600 uppercase">
             Monitor
           </p>
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {navItems.map(({ to, icon, label }) => (
             <NavLink
               key={to}
               to={to}
@@ -80,10 +89,14 @@ export function Layout() {
             >
               {({ isActive }) => (
                 <>
-                  <Icon className={cn("h-4 w-4", isActive && "text-accent")} />
+                  <MaterialIcon
+                    icon={icon}
+                    className={cn("text-lg", isActive && "text-accent")}
+                    filled={isActive}
+                  />
                   <span className="flex-1">{label}</span>
                   {isActive && (
-                    <ChevronRight className="h-3 w-3 text-accent/60" />
+                    <MaterialIcon icon="chevron_right" className="text-sm text-accent/60" />
                   )}
                 </>
               )}
@@ -96,7 +109,7 @@ export function Layout() {
           {user && (
             <div className="mb-2 flex items-center gap-2.5 rounded-lg bg-gray-850 px-3 py-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/15">
-                <User className="h-3.5 w-3.5 text-accent" />
+                <MaterialIcon icon="person" className="text-sm text-accent" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-gray-200">
@@ -112,7 +125,7 @@ export function Layout() {
             onClick={logout}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-gray-500 transition-colors hover:bg-gray-850 hover:text-gray-300"
           >
-            <LogOut className="h-4 w-4" />
+            <MaterialIcon icon="logout" className="text-lg" />
             Sign out
           </button>
         </div>
