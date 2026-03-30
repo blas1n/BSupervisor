@@ -18,6 +18,14 @@
   --color-accent-light: #fb7185;
   --color-accent-dark: #e11d48;
 
+  --color-success: #10b981;
+  --color-success-light: #34d399;
+  --color-success-muted: #065f46;
+
+  --color-warning: #f59e0b;
+  --color-warning-light: #fbbf24;
+  --color-warning-muted: #92400e;
+
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 

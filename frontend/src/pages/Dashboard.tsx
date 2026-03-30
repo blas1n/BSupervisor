@@ -22,6 +22,7 @@ import {
 import { StatCard } from "../components/StatCard";
 import { SeverityBadge } from "../components/SeverityBadge";
 import { formatNumber, formatTime, eventSeverityColor, cn } from "../lib/utils";
+import { theme } from "../lib/theme";
 import {
   fetchStatus,
   fetchEvents,
@@ -168,11 +169,11 @@ export function Dashboard() {
             </h2>
             <div className="flex items-center gap-4 text-[11px] text-gray-500">
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="inline-block h-2 w-2 rounded-full bg-success" />
                 Safe
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+                <span className="inline-block h-2 w-2 rounded-full bg-warning" />
                 Warning
               </span>
               <span className="flex items-center gap-1.5">
@@ -186,40 +187,40 @@ export function Dashboard() {
               <AreaChart data={timelineData}>
                 <defs>
                   <linearGradient id="gradSafe" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.05} />
+                    <stop offset="0%" stopColor={theme.success} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={theme.success} stopOpacity={0.05} />
                   </linearGradient>
                   <linearGradient id="gradWarn" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.05} />
+                    <stop offset="0%" stopColor={theme.warning} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={theme.warning} stopOpacity={0.05} />
                   </linearGradient>
                   <linearGradient id="gradBlocked" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#f43f5e" stopOpacity={0.05} />
+                    <stop offset="0%" stopColor={theme.accent} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={theme.accent} stopOpacity={0.05} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="hour"
-                  tick={{ fontSize: 11, fill: "#8187a8" }}
+                  tick={{ fontSize: 11, fill: theme.gray400 }}
                   interval={3}
                 />
-                <YAxis tick={{ fontSize: 11, fill: "#8187a8" }} />
+                <YAxis tick={{ fontSize: 11, fill: theme.gray400 }} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#1e2033",
-                    border: "1px solid #2a2d42",
+                    backgroundColor: theme.gray800,
+                    border: `1px solid ${theme.gray700}`,
                     borderRadius: 8,
                     fontSize: 12,
                   }}
-                  itemStyle={{ color: "#e4e6ee" }}
-                  labelStyle={{ color: "#a8adc6" }}
+                  itemStyle={{ color: theme.gray100 }}
+                  labelStyle={{ color: theme.gray300 }}
                 />
                 <Area
                   type="monotone"
                   dataKey="safe"
                   stackId="1"
-                  stroke="#10b981"
+                  stroke={theme.success}
                   fill="url(#gradSafe)"
                   strokeWidth={1.5}
                 />
@@ -227,7 +228,7 @@ export function Dashboard() {
                   type="monotone"
                   dataKey="warning"
                   stackId="1"
-                  stroke="#f59e0b"
+                  stroke={theme.warning}
                   fill="url(#gradWarn)"
                   strokeWidth={1.5}
                 />
@@ -235,7 +236,7 @@ export function Dashboard() {
                   type="monotone"
                   dataKey="blocked"
                   stackId="1"
-                  stroke="#f43f5e"
+                  stroke={theme.accent}
                   fill="url(#gradBlocked)"
                   strokeWidth={1.5}
                 />
@@ -250,8 +251,8 @@ export function Dashboard() {
             <h2 className="text-sm font-semibold text-gray-300">
               Live Event Feed
             </h2>
-            <span className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-400">
-              <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+            <span className="flex items-center gap-1.5 text-[10px] font-medium text-success-light">
+              <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-success-light" />
               Live
             </span>
           </div>

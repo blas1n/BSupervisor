@@ -185,7 +185,7 @@ export function RulesManager() {
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-dark"
+          className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-gray-50 transition-colors hover:bg-accent-dark"
         >
           <Plus className="h-4 w-4" />
           New Rule
@@ -239,7 +239,7 @@ export function RulesManager() {
                       rule.action === "block"
                         ? "bg-accent/10 text-accent"
                         : rule.action === "warn"
-                          ? "bg-amber-400/10 text-amber-400"
+                          ? "bg-warning/10 text-warning"
                           : "bg-gray-800 text-gray-400",
                     )}
                   >
@@ -251,12 +251,12 @@ export function RulesManager() {
                     onClick={() => toggleEnabled(rule.id)}
                     className={cn(
                       "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors",
-                      rule.enabled ? "bg-emerald-500" : "bg-gray-700",
+                      rule.enabled ? "bg-success" : "bg-gray-700",
                     )}
                   >
                     <span
                       className={cn(
-                        "mt-0.5 inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                        "mt-0.5 inline-block h-4 w-4 transform rounded-full bg-gray-50 shadow transition-transform",
                         rule.enabled ? "translate-x-4.5" : "translate-x-0.5",
                       )}
                     />
@@ -429,7 +429,7 @@ export function RulesManager() {
               <button
                 onClick={handleSave}
                 disabled={!form.name || !form.pattern || saving}
-                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-dark disabled:opacity-40"
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-gray-50 transition-colors hover:bg-accent-dark disabled:opacity-40"
               >
                 {saving ? "Saving..." : editingId ? "Update" : "Create"}
               </button>

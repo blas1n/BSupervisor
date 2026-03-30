@@ -27,11 +27,11 @@ export function severityColor(severity: string): string {
     case "critical":
       return "text-accent bg-accent/10";
     case "high":
-      return "text-orange-400 bg-orange-400/10";
+      return "text-warning bg-warning/10";
     case "medium":
-      return "text-amber-400 bg-amber-400/10";
+      return "text-warning-light bg-warning-light/10";
     case "low":
-      return "text-emerald-400 bg-emerald-400/10";
+      return "text-success-light bg-success-light/10";
     default:
       return "text-gray-400 bg-gray-400/10";
   }
@@ -42,9 +42,9 @@ export function eventSeverityColor(severity: string): string {
     case "blocked":
       return "text-accent";
     case "warning":
-      return "text-amber-400";
+      return "text-warning";
     case "safe":
-      return "text-emerald-400";
+      return "text-success-light";
     default:
       return "text-gray-400";
   }

@@ -46,7 +46,7 @@ export function Layout() {
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-dark shadow-lg shadow-accent/20">
-            <Shield className="h-5 w-5 text-white" />
+            <Shield className="h-5 w-5 text-gray-50" />
           </div>
           <div>
             <span className="text-sm font-bold text-gray-50">BSupervisor</span>
@@ -129,8 +129,8 @@ export function Layout() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse-dot" />
+            <span className="flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[11px] font-medium text-success-light">
+              <span className="h-1.5 w-1.5 rounded-full bg-success-light animate-pulse-dot" />
               System Active
             </span>
           </div>

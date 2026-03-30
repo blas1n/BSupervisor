@@ -38,7 +38,7 @@ export function Login() {
         {/* Logo & Tagline */}
         <div className="flex flex-col items-center gap-6">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-dark shadow-2xl shadow-accent/25">
-            <Shield className="h-10 w-10 text-white" />
+            <Shield className="h-10 w-10 text-gray-50" />
           </div>
           <div className="text-center">
             <h1 className="text-3xl font-bold tracking-tight text-gray-50">
@@ -77,7 +77,7 @@ export function Login() {
           {/* Sign in button */}
           <button
             onClick={login}
-            className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-accent to-accent-dark px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-accent/25 transition-all hover:shadow-accent/40 hover:brightness-110"
+            className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-accent to-accent-dark px-4 py-3.5 text-sm font-semibold text-gray-50 shadow-lg shadow-accent/25 transition-all hover:shadow-accent/40 hover:brightness-110"
           >
             Sign in with BSVibe
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />

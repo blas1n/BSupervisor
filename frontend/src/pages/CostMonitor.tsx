@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { DollarSign, TrendingUp, AlertTriangle, Loader2 } from "lucide-react";
 import { cn, formatNumber } from "../lib/utils";
+import { theme } from "../lib/theme";
 import { fetchCosts } from "../lib/api";
 import type { CostData } from "../lib/api";
 
@@ -34,7 +35,7 @@ function Sparkline({ data, anomaly }: { data: number[]; anomaly?: boolean }) {
       <polyline
         points={points}
         fill="none"
-        stroke={anomaly ? "#f43f5e" : "#8187a8"}
+        stroke={anomaly ? theme.accent : theme.gray400}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -94,8 +95,8 @@ export function CostMonitor() {
                 isOverBudget
                   ? "bg-accent/15"
                   : isWarning
-                    ? "bg-amber-500/15"
-                    : "bg-emerald-500/15",
+                    ? "bg-warning/15"
+                    : "bg-success/15",
               )}
             >
               <DollarSign
@@ -104,8 +105,8 @@ export function CostMonitor() {
                   isOverBudget
                     ? "text-accent"
                     : isWarning
-                      ? "text-amber-400"
-                      : "text-emerald-400",
+                      ? "text-warning"
+                      : "text-success-light",
                 )}
               />
             </div>
@@ -122,8 +123,8 @@ export function CostMonitor() {
               isOverBudget
                 ? "text-accent"
                 : isWarning
-                  ? "text-amber-400"
-                  : "text-emerald-400",
+                  ? "text-warning"
+                  : "text-success-light",
             )}
           >
             {costs.budget_percentage.toFixed(1)}%
@@ -136,14 +137,14 @@ export function CostMonitor() {
               isOverBudget
                 ? "bg-accent"
                 : isWarning
-                  ? "bg-amber-500"
-                  : "bg-emerald-500",
+                  ? "bg-warning"
+                  : "bg-success",
             )}
             style={{ width: `${Math.min(costs.budget_percentage, 100)}%` }}
           />
         </div>
         {isWarning && !isOverBudget && (
-          <p className="mt-2 text-xs text-amber-400/80">
+          <p className="mt-2 text-xs text-warning/80">
             Approaching budget limit
           </p>
         )}
@@ -162,50 +163,50 @@ export function CostMonitor() {
             <LineChart data={costs.trend}>
               <defs>
                 <linearGradient id="costGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.15} />
-                  <stop offset="100%" stopColor="#f43f5e" stopOpacity={0} />
+                  <stop offset="0%" stopColor={theme.accent} stopOpacity={0.15} />
+                  <stop offset="100%" stopColor={theme.accent} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 10, fill: "#8187a8" }}
+                tick={{ fontSize: 10, fill: theme.gray400 }}
                 tickFormatter={(d: string) => d.slice(5)}
                 interval={4}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: "#8187a8" }}
+                tick={{ fontSize: 11, fill: theme.gray400 }}
                 tickFormatter={(v: number) => `$${v}`}
               />
               <ReferenceLine
                 y={budgetNum}
-                stroke="#f59e0b"
+                stroke={theme.warning}
                 strokeDasharray="4 4"
                 strokeOpacity={0.5}
                 label={{
                   value: "Budget",
-                  fill: "#f59e0b",
+                  fill: theme.warning,
                   fontSize: 10,
                   position: "right",
                 }}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1e2033",
-                  border: "1px solid #2a2d42",
+                  backgroundColor: theme.gray800,
+                  border: `1px solid ${theme.gray700}`,
                   borderRadius: 8,
                   fontSize: 12,
                 }}
                 formatter={(value) => [`$${Number(value).toFixed(2)}`, "Cost"]}
-                labelStyle={{ color: "#a8adc6" }}
+                labelStyle={{ color: theme.gray300 }}
               />
               <Line
                 type="monotone"
                 dataKey="cost"
-                stroke="#f43f5e"
+                stroke={theme.accent}
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4, stroke: "#f43f5e", fill: "#1e2033" }}
+                activeDot={{ r: 4, stroke: theme.accent, fill: theme.gray800 }}
               />
             </LineChart>
           </ResponsiveContainer>
