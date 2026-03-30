@@ -13,25 +13,7 @@ import { cn, formatNumber } from "../lib/utils";
 import { theme } from "../lib/theme";
 import { fetchCosts } from "../lib/api";
 import type { CostData } from "../lib/api";
-
-function MaterialIcon({
-  icon,
-  className,
-  filled,
-}: {
-  icon: string;
-  className?: string;
-  filled?: boolean;
-}) {
-  return (
-    <span
-      className={cn("material-symbols-outlined", className)}
-      style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}
-    >
-      {icon}
-    </span>
-  );
-}
+import { MaterialIcon } from "../components/MaterialIcon";
 
 function Sparkline({ data, anomaly }: { data: number[]; anomaly?: boolean }) {
   const max = Math.max(...data);

@@ -1,26 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { fetchDailyReport } from "../lib/api";
 import type { DailyReportData } from "../lib/api";
-import { cn } from "../lib/utils";
-
-function MaterialIcon({
-  icon,
-  className,
-  filled,
-}: {
-  icon: string;
-  className?: string;
-  filled?: boolean;
-}) {
-  return (
-    <span
-      className={cn("material-symbols-outlined", className)}
-      style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}
-    >
-      {icon}
-    </span>
-  );
-}
+import { MaterialIcon } from "../components/MaterialIcon";
 
 function escapeHtml(text: string): string {
   return text

@@ -36,16 +36,3 @@ export function severityColor(severity: string): string {
       return "text-gray-400 bg-gray-400/10";
   }
 }
-
-export function eventSeverityColor(severity: string): string {
-  switch (severity) {
-    case "blocked":
-      return "text-accent";
-    case "warning":
-      return "text-warning";
-    case "safe":
-      return "text-success-light";
-    default:
-      return "text-gray-400";
-  }
-}

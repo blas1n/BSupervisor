@@ -8,25 +8,7 @@ import {
   deleteRule as apiDeleteRule,
 } from "../lib/api";
 import type { Rule } from "../lib/api";
-
-function MaterialIcon({
-  icon,
-  className,
-  filled,
-}: {
-  icon: string;
-  className?: string;
-  filled?: boolean;
-}) {
-  return (
-    <span
-      className={cn("material-symbols-outlined", className)}
-      style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}
-    >
-      {icon}
-    </span>
-  );
-}
+import { MaterialIcon } from "../components/MaterialIcon";
 
 const ruleTypes = ["action", "pattern", "rate", "cost"];
 const severities = ["critical", "high", "medium", "low"];

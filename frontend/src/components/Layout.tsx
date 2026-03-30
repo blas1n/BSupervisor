@@ -1,25 +1,7 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { useAuth } from "../lib/auth";
-
-function MaterialIcon({
-  icon,
-  className,
-  filled,
-}: {
-  icon: string;
-  className?: string;
-  filled?: boolean;
-}) {
-  return (
-    <span
-      className={cn("material-symbols-outlined", className)}
-      style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}
-    >
-      {icon}
-    </span>
-  );
-}
+import { MaterialIcon } from "../components/MaterialIcon";
 
 const navItems = [
   { to: "/", icon: "dashboard", label: "Dashboard" },

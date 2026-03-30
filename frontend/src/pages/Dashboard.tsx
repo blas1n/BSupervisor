@@ -13,25 +13,7 @@ import { theme } from "../lib/theme";
 import { fetchStatus, fetchEvents, fetchRules } from "../lib/api";
 import type { StatusMetrics, Event, Rule } from "../lib/api";
 import { SeverityBadge } from "../components/SeverityBadge";
-
-function MaterialIcon({
-  icon,
-  className,
-  filled,
-}: {
-  icon: string;
-  className?: string;
-  filled?: boolean;
-}) {
-  return (
-    <span
-      className={cn("material-symbols-outlined", className)}
-      style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}
-    >
-      {icon}
-    </span>
-  );
-}
+import { MaterialIcon } from "../components/MaterialIcon";
 
 function buildTimelineData(events: Event[]) {
   const buckets: Record<
