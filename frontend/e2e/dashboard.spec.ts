@@ -18,8 +18,8 @@ test.describe("Dashboard: Stitch design", () => {
     await expect(page.getByText("3").first()).toBeVisible();
   });
 
-  test("renders Blocked stat card", async ({ page }) => {
-    await expect(page.getByText("Blocked").first()).toBeVisible();
+  test("renders Blocked Actions stat card", async ({ page }) => {
+    await expect(page.getByText("Blocked Actions").first()).toBeVisible();
     await expect(page.getByText("2").first()).toBeVisible();
   });
 
@@ -28,9 +28,9 @@ test.describe("Dashboard: Stitch design", () => {
     await expect(page.getByText(mockStatus.cost_total)).toBeVisible();
   });
 
-  test("renders 24h Event Timeline chart area", async ({ page }) => {
-    await expect(page.getByText("24h Event Timeline")).toBeVisible();
-    await expect(page.getByText("Real-time Safety Drift")).toBeVisible();
+  test("renders System Telemetry chart area", async ({ page }) => {
+    await expect(page.getByText("System Telemetry")).toBeVisible();
+    await expect(page.getByText("Real-time Safety Drift (24h)")).toBeVisible();
   });
 
   test("renders timeline chart legend items", async ({ page }) => {
@@ -38,8 +38,8 @@ test.describe("Dashboard: Stitch design", () => {
     await expect(page.getByText("Warning", { exact: true }).first()).toBeVisible();
   });
 
-  test("renders Live Event Feed with events", async ({ page }) => {
-    await expect(page.getByText("Live Event Feed")).toBeVisible();
+  test("renders Live Telemetry feed with events", async ({ page }) => {
+    await expect(page.getByText("Live Telemetry")).toBeVisible();
     await expect(page.getByText("file_write /etc/passwd")).toBeVisible();
     await expect(page.getByText("agent-alpha").first()).toBeVisible();
   });
@@ -68,7 +68,9 @@ test.describe("Dashboard: Stitch design", () => {
     await expect(page.getByText(/3 violations? detected today/)).toBeVisible();
   });
 
-  test("header shows System Active status badge", async ({ page }) => {
-    await expect(page.getByText("System Active")).toBeVisible();
+  test("header shows notifications and settings icons", async ({ page }) => {
+    const icons = page.locator("header .material-symbols-outlined");
+    const count = await icons.count();
+    expect(count).toBeGreaterThanOrEqual(2);
   });
 });

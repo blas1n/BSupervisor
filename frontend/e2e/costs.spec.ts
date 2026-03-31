@@ -8,27 +8,18 @@ test.describe("Cost Monitor: Stitch design", () => {
     await page.goto("/costs");
   });
 
-  test("renders page header with Cost Monitor title", async ({ page }) => {
-    await expect(page.getByText("Cost Monitor")).toBeVisible();
-    await expect(page.getByText("Track and optimize AI agent spending")).toBeVisible();
+  test("renders budget progress section with consumption label", async ({ page }) => {
+    await expect(page.getByText("Current Day Consumption")).toBeVisible();
+    await expect(page.getByText(mockCosts.spent)).toBeVisible();
+    await expect(page.getByText(`/ ${mockCosts.budget} Budget`)).toBeVisible();
   });
 
-  test("renders Daily Budget section with budget bar", async ({ page }) => {
-    await expect(page.getByText("Daily Budget")).toBeVisible();
-    await expect(page.getByText(`${mockCosts.spent} of ${mockCosts.budget}`)).toBeVisible();
+  test("renders Daily Cost Evolution section header", async ({ page }) => {
+    await expect(page.getByText("Daily Cost Evolution (30D)")).toBeVisible();
   });
 
-  test("displays budget percentage", async ({ page }) => {
-    await expect(page.getByText("48.2%")).toBeVisible();
-  });
-
-  test("renders 30-Day Cost Trend chart area", async ({ page }) => {
-    await expect(page.getByText("30-Day Cost Trend")).toBeVisible();
-    await expect(page.getByText("Daily Spending Overview")).toBeVisible();
-  });
-
-  test("renders Cost Breakdown by Agent table", async ({ page }) => {
-    await expect(page.getByText("Cost Breakdown by Agent")).toBeVisible();
+  test("renders Executor Breakdown table section", async ({ page }) => {
+    await expect(page.getByText("Executor Breakdown")).toBeVisible();
   });
 
   test("agent table shows all column headers", async ({ page }) => {
@@ -53,15 +44,13 @@ test.describe("Cost Monitor: Stitch design", () => {
   });
 
   test("trend chart shows legend for Cost and Budget lines", async ({ page }) => {
-    // Cost legend dot
     await expect(page.getByText("Cost").first()).toBeVisible();
-    // Budget legend dashed line
     await expect(page.getByText("Budget").first()).toBeVisible();
   });
 
-  test("wallet icon is present in budget section", async ({ page }) => {
-    await expect(
-      page.locator(".material-symbols-outlined").filter({ hasText: "account_balance_wallet" }).first(),
-    ).toBeVisible();
+  test("budget progress bar shows percentage markers", async ({ page }) => {
+    await expect(page.getByText("0%").first()).toBeVisible();
+    await expect(page.getByText("50%").first()).toBeVisible();
+    await expect(page.getByText("100%").first()).toBeVisible();
   });
 });

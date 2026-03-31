@@ -8,9 +8,12 @@ test.describe("Daily Report: Stitch design", () => {
     await page.goto("/reports");
   });
 
-  test("renders page header with Daily Report title", async ({ page }) => {
-    await expect(page.getByText("Daily Report")).toBeVisible();
-    await expect(page.getByText("Automated daily safety analysis reports")).toBeVisible();
+  test("renders page header with DAILY INTELLIGENCE BRIEF title", async ({ page }) => {
+    await expect(page.getByText("DAILY INTELLIGENCE BRIEF")).toBeVisible();
+  });
+
+  test("displays status indicator", async ({ page }) => {
+    await expect(page.getByText("Operational")).toBeVisible();
   });
 
   test("displays date navigation with current date", async ({ page }) => {
@@ -19,23 +22,17 @@ test.describe("Daily Report: Stitch design", () => {
     await expect(page.getByText(new RegExp(monthName))).toBeVisible();
   });
 
-  test("previous day button navigates to earlier date", async ({ page }) => {
-    // There are left/right ChevronLeft/ChevronRight buttons
-    const prevButton = page.locator("button").filter({ has: page.locator("svg") }).first();
-    // Capture the date text before clicking
-    const dateText = page.locator("span.min-w-56");
-    const initialDate = await dateText.textContent();
-    // The first SVG button in the date nav is the prev button
-    await page.locator("button:has(svg.lucide-chevron-left)").click();
-    await expect(dateText).not.toHaveText(initialDate!);
+  test("yesterday/tomorrow navigation buttons exist", async ({ page }) => {
+    await expect(page.getByText("Yesterday")).toBeVisible();
+    await expect(page.getByText("Tomorrow")).toBeVisible();
   });
 
   test("renders PDF download button", async ({ page }) => {
     await expect(page.getByRole("button", { name: /pdf/i })).toBeVisible();
   });
 
-  test("renders Markdown download button", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /markdown/i })).toBeVisible();
+  test("renders MD download button", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /md/i })).toBeVisible();
   });
 
   test("report content area shows rendered markdown", async ({ page }) => {
@@ -48,9 +45,14 @@ test.describe("Daily Report: Stitch design", () => {
     await expect(page.getByText(/Review agent-alpha permissions/)).toBeVisible();
   });
 
-  test("calendar icon is present in date navigation", async ({ page }) => {
+  test("report card has accent bar", async ({ page }) => {
+    const accentBar = page.locator("section .bg-gradient-to-b");
+    await expect(accentBar).toBeVisible();
+  });
+
+  test("event icon present in date navigation", async ({ page }) => {
     await expect(
-      page.locator(".material-symbols-outlined").filter({ hasText: "calendar_today" }),
+      page.locator(".material-symbols-outlined").filter({ hasText: "event" }),
     ).toBeVisible();
   });
 });

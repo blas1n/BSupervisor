@@ -89,58 +89,38 @@ export function CostMonitor() {
   return (
     <div className="space-y-6">
       {/* Budget progress */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800/40 p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-lg",
-                isOverBudget
-                  ? "bg-accent/15"
-                  : isWarning
-                    ? "bg-warning/15"
-                    : "bg-success/15",
-              )}
-            >
-              <MaterialIcon
-                icon="account_balance_wallet"
-                className={cn(
-                  "text-lg",
-                  isOverBudget
-                    ? "text-accent"
-                    : isWarning
-                      ? "text-warning"
-                      : "text-success-light",
-                )}
-                filled
-              />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-100">Daily Budget</p>
-              <p className="text-xs text-gray-500">
-                {costs.spent} of {costs.budget}
-              </p>
+      <div className="bg-gray-900 rounded-lg p-6 relative overflow-hidden">
+        <div className="flex justify-between items-end mb-4">
+          <div>
+            <span className="text-[10px] uppercase tracking-widest text-gray-500 block mb-1">Current Day Consumption</span>
+            <div className="text-3xl font-extrabold tracking-tighter text-gray-50">
+              {costs.spent} <span className="text-sm font-normal text-gray-500">/ {costs.budget} Budget</span>
             </div>
           </div>
-          <span
-            className={cn(
-              "text-3xl font-extrabold tracking-tighter",
-              isOverBudget
-                ? "text-accent"
-                : isWarning
-                  ? "text-warning"
-                  : "text-success-light",
+          <div className="text-right">
+            {isOverBudget ? (
+              <span className="text-xs font-bold text-accent flex items-center gap-1">
+                <MaterialIcon icon="trending_up" className="text-sm" />
+                {Math.round(costs.budget_percentage - 100)}% OVER BUDGET
+              </span>
+            ) : isWarning ? (
+              <span className="text-xs font-bold text-warning flex items-center gap-1">
+                <MaterialIcon icon="trending_up" className="text-sm" />
+                Approaching limit
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-success-light flex items-center gap-1">
+                On track
+              </span>
             )}
-          >
-            {costs.budget_percentage.toFixed(1)}%
-          </span>
+          </div>
         </div>
-        <div className="h-2.5 overflow-hidden rounded-full bg-gray-800">
+        <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
           <div
             className={cn(
-              "h-full rounded-full transition-all",
+              "h-full transition-all",
               isOverBudget
-                ? "bg-accent"
+                ? "bg-accent shadow-[0_0_15px_rgba(244,63,94,0.4)]"
                 : isWarning
                   ? "bg-warning"
                   : "bg-success",
@@ -148,24 +128,22 @@ export function CostMonitor() {
             style={{ width: `${Math.min(costs.budget_percentage, 100)}%` }}
           />
         </div>
-        {isWarning && !isOverBudget && (
-          <p className="mt-2 text-xs text-warning/80">
-            Approaching budget limit
-          </p>
-        )}
+        <div className="mt-2 flex justify-between text-[10px] text-gray-500 font-medium">
+          <span>0%</span>
+          <span>50%</span>
+          <span>100%</span>
+        </div>
       </div>
 
       {/* 30-day trend */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800/40 p-8 flex flex-col">
+      <div>
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-0.5 h-4 bg-accent" />
+          <h2 className="text-sm font-bold tracking-tight uppercase text-gray-50">Daily Cost Evolution (30D)</h2>
+        </div>
+      <div className="bg-gray-900 rounded-lg p-8 flex flex-col">
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h4 className="text-lg font-bold tracking-tight text-gray-50">
-              30-Day Cost Trend
-            </h4>
-            <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">
-              Daily Spending Overview
-            </p>
-          </div>
+          <div></div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-accent" />
@@ -235,14 +213,16 @@ export function CostMonitor() {
           </ResponsiveContainer>
         </div>
       </div>
+      </div>
 
       {/* Agent cost breakdown */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800/40 overflow-hidden">
-        <div className="p-6 border-b border-gray-800/40 flex items-center justify-between">
-          <h4 className="text-lg font-bold tracking-tight text-gray-50">
-            Cost Breakdown by Agent
-          </h4>
+      <div>
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-0.5 h-4 bg-accent" />
+          <h2 className="text-sm font-bold tracking-tight uppercase text-gray-50">Executor Breakdown</h2>
         </div>
+      <div className="bg-gray-900 rounded-lg overflow-hidden">
+
         {costs.agents.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-500">No agent cost data</p>
         ) : (
@@ -322,6 +302,7 @@ export function CostMonitor() {
             </table>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

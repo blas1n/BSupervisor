@@ -88,3 +88,33 @@ body {
   border-color: var(--color-gray-700);
   box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.05);
 }
+
+/* Styled markdown for reports */
+.styled-markdown h1,
+.styled-markdown h2 {
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--color-accent);
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.styled-markdown h2::before {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1.2em;
+  background-color: var(--color-accent);
+  margin-right: 0.75rem;
+}
+
+.styled-markdown blockquote {
+  background-color: var(--color-gray-950);
+  color: var(--color-accent);
+  padding: 1.5rem;
+  border-radius: 2px;
+  font-style: italic;
+  margin: 2rem 0;
+}

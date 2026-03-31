@@ -149,8 +149,27 @@ export function RulesManager() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Toolbar */}
+    <div className="space-y-8">
+      {/* Header Section */}
+      <section className="flex justify-between items-end">
+        <div>
+          <h1 className="text-4xl font-extrabold tracking-tight text-gray-50">
+            Audit Rules Management
+          </h1>
+          <p className="text-gray-500 mt-2 font-medium">
+            Configure safety triggers and thresholds for active AI models.
+          </p>
+        </div>
+        <button
+          onClick={openCreate}
+          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-accent-light to-accent text-gray-50 font-bold rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-accent/10"
+        >
+          <MaterialIcon icon="add" className="text-lg" />
+          <span>Create Rule</span>
+        </button>
+      </section>
+
+      {/* Search & Filter */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
           <MaterialIcon
@@ -162,38 +181,25 @@ export function RulesManager() {
             placeholder="Search rules by name or pattern..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-gray-800/40 bg-gray-900 py-2.5 pl-10 pr-4 text-sm text-gray-100 placeholder-gray-500 outline-none transition-colors focus:border-accent/50 focus:ring-1 focus:ring-accent/30"
+            className="w-full rounded-lg border-none bg-gray-900 py-2.5 pl-10 pr-4 text-sm text-gray-100 placeholder-gray-500 outline-none transition-colors focus:ring-1 focus:ring-accent/30"
           />
         </div>
-        <div className="relative">
-          <MaterialIcon
-            icon="filter_list"
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-lg text-gray-500"
-          />
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="appearance-none rounded-xl border border-gray-800/40 bg-gray-900 py-2.5 pl-10 pr-8 text-sm text-gray-300 outline-none transition-colors focus:border-accent/50"
-          >
-            <option value="all">All types</option>
-            {ruleTypes.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-gray-50 transition-colors hover:bg-accent-dark"
+        <select
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
+          className="appearance-none rounded-lg border-none bg-gray-900 py-2.5 px-4 text-sm text-gray-300 outline-none transition-colors focus:ring-1 focus:ring-accent/30"
         >
-          <MaterialIcon icon="add" className="text-lg" />
-          New Rule
-        </button>
+          <option value="all">All types</option>
+          {ruleTypes.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Table */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800/40 overflow-hidden">
+      <div className="bg-gray-900 rounded-xl border border-gray-800/10 overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-gray-950">

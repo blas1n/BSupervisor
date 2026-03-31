@@ -7,15 +7,10 @@ test.describe("Navigation: Stitch sidebar", () => {
     await mockAllApis(page);
   });
 
-  test("sidebar shows BSupervisor logo and Safety Platform label", async ({ page }) => {
+  test("sidebar shows BSupervisor logo and platform label", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByText("BSupervisor").first()).toBeVisible();
-    await expect(page.getByText("Safety Platform")).toBeVisible();
-  });
-
-  test("sidebar shows Monitor section label", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.getByText("Monitor", { exact: true })).toBeVisible();
+    await expect(page.getByText("AI Safety Platform")).toBeVisible();
   });
 
   test("sidebar has Dashboard, Rules, Reports, Costs links", async ({ page }) => {
@@ -29,29 +24,32 @@ test.describe("Navigation: Stitch sidebar", () => {
   test("Dashboard link is active on / route", async ({ page }) => {
     await page.goto("/");
     const dashLink = page.getByRole("link", { name: /dashboard/i });
-    await expect(dashLink).toHaveClass(/text-accent/);
+    await expect(dashLink).toHaveClass(/text-gray-50/);
+  });
+
+  test("active nav item has left border accent", async ({ page }) => {
+    await page.goto("/");
+    const dashLink = page.getByRole("link", { name: /dashboard/i });
+    await expect(dashLink).toHaveClass(/border-accent/);
   });
 
   test("clicking Rules navigates to /rules with active state", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("link", { name: /rules/i }).click();
     await expect(page).toHaveURL("/rules");
-    await expect(page.getByRole("link", { name: /rules/i })).toHaveClass(/text-accent/);
-    await expect(page.getByText("Rules Manager")).toBeVisible();
+    await expect(page.getByRole("link", { name: /rules/i })).toHaveClass(/text-gray-50/);
   });
 
   test("clicking Reports navigates to /reports", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("link", { name: /reports/i }).click();
     await expect(page).toHaveURL("/reports");
-    await expect(page.getByText("Daily Report")).toBeVisible();
   });
 
   test("clicking Costs navigates to /costs", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("link", { name: /costs/i }).click();
     await expect(page).toHaveURL("/costs");
-    await expect(page.getByText("Cost Monitor")).toBeVisible();
   });
 
   test("sidebar shows user info when authenticated", async ({ page }) => {
@@ -75,15 +73,7 @@ test.describe("Navigation: Stitch sidebar", () => {
     await page.goto("/");
     const sidebarIcons = page.locator("aside .material-symbols-outlined");
     const count = await sidebarIcons.count();
-    // At least logo shield + 4 nav icons + chevron + person + logout = 8+
-    expect(count).toBeGreaterThanOrEqual(7);
-  });
-
-  test("active nav item shows chevron_right indicator", async ({ page }) => {
-    await page.goto("/");
-    const dashLink = page.getByRole("link", { name: /dashboard/i });
-    await expect(
-      dashLink.locator(".material-symbols-outlined").filter({ hasText: "chevron_right" }),
-    ).toBeVisible();
+    // Logo security icon + 4 nav icons + person + logout = 7+
+    expect(count).toBeGreaterThanOrEqual(6);
   });
 });

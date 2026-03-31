@@ -8,9 +8,9 @@ test.describe("Rules Manager: Stitch design", () => {
     await page.goto("/rules");
   });
 
-  test("renders page header with Rules Manager title", async ({ page }) => {
-    await expect(page.getByText("Rules Manager")).toBeVisible();
-    await expect(page.getByText("Configure and manage safety evaluation rules")).toBeVisible();
+  test("renders page header with Audit Rules Management title", async ({ page }) => {
+    await expect(page.getByText("Audit Rules Management")).toBeVisible();
+    await expect(page.getByText("Configure safety triggers and thresholds")).toBeVisible();
   });
 
   test("renders rules table with all column headers", async ({ page }) => {
@@ -29,8 +29,8 @@ test.describe("Rules Manager: Stitch design", () => {
     await expect(page.getByText("Cost Threshold")).toBeVisible();
   });
 
-  test("New Rule button is visible", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /new rule/i })).toBeVisible();
+  test("Create Rule button is visible", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /create rule/i })).toBeVisible();
   });
 
   test("search bar is present and accepts input", async ({ page }) => {
@@ -41,16 +41,15 @@ test.describe("Rules Manager: Stitch design", () => {
     await expect(page.getByText("External API Monitor")).not.toBeVisible();
   });
 
-  test("clicking New Rule opens Create Rule modal", async ({ page }) => {
-    await page.getByRole("button", { name: /new rule/i }).click();
+  test("clicking Create Rule opens Create Rule modal", async ({ page }) => {
+    await page.getByRole("button", { name: /create rule/i }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await expect(page.getByText("Create Rule")).toBeVisible();
   });
 
   test("modal has form fields for name, type, severity, action, pattern, description", async ({ page }) => {
-    await page.getByRole("button", { name: /new rule/i }).click();
+    await page.getByRole("button", { name: /create rule/i }).click();
     const dialog = page.getByRole("dialog");
-    // Labels are uppercase text in the modal form
     await expect(dialog.locator("label").filter({ hasText: "Name" })).toBeVisible();
     await expect(dialog.locator("label").filter({ hasText: "Type" })).toBeVisible();
     await expect(dialog.locator("label").filter({ hasText: "Severity" })).toBeVisible();
@@ -60,14 +59,13 @@ test.describe("Rules Manager: Stitch design", () => {
   });
 
   test("modal can be closed with Cancel button", async ({ page }) => {
-    await page.getByRole("button", { name: /new rule/i }).click();
+    await page.getByRole("button", { name: /create rule/i }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.getByRole("button", { name: /cancel/i }).click();
     await expect(page.getByRole("dialog")).not.toBeVisible();
   });
 
   test("built-in rules show lock icon", async ({ page }) => {
-    // System File Protection is built_in: true
     const row = page.getByRole("row").filter({ hasText: "System File Protection" });
     await expect(row.locator(".material-symbols-outlined").filter({ hasText: "lock" })).toBeVisible();
   });

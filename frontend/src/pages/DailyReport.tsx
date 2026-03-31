@@ -145,43 +145,68 @@ export function DailyReport() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      {/* Date navigation */}
-      <div className="flex items-center justify-between rounded-xl border border-gray-800/40 bg-gray-900 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <MaterialIcon icon="calendar_today" className="text-lg text-gray-500" />
-          <button
-            onClick={() => changeDate(-1)}
-            className="rounded-lg border border-gray-800/40 p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <span className="min-w-56 text-center text-sm font-semibold text-gray-100">
-            {displayDate}
-          </span>
-          <button
-            onClick={() => changeDate(1)}
-            disabled={date >= today}
-            className="rounded-lg border border-gray-800/40 p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:opacity-30"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
+    <div className="mx-auto max-w-5xl space-y-8">
+      {/* Date navigation & toolbar */}
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-4xl font-extrabold tracking-tighter mb-2 text-gray-50">
+            DAILY INTELLIGENCE BRIEF
+          </h1>
+          <div className="flex items-center gap-4 text-[10px] tracking-widest uppercase text-gray-600 font-bold">
+            <span>Status: <span className="text-success-light">Operational</span></span>
+            <span>&bull;</span>
+            <span>ID: OBS-{date}</span>
+          </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 rounded-xl border border-gray-800/40 px-3 py-2 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200">
-            <MaterialIcon icon="download" className="text-sm" />
-            PDF
+        <div className="flex items-center gap-4">
+          <button className="flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-gray-100 py-2 px-4 bg-gray-800 hover:bg-gray-700 transition-colors">
+            <MaterialIcon icon="picture_as_pdf" className="text-sm" /> PDF
           </button>
-          <button className="flex items-center gap-2 rounded-xl border border-gray-800/40 px-3 py-2 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200">
-            <MaterialIcon icon="description" className="text-sm" />
-            Markdown
+          <button className="flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-gray-100 py-2 px-4 bg-gray-800 hover:bg-gray-700 transition-colors">
+            <MaterialIcon icon="description" className="text-sm" /> MD
           </button>
         </div>
       </div>
 
+      {/* Date picker */}
+      <div className="flex items-center justify-center gap-6 text-xs uppercase tracking-widest font-semibold">
+        <button
+          onClick={() => changeDate(-1)}
+          className="text-gray-400 hover:text-accent transition-colors"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <button
+          onClick={() => changeDate(-1)}
+          className="text-gray-500 hover:text-accent transition-colors"
+        >
+          Yesterday
+        </button>
+        <span className="text-accent underline underline-offset-8 decoration-2 flex items-center gap-2">
+          <MaterialIcon icon="event" className="text-sm" />
+          {displayDate}
+        </span>
+        <button
+          onClick={() => changeDate(1)}
+          disabled={date >= today}
+          className="text-gray-500 hover:text-accent transition-colors disabled:opacity-30"
+        >
+          Tomorrow
+        </button>
+        <button
+          onClick={() => changeDate(1)}
+          disabled={date >= today}
+          className="text-gray-400 hover:text-accent transition-colors disabled:opacity-30"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+
       {/* Report card */}
-      <div className="rounded-xl border border-gray-800/40 bg-gray-900 p-8">
+      <section className="bg-gray-900 p-12 shadow-2xl relative overflow-hidden">
+        {/* Accent bar */}
+        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-accent to-accent-light" />
+
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <MaterialIcon
@@ -195,7 +220,7 @@ export function DailyReport() {
           </p>
         ) : report ? (
           <div
-            className="prose-dark"
+            className="prose-dark styled-markdown"
             dangerouslySetInnerHTML={{ __html: renderedHtml }}
           />
         ) : (
@@ -203,7 +228,7 @@ export function DailyReport() {
             No report available for this date
           </p>
         )}
-      </div>
+      </section>
     </div>
   );
 }
