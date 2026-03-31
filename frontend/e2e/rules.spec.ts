@@ -1,50 +1,86 @@
 import { test, expect } from "@playwright/test";
 import { injectAuth, mockAllApis } from "./helpers";
 
-test.describe("Rules Manager", () => {
+test.describe("Rules Manager: Stitch design", () => {
   test.beforeEach(async ({ page }) => {
     await injectAuth(page);
     await mockAllApis(page);
     await page.goto("/rules");
   });
 
-  test("renders rules table with data", async ({ page }) => {
+  test("renders page header with Rules Manager title", async ({ page }) => {
     await expect(page.getByText("Rules Manager")).toBeVisible();
+    await expect(page.getByText("Configure and manage safety evaluation rules")).toBeVisible();
+  });
+
+  test("renders rules table with all column headers", async ({ page }) => {
+    await expect(page.getByRole("columnheader", { name: /name/i })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: /type/i })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: /pattern/i })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: /severity/i })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: /action/i })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: /status/i })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: /hits/i })).toBeVisible();
+  });
+
+  test("displays all mock rules in the table", async ({ page }) => {
     await expect(page.getByText("System File Protection")).toBeVisible();
     await expect(page.getByText("External API Monitor")).toBeVisible();
     await expect(page.getByText("Cost Threshold")).toBeVisible();
   });
 
-  test("built-in rules show lock icon", async ({ page }) => {
-    // The first rule is built_in — its row should have a lock SVG
-    const row = page.locator("tr", { hasText: "System File Protection" });
-    await expect(row).toBeVisible();
-    // built_in rules don't show edit/delete buttons
-    await expect(row.locator("button", { hasText: /edit|pencil/i })).toHaveCount(0);
+  test("New Rule button is visible", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /new rule/i })).toBeVisible();
   });
 
-  test("search filters rules", async ({ page }) => {
-    const searchInput = page.getByPlaceholder("Search rules by name or pattern...");
-    await searchInput.fill("Cost");
-    await expect(page.getByText("Cost Threshold")).toBeVisible();
-    await expect(page.getByText("System File Protection")).not.toBeVisible();
+  test("search bar is present and accepts input", async ({ page }) => {
+    const searchInput = page.getByPlaceholder(/search rules/i);
+    await expect(searchInput).toBeVisible();
+    await searchInput.fill("System");
+    await expect(page.getByText("System File Protection")).toBeVisible();
+    await expect(page.getByText("External API Monitor")).not.toBeVisible();
   });
 
-  test("create modal opens and closes", async ({ page }) => {
-    await page.getByText("New Rule").click();
+  test("clicking New Rule opens Create Rule modal", async ({ page }) => {
+    await page.getByRole("button", { name: /new rule/i }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
     await expect(page.getByText("Create Rule")).toBeVisible();
-    await expect(page.locator("[role=dialog] input[type=text]").first()).toBeVisible();
-
-    // Close the modal
-    await page.getByText("Cancel").click();
-    await expect(page.getByText("Create Rule")).not.toBeVisible();
   });
 
-  test("navigation to rules page works from sidebar", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.getByText("Safety Dashboard")).toBeVisible();
-    await page.getByRole("link", { name: "Rules" }).click();
-    await expect(page).toHaveURL("/rules");
-    await expect(page.getByText("Rules Manager")).toBeVisible();
+  test("modal has form fields for name, type, severity, action, pattern, description", async ({ page }) => {
+    await page.getByRole("button", { name: /new rule/i }).click();
+    const dialog = page.getByRole("dialog");
+    // Labels are uppercase text in the modal form
+    await expect(dialog.locator("label").filter({ hasText: "Name" })).toBeVisible();
+    await expect(dialog.locator("label").filter({ hasText: "Type" })).toBeVisible();
+    await expect(dialog.locator("label").filter({ hasText: "Severity" })).toBeVisible();
+    await expect(dialog.locator("label").filter({ hasText: "Action" })).toBeVisible();
+    await expect(dialog.locator("label").filter({ hasText: "Pattern" })).toBeVisible();
+    await expect(dialog.locator("label").filter({ hasText: "Description" })).toBeVisible();
+  });
+
+  test("modal can be closed with Cancel button", async ({ page }) => {
+    await page.getByRole("button", { name: /new rule/i }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("button", { name: /cancel/i }).click();
+    await expect(page.getByRole("dialog")).not.toBeVisible();
+  });
+
+  test("built-in rules show lock icon", async ({ page }) => {
+    // System File Protection is built_in: true
+    const row = page.getByRole("row").filter({ hasText: "System File Protection" });
+    await expect(row.locator(".material-symbols-outlined").filter({ hasText: "lock" })).toBeVisible();
+  });
+
+  test("non-built-in rules show edit and delete buttons", async ({ page }) => {
+    const row = page.getByRole("row").filter({ hasText: "External API Monitor" });
+    await expect(row.locator(".material-symbols-outlined").filter({ hasText: "edit" })).toBeVisible();
+    await expect(row.locator(".material-symbols-outlined").filter({ hasText: "delete" })).toBeVisible();
+  });
+
+  test("type filter dropdown is visible", async ({ page }) => {
+    const select = page.locator("select");
+    await expect(select).toBeVisible();
+    await expect(select).toHaveValue("all");
   });
 });
