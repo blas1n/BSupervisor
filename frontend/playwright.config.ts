@@ -31,7 +31,7 @@ export default defineConfig({
   timeout: 30_000,
   retries: 0,
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:3000",
     headless: true,
     viewport: { width: 1280, height: 720 },
   },
@@ -43,7 +43,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "pnpm dev",
-    port: 5173,
+    port: 3000,
     reuseExistingServer: true,
     timeout: 15_000,
   },
