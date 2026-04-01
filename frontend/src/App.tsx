@@ -7,6 +7,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { RulesManager } from "./pages/RulesManager";
 import { DailyReport } from "./pages/DailyReport";
 import { CostMonitor } from "./pages/CostMonitor";
+import { Settings } from "./pages/Settings";
 import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/rules" element={<RulesManager />} />
         <Route path="/reports" element={<DailyReport />} />
         <Route path="/costs" element={<CostMonitor />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

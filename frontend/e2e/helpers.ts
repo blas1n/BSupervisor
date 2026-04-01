@@ -131,6 +131,17 @@ export const mockCosts = {
   anomalies: ["agent-alpha"],
 };
 
+export const mockSettings = {
+  connections: {
+    bsnexus_url: "https://nexus.bsvibe.dev",
+    bsnexus_api_key: "sk-test-key-123",
+    bsgateway_url: "https://gateway.bsvibe.dev",
+    bsage_url: "",
+    telegram_bot_token: "",
+    slack_webhook_url: "",
+  },
+};
+
 /** Set up page.route() mocks for all API endpoints. */
 export async function mockAllApis(page: Page) {
   await page.route("**/api/status", (route) =>
@@ -174,4 +185,14 @@ export async function mockAllApis(page: Page) {
   await page.route("**/api/costs", (route) =>
     route.fulfill({ json: mockCosts }),
   );
+  await page.route("**/api/settings", (route) => {
+    if (route.request().method() === "GET") {
+      return route.fulfill({ json: mockSettings });
+    }
+    if (route.request().method() === "PUT") {
+      const body = route.request().postDataJSON();
+      return route.fulfill({ json: { connections: body } });
+    }
+    return route.fulfill({ status: 200 });
+  });
 }

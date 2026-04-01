@@ -94,6 +94,19 @@ export interface CostData {
   anomalies: string[];
 }
 
+export interface ConnectionSettings {
+  bsnexus_url: string;
+  bsnexus_api_key: string;
+  bsgateway_url: string;
+  bsage_url: string;
+  telegram_bot_token: string;
+  slack_webhook_url: string;
+}
+
+export interface SettingsData {
+  connections: ConnectionSettings;
+}
+
 // --- API calls ---
 
 export async function fetchStatus(): Promise<StatusMetrics> {
@@ -137,5 +150,17 @@ export async function fetchDailyReport(
 
 export async function fetchCosts(): Promise<CostData> {
   const { data } = await api.get("/costs");
+  return data;
+}
+
+export async function fetchSettings(): Promise<SettingsData> {
+  const { data } = await api.get("/settings");
+  return data;
+}
+
+export async function updateSettings(
+  connections: ConnectionSettings,
+): Promise<SettingsData> {
+  const { data } = await api.put("/settings", connections);
   return data;
 }

@@ -147,3 +147,23 @@ class RuleResponse(BaseModel):
     enabled: bool
     built_in: bool
     hit_count: int
+
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+
+class ConnectionSettings(BaseModel):
+    bsnexus_url: str = ""
+    bsnexus_api_key: str = ""
+    bsgateway_url: str = ""
+    bsage_url: str = ""
+    telegram_bot_token: str = ""
+    slack_webhook_url: str = ""
+
+    model_config = {"extra": "forbid"}
+
+
+class SettingsResponse(BaseModel):
+    connections: ConnectionSettings

@@ -31,7 +31,7 @@ def _rule_to_response(rule: AuditRule) -> RuleResponse:
         action=rule.action,
         description=rule.description,
         enabled=rule.enabled,
-        built_in=False,
+        built_in=rule.built_in,
         hit_count=0,
     )
 
@@ -112,6 +112,9 @@ async def delete_rule(
     rule = await session.get(AuditRule, rule_id)
     if rule is None:
         raise HTTPException(status_code=404, detail="Rule not found")
+
+    if rule.built_in:
+        raise HTTPException(status_code=403, detail="Built-in rules cannot be deleted")
 
     await session.delete(rule)
     await session.commit()

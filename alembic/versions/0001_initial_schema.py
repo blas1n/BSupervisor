@@ -38,6 +38,7 @@ def upgrade() -> None:
         sa.Column("condition", sa.JSON(), nullable=False),
         sa.Column("action", sa.String(50), nullable=False),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        sa.Column("built_in", sa.Boolean(), nullable=False, server_default=sa.text("false")),
     )
 
     op.create_table(
