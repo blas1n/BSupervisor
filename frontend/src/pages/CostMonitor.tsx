@@ -89,7 +89,7 @@ export function CostMonitor() {
   return (
     <div className="space-y-6">
       {/* Budget progress */}
-      <div className="bg-gray-900 rounded-lg p-6 relative overflow-hidden">
+      <div className="bg-gray-900 rounded-lg p-6 relative overflow-hidden border border-gray-800/10">
         <div className="flex justify-between items-end mb-4">
           <div>
             <span className="text-[10px] uppercase tracking-widest text-gray-500 block mb-1">Current Day Consumption</span>

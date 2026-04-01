@@ -42,7 +42,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm dev",
+    command: "pnpm dev --port 3000",
     port: 3000,
     reuseExistingServer: true,
     timeout: 15_000,

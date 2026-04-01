@@ -201,9 +201,9 @@ export function RulesManager() {
       {/* Table */}
       <div className="bg-gray-900 rounded-xl border border-gray-800/10 overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-gray-950">
-              <tr>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-950/50 border-b border-gray-800/10">
                 <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
                   Name
                 </th>
@@ -235,23 +235,33 @@ export function RulesManager() {
                   className="hover:bg-gray-850 transition-colors"
                 >
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 font-semibold text-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gray-800 rounded text-accent">
+                        <MaterialIcon icon="shield" className="text-lg" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-gray-100">{rule.name}</div>
+                        {rule.built_in && (
+                          <div className="text-[10px] text-gray-500">PROTECTED SYSTEM RULE</div>
+                        )}
+                      </div>
                       {rule.built_in && (
                         <MaterialIcon
                           icon="lock"
-                          className="text-sm text-gray-500"
+                          className="text-sm text-gray-500/40"
                         />
                       )}
-                      <span className="text-sm">{rule.name}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="inline-flex items-center rounded-md bg-gray-800 px-2 py-0.5 text-xs font-medium capitalize text-gray-300">
+                    <span className="px-2 py-1 bg-gray-800 text-gray-300 text-[10px] font-bold rounded-full">
                       {rule.type}
                     </span>
                   </td>
-                  <td className="max-w-48 truncate px-6 py-4 font-mono text-xs text-gray-400">
-                    {rule.pattern}
+                  <td className="max-w-48 px-6 py-4">
+                    <code className="text-xs font-mono text-gray-400 bg-gray-950 px-2 py-1 rounded truncate block">
+                      {rule.pattern}
+                    </code>
                   </td>
                   <td className="px-6 py-4">
                     <SeverityBadge severity={rule.severity} />

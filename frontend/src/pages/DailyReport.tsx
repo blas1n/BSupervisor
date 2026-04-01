@@ -163,7 +163,7 @@ export function DailyReport() {
             <MaterialIcon icon="picture_as_pdf" className="text-sm" /> PDF
           </button>
           <button className="flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-gray-100 py-2 px-4 bg-gray-800 hover:bg-gray-700 transition-colors">
-            <MaterialIcon icon="description" className="text-sm" /> MD
+            <MaterialIcon icon="markdown" className="text-sm" /> MD
           </button>
         </div>
       </div>

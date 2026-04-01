@@ -28,18 +28,18 @@ test.describe("Dashboard: Stitch design", () => {
     await expect(page.getByText(mockStatus.cost_total)).toBeVisible();
   });
 
-  test("renders System Telemetry chart area", async ({ page }) => {
-    await expect(page.getByText("System Telemetry")).toBeVisible();
-    await expect(page.getByText("Real-time Safety Drift (24h)")).toBeVisible();
+  test("renders Event Timeline chart area", async ({ page }) => {
+    await expect(page.getByText("Event Timeline")).toBeVisible();
+    await expect(page.getByText("Real-time event frequency (24h Window)")).toBeVisible();
   });
 
   test("renders timeline chart legend items", async ({ page }) => {
-    await expect(page.getByText("Safe", { exact: true })).toBeVisible();
+    await expect(page.getByText("Safe", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Warning", { exact: true }).first()).toBeVisible();
   });
 
-  test("renders Live Telemetry feed with events", async ({ page }) => {
-    await expect(page.getByText("Live Telemetry")).toBeVisible();
+  test("renders Live Event Feed with events", async ({ page }) => {
+    await expect(page.getByText("Live Event Feed")).toBeVisible();
     await expect(page.getByText("file_write /etc/passwd")).toBeVisible();
     await expect(page.getByText("agent-alpha").first()).toBeVisible();
   });

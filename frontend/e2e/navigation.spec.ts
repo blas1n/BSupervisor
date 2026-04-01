@@ -10,15 +10,16 @@ test.describe("Navigation: Stitch sidebar", () => {
   test("sidebar shows BSupervisor logo and platform label", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByText("BSupervisor").first()).toBeVisible();
-    await expect(page.getByText("AI Safety Platform")).toBeVisible();
+    await expect(page.getByText("AI Sentinel")).toBeVisible();
   });
 
-  test("sidebar has Dashboard, Rules, Reports, Costs links", async ({ page }) => {
+  test("sidebar has Dashboard, Rules, Reports, Costs, Settings links", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("link", { name: /dashboard/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /rules/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /reports/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /costs/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /settings/i })).toBeVisible();
   });
 
   test("Dashboard link is active on / route", async ({ page }) => {

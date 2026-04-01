@@ -44,7 +44,7 @@ test.describe("Rules Manager: Stitch design", () => {
   test("clicking Create Rule opens Create Rule modal", async ({ page }) => {
     await page.getByRole("button", { name: /create rule/i }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.getByText("Create Rule")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Create Rule" })).toBeVisible();
   });
 
   test("modal has form fields for name, type, severity, action, pattern, description", async ({ page }) => {
