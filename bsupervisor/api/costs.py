@@ -31,8 +31,9 @@ async def list_costs(
     # Total spent today
     total_spent = (
         await session.execute(
-            select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0")))
-            .where(CostRecord.timestamp >= today_start)
+            select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0"))).where(
+                CostRecord.timestamp >= today_start
+            )
         )
     ).scalar_one()
 
@@ -78,8 +79,9 @@ async def list_costs(
         day_end = datetime(d.year, d.month, d.day, 23, 59, 59, 999999, tzinfo=timezone.utc)
         day_cost = (
             await session.execute(
-                select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0")))
-                .where(CostRecord.timestamp >= day_start, CostRecord.timestamp <= day_end)
+                select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0"))).where(
+                    CostRecord.timestamp >= day_start, CostRecord.timestamp <= day_end
+                )
             )
         ).scalar_one()
         trend.append({"date": day_start.strftime("%Y-%m-%d"), "cost": float(day_cost)})

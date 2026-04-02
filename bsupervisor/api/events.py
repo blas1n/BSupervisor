@@ -24,9 +24,7 @@ async def list_events(
     _user: BSVibeUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[EventListItem]:
-    result = await session.execute(
-        select(AuditEvent).order_by(AuditEvent.timestamp.desc()).limit(100)
-    )
+    result = await session.execute(select(AuditEvent).order_by(AuditEvent.timestamp.desc()).limit(100))
     events = result.scalars().all()
 
     items = []
