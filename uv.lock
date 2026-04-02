@@ -113,23 +113,11 @@ dependencies = [
     { name = "asyncpg" },
     { name = "bsvibe-auth", extra = ["fastapi"] },
     { name = "fastapi" },
-    { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "pyyaml" },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "structlog" },
     { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "aiosqlite" },
-    { name = "httpx" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
 ]
 
 [package.dev-dependencies]
@@ -144,25 +132,16 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosqlite", marker = "extra == 'dev'", specifier = ">=0.22.0" },
     { name = "alembic", specifier = ">=1.13.0" },
     { name = "asyncpg", specifier = ">=0.29.0" },
-    { name = "bsvibe-auth", extras = ["fastapi"], git = "https://github.com/blas1n/BSVibe-Auth.git?subdirectory=python" },
+    { name = "bsvibe-auth", extras = ["fastapi"], git = "https://github.com/blas1n/BSVibe-Auth.git?subdirectory=python&rev=v0.4.0" },
     { name = "fastapi", specifier = ">=0.109.0" },
-    { name = "httpx", specifier = ">=0.26.0" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.26.0" },
     { name = "pydantic", specifier = ">=2.5.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0" },
     { name = "structlog", specifier = ">=23.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.27.0" },
 ]
-provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -177,7 +156,7 @@ dev = [
 [[package]]
 name = "bsvibe-auth"
 version = "0.1.0"
-source = { git = "https://github.com/blas1n/BSVibe-Auth.git?subdirectory=python#cc9e3be3e5e771558687472ffd3bb152474124a3" }
+source = { git = "https://github.com/blas1n/BSVibe-Auth.git?subdirectory=python&rev=v0.4.0#404cf28ed821f8c768c3980defc00e2455986d89" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },

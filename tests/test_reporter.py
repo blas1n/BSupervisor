@@ -3,7 +3,6 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bsupervisor.core.reporter import Reporter
@@ -17,24 +16,49 @@ async def _seed_events(session: AsyncSession, target_date: date) -> None:
     base_ts = datetime(target_date.year, target_date.month, target_date.day, 12, 0, 0, tzinfo=timezone.utc)
     events = [
         AuditEvent(
-            agent_id="agent-1", source="cli", event_type="file_read",
-            action="read", target="/data/file.txt", allowed=True, timestamp=base_ts,
+            agent_id="agent-1",
+            source="cli",
+            event_type="file_read",
+            action="read",
+            target="/data/file.txt",
+            allowed=True,
+            timestamp=base_ts,
         ),
         AuditEvent(
-            agent_id="agent-1", source="cli", event_type="shell_exec",
-            action="exec", target="ls -la", allowed=True, timestamp=base_ts,
+            agent_id="agent-1",
+            source="cli",
+            event_type="shell_exec",
+            action="exec",
+            target="ls -la",
+            allowed=True,
+            timestamp=base_ts,
         ),
         AuditEvent(
-            agent_id="agent-1", source="cli", event_type="file_delete",
-            action="delete", target="/secrets/.env", allowed=False, timestamp=base_ts,
+            agent_id="agent-1",
+            source="cli",
+            event_type="file_delete",
+            action="delete",
+            target="/secrets/.env",
+            allowed=False,
+            timestamp=base_ts,
         ),
         AuditEvent(
-            agent_id="agent-2", source="api", event_type="file_write",
-            action="write", target="/output/result.json", allowed=True, timestamp=base_ts,
+            agent_id="agent-2",
+            source="api",
+            event_type="file_write",
+            action="write",
+            target="/output/result.json",
+            allowed=True,
+            timestamp=base_ts,
         ),
         AuditEvent(
-            agent_id="agent-2", source="api", event_type="shell_exec",
-            action="exec", target="rm -rf /", allowed=False, timestamp=base_ts,
+            agent_id="agent-2",
+            source="api",
+            event_type="shell_exec",
+            action="exec",
+            target="rm -rf /",
+            allowed=False,
+            timestamp=base_ts,
         ),
     ]
     session.add_all(events)
@@ -46,20 +70,36 @@ async def _seed_costs(session: AsyncSession, target_date: date) -> None:
     base_ts = datetime(target_date.year, target_date.month, target_date.day, 12, 0, 0, tzinfo=timezone.utc)
     costs = [
         CostRecord(
-            agent_id="agent-1", model="gpt-4", tokens_in=1000, tokens_out=500,
-            cost_usd=Decimal("0.05"), timestamp=base_ts,
+            agent_id="agent-1",
+            model="gpt-4",
+            tokens_in=1000,
+            tokens_out=500,
+            cost_usd=Decimal("0.05"),
+            timestamp=base_ts,
         ),
         CostRecord(
-            agent_id="agent-1", model="gpt-4", tokens_in=2000, tokens_out=1000,
-            cost_usd=Decimal("0.10"), timestamp=base_ts,
+            agent_id="agent-1",
+            model="gpt-4",
+            tokens_in=2000,
+            tokens_out=1000,
+            cost_usd=Decimal("0.10"),
+            timestamp=base_ts,
         ),
         CostRecord(
-            agent_id="agent-1", model="claude-3", tokens_in=500, tokens_out=200,
-            cost_usd=Decimal("0.03"), timestamp=base_ts,
+            agent_id="agent-1",
+            model="claude-3",
+            tokens_in=500,
+            tokens_out=200,
+            cost_usd=Decimal("0.03"),
+            timestamp=base_ts,
         ),
         CostRecord(
-            agent_id="agent-2", model="gpt-4", tokens_in=3000, tokens_out=1500,
-            cost_usd=Decimal("0.15"), timestamp=base_ts,
+            agent_id="agent-2",
+            model="gpt-4",
+            tokens_in=3000,
+            tokens_out=1500,
+            cost_usd=Decimal("0.15"),
+            timestamp=base_ts,
         ),
     ]
     session.add_all(costs)
@@ -159,6 +199,7 @@ async def test_report_is_stored_in_db(db_session: AsyncSession) -> None:
     assert report.id is not None
     # Verify it's in the DB
     from sqlalchemy import select
+
     stmt = select(DailyReport).where(DailyReport.date == target)
     result = await db_session.execute(stmt)
     stored = result.scalar_one()
@@ -173,10 +214,17 @@ async def test_report_filters_by_date(db_session: AsyncSession) -> None:
 
     # Add one event on a different day
     other_ts = datetime(2026, 3, 16, 10, 0, 0, tzinfo=timezone.utc)
-    db_session.add(AuditEvent(
-        agent_id="agent-3", source="api", event_type="file_read",
-        action="read", target="/tmp/x", allowed=True, timestamp=other_ts,
-    ))
+    db_session.add(
+        AuditEvent(
+            agent_id="agent-3",
+            source="api",
+            event_type="file_read",
+            action="read",
+            target="/tmp/x",
+            allowed=True,
+            timestamp=other_ts,
+        )
+    )
     await db_session.commit()
 
     reporter = Reporter(db_session)
@@ -236,6 +284,44 @@ async def test_get_daily_report_invalid_date(client) -> None:
     """GET /api/reports/daily with invalid date returns 422."""
     resp = await client.get("/api/reports/daily", params={"date": "not-a-date"})
     assert resp.status_code == 422
+
+
+async def test_generate_report_upsert_updates_existing(db_session: AsyncSession) -> None:
+    """Generating a report for the same date twice should update, not duplicate."""
+    target = date(2026, 3, 20)
+    await _seed_events(db_session, target)
+
+    reporter = Reporter(db_session)
+    report1 = await reporter.generate_daily_report(target)
+    report1_id = report1.id
+    assert report1.total_events == 5
+
+    # Add more events and regenerate
+    base_ts = datetime(2026, 3, 20, 18, 0, 0, tzinfo=timezone.utc)
+    db_session.add(
+        AuditEvent(
+            agent_id="agent-3",
+            source="api",
+            event_type="file_read",
+            action="read",
+            target="/tmp/extra",
+            allowed=True,
+            timestamp=base_ts,
+        )
+    )
+    await db_session.commit()
+
+    report2 = await reporter.generate_daily_report(target)
+    assert report2.total_events == 6
+    assert report2.id == report1_id  # Same row updated
+
+    # Verify only one report exists for this date
+    from sqlalchemy import select
+
+    stmt = select(DailyReport).where(DailyReport.date == target)
+    result = await db_session.execute(stmt)
+    reports = result.scalars().all()
+    assert len(reports) == 1
 
 
 async def test_get_daily_report_empty_day(client) -> None:

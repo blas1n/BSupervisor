@@ -1,7 +1,6 @@
 """Tests for POST /api/events endpoint."""
 
 import uuid
-from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import select

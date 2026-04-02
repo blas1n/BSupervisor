@@ -1,10 +1,12 @@
 """Shared test fixtures."""
 
 import pytest
+from bsvibe_auth import BSVibeUser
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import bsupervisor.core.rule_engine as rule_engine_mod
+from bsupervisor.api.deps import get_current_user
 from bsupervisor.main import app
 from bsupervisor.models import Base
 from bsupervisor.models.database import get_session
@@ -40,12 +42,19 @@ async def db_session(db_engine):
         yield session
 
 
+_fake_user = BSVibeUser(id="test-user-id", email="test@example.com")
+
+
 @pytest.fixture
 async def client(db_session):
     async def _override_get_session():
         yield db_session
 
+    async def _override_get_current_user() -> BSVibeUser:
+        return _fake_user
+
     app.dependency_overrides[get_session] = _override_get_session
+    app.dependency_overrides[get_current_user] = _override_get_current_user
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

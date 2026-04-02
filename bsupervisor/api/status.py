@@ -3,10 +3,12 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
+from bsvibe_auth import BSVibeUser
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bsupervisor.api.deps import get_current_user
 from bsupervisor.api.schemas import StatusResponse
 from bsupervisor.models.audit_event import AuditEvent
 from bsupervisor.models.cost_record import CostRecord
@@ -17,6 +19,7 @@ router = APIRouter(prefix="/api", tags=["status"])
 
 @router.get("/status", response_model=StatusResponse)
 async def get_status(
+    _user: BSVibeUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     today = datetime.now(timezone.utc).date()
@@ -25,7 +28,9 @@ async def get_status(
 
     total_events = (
         await session.execute(
-            select(func.count()).select_from(AuditEvent).where(AuditEvent.timestamp >= start, AuditEvent.timestamp <= end)
+            select(func.count())
+            .select_from(AuditEvent)
+            .where(AuditEvent.timestamp >= start, AuditEvent.timestamp <= end)
         )
     ).scalar_one()
 
@@ -47,7 +52,8 @@ async def get_status(
     ).scalar_one()
 
     return StatusResponse(
-        total_events_today=total_events,
-        blocked_count_today=blocked_count,
-        total_cost_today=str(total_cost.normalize()),
+        events_today=total_events,
+        violations=blocked_count,
+        blocked_actions=blocked_count,
+        cost_total=f"${total_cost.normalize()}",
     )

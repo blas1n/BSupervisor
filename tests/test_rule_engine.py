@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.core.rule_engine import RuleEngine, RuleResult
+from bsupervisor.core.rule_engine import RuleEngine, RuleResult, invalidate_rules_cache
+import bsupervisor.core.rule_engine as rule_engine_mod
 from bsupervisor.models.audit_event import AuditEvent
 from bsupervisor.models.audit_rule import AuditRule
 from bsupervisor.models.cost_record import CostRecord
@@ -336,3 +336,77 @@ class TestRuleEngineAPIIntegration:
         data = response.json()
         assert data["allowed"] is False
         assert "sudo" in data["reason"]
+
+
+# --- Cache invalidation ---
+
+
+class TestInvalidateRulesCache:
+    def test_invalidate_clears_cache(self):
+        """invalidate_rules_cache should reset the global cache."""
+        rule_engine_mod._rules_cache = [AuditRule(name="x", description="x", condition={}, action="log")]
+        rule_engine_mod._rules_cache_ts = 999.0
+
+        invalidate_rules_cache()
+
+        assert rule_engine_mod._rules_cache is None
+        assert rule_engine_mod._rules_cache_ts == 0.0
+
+    async def test_cache_invalidated_on_rule_create(self, client, db_session: AsyncSession):
+        """Creating a rule should invalidate the cache."""
+        rule_engine_mod._rules_cache = [AuditRule(name="old", description="old", condition={}, action="log")]
+        rule_engine_mod._rules_cache_ts = 999.0
+
+        await client.post(
+            "/api/rules",
+            json={
+                "name": "new-rule",
+                "type": "pattern",
+                "pattern": "test",
+                "severity": "medium",
+                "action": "block",
+                "description": "A new rule",
+            },
+        )
+
+        assert rule_engine_mod._rules_cache is None
+
+    async def test_cache_invalidated_on_rule_update(self, client, db_session: AsyncSession):
+        """Updating a rule should invalidate the cache."""
+        rule = AuditRule(
+            name="update-me",
+            description="desc",
+            condition={"event_type": "test"},
+            action="warn",
+            enabled=True,
+        )
+        db_session.add(rule)
+        await db_session.commit()
+        await db_session.refresh(rule)
+
+        rule_engine_mod._rules_cache = [rule]
+        rule_engine_mod._rules_cache_ts = 999.0
+
+        await client.put(f"/api/rules/{rule.id}", json={"enabled": False})
+
+        assert rule_engine_mod._rules_cache is None
+
+    async def test_cache_invalidated_on_rule_delete(self, client, db_session: AsyncSession):
+        """Deleting a rule should invalidate the cache."""
+        rule = AuditRule(
+            name="delete-me",
+            description="desc",
+            condition={"event_type": "test"},
+            action="block",
+            enabled=True,
+        )
+        db_session.add(rule)
+        await db_session.commit()
+        await db_session.refresh(rule)
+
+        rule_engine_mod._rules_cache = [rule]
+        rule_engine_mod._rules_cache_ts = 999.0
+
+        await client.delete(f"/api/rules/{rule.id}")
+
+        assert rule_engine_mod._rules_cache is None

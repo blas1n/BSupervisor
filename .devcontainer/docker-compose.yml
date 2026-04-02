@@ -13,6 +13,7 @@ services:
       - ~/.claude:/home/vscode/.claude:cached
     ports:
       - "${EXTERNAL_BACKEND_PORT:-8500}:8000"
+      - "${EXTERNAL_FRONTEND_PORT:-3500}:3000"
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
