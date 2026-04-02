@@ -36,14 +36,26 @@ class Reporter:
             "top_agents": top_agents,
         }
 
-        report = DailyReport(
-            date=target_date,
-            total_events=total_events,
-            blocked_count=blocked_count,
-            total_cost_usd=total_cost_usd,
-            report_json=report_json,
-        )
-        self._session.add(report)
+        # Upsert: update existing report for this date or create new one
+        existing_stmt = select(DailyReport).where(DailyReport.date == target_date)
+        existing_result = await self._session.execute(existing_stmt)
+        report = existing_result.scalar_one_or_none()
+
+        if report is not None:
+            report.total_events = total_events
+            report.blocked_count = blocked_count
+            report.total_cost_usd = total_cost_usd
+            report.report_json = report_json
+        else:
+            report = DailyReport(
+                date=target_date,
+                total_events=total_events,
+                blocked_count=blocked_count,
+                total_cost_usd=total_cost_usd,
+                report_json=report_json,
+            )
+            self._session.add(report)
+
         await self._session.commit()
         await self._session.refresh(report)
 
@@ -117,9 +129,8 @@ class Reporter:
         return result.scalar_one()
 
     async def _sum_costs(self, start: datetime, end: datetime) -> Decimal:
-        stmt = (
-            select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0")))
-            .where(CostRecord.timestamp >= start, CostRecord.timestamp <= end)
+        stmt = select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0"))).where(
+            CostRecord.timestamp >= start, CostRecord.timestamp <= end
         )
         result = await self._session.execute(stmt)
         return result.scalar_one()

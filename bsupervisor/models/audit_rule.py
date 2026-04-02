@@ -14,3 +14,4 @@ class AuditRule(UUIDPrimaryKeyMixin, Base):
     condition: Mapped[dict] = mapped_column(JSON, nullable=False)
     action: Mapped[str] = mapped_column(String(50), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    built_in: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")

@@ -4,7 +4,6 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bsupervisor.models.audit_event import AuditEvent
@@ -22,9 +21,10 @@ class TestStatusEndpoint:
         resp = await client.get("/api/status")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["total_events_today"] == 0
-        assert data["blocked_count_today"] == 0
-        assert data["total_cost_today"] == "0"
+        assert data["events_today"] == 0
+        assert data["violations"] == 0
+        assert data["blocked_actions"] == 0
+        assert data["cost_total"] == "$0"
 
     async def test_status_with_events_and_costs(self, client, db_session: AsyncSession):
         now = datetime.now(timezone.utc)
@@ -80,9 +80,10 @@ class TestStatusEndpoint:
         resp = await client.get("/api/status")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["total_events_today"] == 4
-        assert data["blocked_count_today"] == 1
-        assert data["total_cost_today"] == "2.25"
+        assert data["events_today"] == 4
+        assert data["violations"] == 1
+        assert data["blocked_actions"] == 1
+        assert data["cost_total"] == "$2.25"
 
 
 # ---------------------------------------------------------------------------
@@ -126,24 +127,32 @@ class TestCreateRule:
     async def test_create_rule(self, client):
         payload = {
             "name": "block-env-delete",
-            "description": "Block .env file deletion",
-            "condition": {"event_type": "file_delete", "target_pattern": "*.env"},
+            "type": "pattern",
+            "pattern": "*.env",
+            "severity": "critical",
             "action": "block",
+            "description": "Block .env file deletion",
         }
         resp = await client.post("/api/rules", json=payload)
         assert resp.status_code == 201
         data = resp.json()
         assert data["name"] == "block-env-delete"
         assert data["action"] == "block"
+        assert data["type"] == "pattern"
+        assert data["pattern"] == "*.env"
+        assert data["severity"] == "critical"
         assert data["enabled"] is True
+        assert data["built_in"] is False
         assert "id" in data
 
     async def test_create_rule_default_enabled(self, client):
         payload = {
             "name": "warn-rule",
-            "description": "A warning rule",
-            "condition": {"event_type": "shell_exec"},
+            "type": "action",
+            "pattern": "shell_exec",
+            "severity": "medium",
             "action": "warn",
+            "description": "A warning rule",
         }
         resp = await client.post("/api/rules", json=payload)
         assert resp.status_code == 201
@@ -152,8 +161,9 @@ class TestCreateRule:
     async def test_create_rule_invalid_action(self, client):
         payload = {
             "name": "bad-rule",
-            "description": "Bad action",
-            "condition": {"event_type": "test"},
+            "type": "pattern",
+            "pattern": "test",
+            "severity": "medium",
             "action": "invalid_action",
         }
         resp = await client.post("/api/rules", json=payload)
@@ -161,8 +171,9 @@ class TestCreateRule:
 
     async def test_create_rule_missing_name(self, client):
         payload = {
-            "description": "No name",
-            "condition": {"event_type": "test"},
+            "type": "pattern",
+            "pattern": "test",
+            "severity": "medium",
             "action": "block",
         }
         resp = await client.post("/api/rules", json=payload)
@@ -171,9 +182,11 @@ class TestCreateRule:
     async def test_create_rule_duplicate_name(self, client):
         payload = {
             "name": "unique-rule",
-            "description": "First",
-            "condition": {"event_type": "test"},
+            "type": "pattern",
+            "pattern": "test",
+            "severity": "medium",
             "action": "block",
+            "description": "First",
         }
         resp = await client.post("/api/rules", json=payload)
         assert resp.status_code == 201

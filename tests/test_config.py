@@ -11,7 +11,7 @@ def test_settings_defaults() -> None:
     assert s.port == 8000
     assert s.debug is False
     assert s.auth_provider == "local"
-    assert s.daily_cost_threshold_usd == "50.00"
+    assert s.daily_cost_threshold_usd == Decimal("50.00")
 
 
 def test_settings_singleton_exists() -> None:
