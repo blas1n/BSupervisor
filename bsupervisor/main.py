@@ -1,9 +1,13 @@
 """BSupervisor — AI agent auditing and safety system."""
 
+import os
 from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from bsupervisor.api.costs import router as costs_router
 from bsupervisor.api.events import router as events_router
@@ -38,6 +42,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_cors_origins = [
+    o.strip()
+    for o in os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3500").split(",")
+    if o.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
 app.include_router(events_router)
 app.include_router(costs_router)
 app.include_router(reports_router)
@@ -49,3 +67,20 @@ app.include_router(status_router)
 @app.get("/api/health")
 async def health_check() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/api/health/ready")
+async def readiness_check() -> JSONResponse:
+    try:
+        async with async_session_factory() as session:
+            await session.execute(text("SELECT 1"))
+        return JSONResponse(
+            status_code=200,
+            content={"status": "ready", "database": "ok"},
+        )
+    except Exception:
+        logger.error("readiness_check_failed", exc_info=True)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "database": "error"},
+        )
