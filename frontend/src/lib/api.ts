@@ -94,11 +94,18 @@ export interface CostData {
   anomalies: string[];
 }
 
+export type IntegrationType = "bsnexus" | "bsgateway" | "bsage" | "openai" | "anthropic" | "custom";
+
+export interface IntegrationEntry {
+  id: string;
+  name: string;
+  type: IntegrationType;
+  endpoint_url: string;
+  api_key: string;
+}
+
 export interface ConnectionSettings {
-  bsnexus_url: string;
-  bsnexus_api_key: string;
-  bsgateway_url: string;
-  bsage_url: string;
+  integrations: IntegrationEntry[];
   telegram_bot_token: string;
   slack_webhook_url: string;
 }

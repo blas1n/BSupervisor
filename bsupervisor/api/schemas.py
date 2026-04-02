@@ -154,11 +154,25 @@ class RuleResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+VALID_INTEGRATION_TYPES = {"bsnexus", "bsgateway", "bsage", "openai", "anthropic", "custom"}
+
+
+class IntegrationEntry(BaseModel):
+    id: str = Field(..., min_length=1, max_length=255)
+    name: str = Field(..., min_length=1, max_length=255)
+    type: str = Field(..., min_length=1, max_length=50)
+    endpoint_url: str = Field(default="", max_length=2048)
+    api_key: str = Field(default="", max_length=2048)
+
+    model_config = {"extra": "forbid"}
+
+    def model_post_init(self, __context) -> None:
+        if self.type not in VALID_INTEGRATION_TYPES:
+            raise ValueError(f"type must be one of {VALID_INTEGRATION_TYPES}")
+
+
 class ConnectionSettings(BaseModel):
-    bsnexus_url: str = ""
-    bsnexus_api_key: str = ""
-    bsgateway_url: str = ""
-    bsage_url: str = ""
+    integrations: list[IntegrationEntry] = Field(default_factory=list)
     telegram_bot_token: str = ""
     slack_webhook_url: str = ""
 

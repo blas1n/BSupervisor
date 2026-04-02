@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { injectAuth, mockAllApis } from "./helpers";
 
-test.describe("Settings page: Stitch design", () => {
+test.describe("Settings page: generic integrations", () => {
   test.beforeEach(async ({ page }) => {
     await injectAuth(page);
     await mockAllApis(page);
@@ -15,19 +15,14 @@ test.describe("Settings page: Stitch design", () => {
     ).toBeVisible();
   });
 
-  test("renders BSNexus connection card", async ({ page }) => {
-    await expect(page.getByText("BSNexus Connection")).toBeVisible();
-    await expect(page.getByPlaceholder("https://nexus.bsvibe.dev")).toBeVisible();
+  test("renders Agent Platforms section", async ({ page }) => {
+    await expect(page.getByText("Agent Platforms")).toBeVisible();
   });
 
-  test("renders BSGateway connection card", async ({ page }) => {
-    await expect(page.getByText("BSGateway Connection")).toBeVisible();
-    await expect(page.getByPlaceholder("https://gateway.bsvibe.dev")).toBeVisible();
-  });
-
-  test("renders BSage connection card", async ({ page }) => {
-    await expect(page.getByText("BSage Connection")).toBeVisible();
-    await expect(page.getByPlaceholder("https://sage.bsvibe.dev")).toBeVisible();
+  test("loads saved integrations from API", async ({ page }) => {
+    // Two integrations from mock data
+    await expect(page.getByText("BSNexus").first()).toBeVisible();
+    await expect(page.getByText("BSGateway").first()).toBeVisible();
   });
 
   test("renders notification channels card", async ({ page }) => {
@@ -38,12 +33,21 @@ test.describe("Settings page: Stitch design", () => {
     ).toBeVisible();
   });
 
-  test("loads saved settings from API", async ({ page }) => {
-    const nexusUrlInput = page.getByPlaceholder("https://nexus.bsvibe.dev");
-    await expect(nexusUrlInput).toHaveValue("https://nexus.bsvibe.dev");
+  test("Add Integration button is visible", async ({ page }) => {
+    await expect(page.getByTestId("add-integration")).toBeVisible();
+  });
 
-    const gatewayUrlInput = page.getByPlaceholder("https://gateway.bsvibe.dev");
-    await expect(gatewayUrlInput).toHaveValue("https://gateway.bsvibe.dev");
+  test("clicking Add Integration adds a new card", async ({ page }) => {
+    const initialCards = await page.getByTestId("remove-integration").count();
+    await page.getByTestId("add-integration").click();
+    await expect(page.getByTestId("remove-integration")).toHaveCount(initialCards + 1);
+    await expect(page.getByText("New Integration")).toBeVisible();
+  });
+
+  test("Remove button removes an integration card", async ({ page }) => {
+    const initialCount = await page.getByTestId("remove-integration").count();
+    await page.getByTestId("remove-integration").first().click();
+    await expect(page.getByTestId("remove-integration")).toHaveCount(initialCount - 1);
   });
 
   test("Save Settings button is visible", async ({ page }) => {
@@ -57,9 +61,16 @@ test.describe("Settings page: Stitch design", () => {
     await expect(page.getByText("Settings saved")).toBeVisible();
   });
 
-  test("Test buttons are visible for each connection", async ({ page }) => {
+  test("Test buttons are visible for each integration", async ({ page }) => {
+    // One test button per integration that has an endpoint URL
     const testButtons = page.getByRole("button", { name: /test/i });
-    await expect(testButtons).toHaveCount(3);
+    await expect(testButtons).toHaveCount(2);
+  });
+
+  test("integration type dropdown has all options", async ({ page }) => {
+    const select = page.locator("select").first();
+    const options = select.locator("option");
+    await expect(options).toHaveCount(6);
   });
 
   test("settings link is in the sidebar", async ({ page }) => {

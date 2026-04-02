@@ -133,10 +133,22 @@ export const mockCosts = {
 
 export const mockSettings = {
   connections: {
-    bsnexus_url: "https://nexus.bsvibe.dev",
-    bsnexus_api_key: "sk-test-key-123",
-    bsgateway_url: "https://gateway.bsvibe.dev",
-    bsage_url: "",
+    integrations: [
+      {
+        id: "int-1",
+        name: "BSNexus",
+        type: "bsnexus",
+        endpoint_url: "https://nexus.bsvibe.dev",
+        api_key: "sk-test-key-123",
+      },
+      {
+        id: "int-2",
+        name: "BSGateway",
+        type: "bsgateway",
+        endpoint_url: "https://gateway.bsvibe.dev",
+        api_key: "",
+      },
+    ],
     telegram_bot_token: "",
     slack_webhook_url: "",
   },
