@@ -1,5 +1,5 @@
 import axios from "axios";
-import { TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from "./auth";
+import { getToken } from "./auth";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
@@ -8,22 +8,19 @@ const api = axios.create({
 
 // Attach auth token to every request
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Handle 401 by clearing auth and redirecting to login
+// Handle 401 by redirecting to login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
-      window.location.href = "/login";
+      window.location.href = "/";
     }
     return Promise.reject(error);
   },
