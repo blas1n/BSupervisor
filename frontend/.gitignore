@@ -31,3 +31,4 @@ core
 *.njsproj
 *.sln
 *.sw?
+.vercel
