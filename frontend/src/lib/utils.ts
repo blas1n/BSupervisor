@@ -2,8 +2,8 @@ export function cn(...classes: (string | false | undefined | null)[]): string {
   return classes.filter(Boolean).join(" ");
 }
 
-export function formatNumber(n: number): string {
-  return n.toLocaleString("en-US");
+export function formatNumber(n: number | undefined | null): string {
+  return (n ?? 0).toLocaleString("en-US");
 }
 
 export function formatDate(iso: string): string {
