@@ -2,7 +2,7 @@ import axios from "axios";
 import { TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from "./auth";
 
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: import.meta.env.VITE_API_URL || "/api",
   headers: { "Content-Type": "application/json" },
 });
 
