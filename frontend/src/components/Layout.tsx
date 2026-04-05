@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { useAuth } from "../lib/auth";
@@ -24,11 +25,20 @@ export function Layout() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const title = pageTitles[location.pathname] ?? "BSupervisor";
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden">
+      {/* Backdrop - mobile only */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="flex w-64 flex-shrink-0 flex-col bg-gray-950">
+      <aside className={`fixed left-0 top-0 h-screen w-64 flex-shrink-0 flex flex-col bg-gray-950 z-50 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:z-auto`}>
         {/* Logo */}
         <div className="flex items-center gap-3 px-6 py-8">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900">
@@ -49,6 +59,7 @@ export function Layout() {
               key={to}
               to={to}
               end={to === "/"}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-3 px-4 py-3 text-sm uppercase font-bold tracking-tight transition-all duration-200",
@@ -104,6 +115,15 @@ export function Layout() {
         {/* Header */}
         <header className="flex h-16 flex-shrink-0 items-center justify-between bg-gray-950/60 px-8 backdrop-blur-xl sticky top-0 z-40">
           <div className="flex items-center gap-4">
+            {/* Hamburger - mobile only */}
+            <button
+              className="md:hidden p-2 -ml-2 rounded-lg text-gray-400"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
             <h2 className="text-sm text-gray-400 font-medium">
               {title}
             </h2>
@@ -117,7 +137,7 @@ export function Layout() {
             </div>
           </div>
           <div className="flex items-center gap-6">
-            <div className="relative flex items-center">
+            <div className="relative flex items-center hidden sm:flex">
               <MaterialIcon icon="search" className="absolute left-3 text-sm text-gray-500" />
               <input
                 type="text"

@@ -1,43 +1,27 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Shield, Loader2 } from "lucide-react";
-import { useAuth, consumeHashTokens, userFromToken } from "../lib/auth";
+import { useAuth } from "../lib/auth";
 
 export function AuthCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setAuth } = useAuth();
+  const { handleCallback } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. Try hash fragment first (OAuth implicit flow from auth.bsvibe.dev)
-    const hashResult = consumeHashTokens();
+    // BSVibeAuth.handleCallback() handles hash parsing, state validation, and session storage
+    const success = handleCallback();
 
-    if (hashResult) {
-      const user = userFromToken(hashResult.accessToken);
-      if (user) {
-        setAuth(hashResult.accessToken, user, hashResult.refreshToken ?? undefined);
-        navigate("/", { replace: true });
-        return;
-      }
-      // Token exists but no user info decodable — fall through to error
-    }
-
-    // 2. Fallback: query params (legacy or alternative flows)
-    const token = searchParams.get("access_token") || searchParams.get("token");
-    const email = searchParams.get("email");
-
-    if (token && email) {
-      const name = searchParams.get("name") || undefined;
-      setAuth(token, { email, name });
+    if (success) {
       navigate("/", { replace: true });
       return;
     }
 
-    // 3. Error
+    // Error
     const err = searchParams.get("error");
     setError(err || "Authentication failed. No valid token received.");
-  }, [searchParams, setAuth, navigate]);
+  }, [handleCallback, searchParams, navigate]);
 
   if (error) {
     return (
