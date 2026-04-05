@@ -43,18 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Silent SSO check
-    auth.checkSession().then((ssoUser) => {
-      if (ssoUser) {
-        setState({
-          token: ssoUser.accessToken,
-          user: { email: ssoUser.email },
-          isLoading: false,
-        });
-      } else {
-        setState({ token: null, user: null, isLoading: false });
-      }
-    });
+    // Silent SSO check (redirect-based)
+    const result = auth.checkSession();
+    if (result === 'redirect') return; // page is navigating away
+    if (result) {
+      setState({
+        token: result.accessToken,
+        user: { email: result.email },
+        isLoading: false,
+      });
+    } else {
+      setState({ token: null, user: null, isLoading: false });
+    }
   }, []);
 
   const login = useCallback(() => {
