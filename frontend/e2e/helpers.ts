@@ -1,14 +1,20 @@
 import type { Page } from "@playwright/test";
 
-/** Inject fake auth tokens into localStorage so ProtectedRoute lets us through. */
+/** Fake JWT with sub/email/app_metadata claims for useAuth decoding. */
+const FAKE_JWT =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMyIsImVtYWlsIjoidGVzdEBleGFtcGxlLmNvbSIsImFwcF9tZXRhZGF0YSI6eyJ0ZW5hbnRfaWQiOiJ0ZW5hbnQtMSIsInJvbGUiOiJtZW1iZXIifSwiZXhwIjo5OTk5OTk5OTk5fQ.fake-signature";
+
+/** Mock the auth.bsvibe.dev/api/session endpoint so useAuth resolves a user. */
 export async function injectAuth(page: Page) {
-  await page.addInitScript(() => {
-    localStorage.setItem("bsupervisor_token", "fake-jwt-token");
-    localStorage.setItem(
-      "bsupervisor_user",
-      JSON.stringify({ email: "test@example.com", name: "Test User" }),
-    );
-  });
+  await page.route("**/auth.bsvibe.dev/api/session", (route) =>
+    route.fulfill({
+      json: {
+        access_token: FAKE_JWT,
+        refresh_token: "fake-refresh",
+        expires_in: 3600,
+      },
+    }),
+  );
 }
 
 // ---- Mock API data ----

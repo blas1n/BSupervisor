@@ -1,8 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "./lib/auth";
+import { useAuth } from "./hooks/useAuth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
-import { AuthCallback } from "./pages/AuthCallback";
 import { Dashboard } from "./pages/Dashboard";
 import { RulesManager } from "./pages/RulesManager";
 import { DailyReport } from "./pages/DailyReport";
@@ -12,9 +11,9 @@ import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { token, isLoading } = useAuth();
+  const { user, loading } = useAuth();
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-950">
         <Loader2 className="h-8 w-8 animate-spin text-accent" />
@@ -22,7 +21,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!token) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
@@ -33,7 +32,6 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route
         element={
           <ProtectedRoute>
