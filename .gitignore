@@ -20,3 +20,4 @@ htmlcov/
 .agent/
 .pnpm-store/
 .env.production
+.gitrepo
