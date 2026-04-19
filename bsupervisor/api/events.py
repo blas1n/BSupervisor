@@ -42,6 +42,7 @@ async def list_events(
             severity = "blocked"
         else:
             severity = "safe"
+        explanation = ExplanationResponse(**e.explanation_json) if e.explanation_json else None
         items.append(
             EventListItem(
                 id=str(e.id),
@@ -50,6 +51,7 @@ async def list_events(
                 action=e.action,
                 severity=severity,
                 details=e.target,
+                explanation=explanation,
             )
         )
     return items
