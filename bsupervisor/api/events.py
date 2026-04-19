@@ -18,6 +18,7 @@ from bsupervisor.api.schemas import (
     FeedbackRequest,
     FeedbackResponse,
 )
+from bsupervisor.core.incident_tracker import IncidentTracker
 from bsupervisor.core.rule_engine import RuleEngine
 from bsupervisor.models.audit_event import AuditEvent
 from bsupervisor.models.database import get_session
@@ -84,6 +85,11 @@ async def ingest_event(
     session.add(event)
     await session.commit()
     await session.refresh(event)
+
+    # Track incidents for blocked events
+    if not rule_result.allowed:
+        tracker = IncidentTracker(session)
+        await tracker.track_event(event)
 
     logger.info(
         "event_ingested",
