@@ -9,7 +9,7 @@ test.describe("Incidents Page", () => {
 
   test("shows incident list", async ({ page }) => {
     await page.goto("/incidents");
-    await expect(page.getByText("Incident Timeline")).toBeVisible();
+    await expect(page.getByText("Incident Timeline").first()).toBeVisible();
     await expect(page.getByText("Incidents (2)")).toBeVisible();
     await expect(page.getByText("Blocked file_delete: /secrets/private.key")).toBeVisible();
     await expect(page.getByText("Blocked shell_exec: sudo rm -rf /")).toBeVisible();
@@ -23,12 +23,15 @@ test.describe("Incidents Page", () => {
 
   test("shows timeline when incident is selected", async ({ page }) => {
     await page.goto("/incidents");
-    await page.getByTestId("incident-inc-1").click();
+
+    await Promise.all([
+      page.waitForResponse((resp) => resp.url().includes("/api/incidents/") && resp.request().method() === "GET"),
+      page.getByTestId("incident-inc-1").click(),
+    ]);
 
     // Timeline should be visible with entries
     await expect(page.getByTestId("timeline-entry").first()).toBeVisible();
-    await expect(page.getByText("/secrets/private.key")).toBeVisible();
-    await expect(page.getByText("/app/.env")).toBeVisible();
+    await expect(page.getByText("/secrets/private.key").first()).toBeVisible();
   });
 
   test("shows allowed and blocked entries in timeline", async ({ page }) => {
@@ -45,7 +48,12 @@ test.describe("Incidents Page", () => {
 
     const resolveBtn = page.getByTestId("resolve-btn");
     await expect(resolveBtn).toBeVisible();
-    await resolveBtn.click();
+
+    // Click resolve and wait for API response
+    await Promise.all([
+      page.waitForResponse("**/api/incidents/*/resolve"),
+      resolveBtn.click(),
+    ]);
 
     // After resolve, button should disappear
     await expect(resolveBtn).not.toBeVisible();

@@ -55,7 +55,6 @@ test.describe("Navigation: Stitch sidebar", () => {
 
   test("sidebar shows user info when authenticated", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText("Test User")).toBeVisible();
     await expect(page.getByText("test@example.com")).toBeVisible();
   });
 

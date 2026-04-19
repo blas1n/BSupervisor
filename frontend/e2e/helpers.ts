@@ -1,13 +1,19 @@
 import type { Page } from "@playwright/test";
 
-/** Inject fake auth tokens into localStorage so ProtectedRoute lets us through. */
+/** Inject fake auth tokens into localStorage so ProtectedRoute lets us through.
+ *  Must match the `bsvibe_user` key used by bsvibe-auth session.ts */
 export async function injectAuth(page: Page) {
   await page.addInitScript(() => {
-    localStorage.setItem("bsupervisor_token", "fake-jwt-token");
-    localStorage.setItem(
-      "bsupervisor_user",
-      JSON.stringify({ email: "test@example.com", name: "Test User" }),
-    );
+    const fakeUser = {
+      id: "test-user-id",
+      email: "test@example.com",
+      tenantId: "test-tenant",
+      role: "admin",
+      accessToken: "fake-jwt-token",
+      refreshToken: "fake-refresh-token",
+      expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+    };
+    localStorage.setItem("bsvibe_user", JSON.stringify(fakeUser));
   });
 }
 
@@ -322,10 +328,11 @@ export async function mockAllApis(page: Page) {
   await page.route("**/api/costs", (route) =>
     route.fulfill({ json: mockCosts }),
   );
+  await page.route("**/api/incidents/*/resolve", (route) =>
+    route.fulfill({ json: { id: "inc-1", status: "resolved" } }),
+  );
   await page.route("**/api/incidents/*", (route) => {
-    if (route.request().method() === "POST") {
-      return route.fulfill({ json: { id: "inc-1", status: "resolved" } });
-    }
+    if (route.request().url().includes("/resolve")) return route.fallback();
     return route.fulfill({ json: mockIncidentDetail });
   });
   await page.route("**/api/incidents", (route) =>
