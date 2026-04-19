@@ -56,6 +56,7 @@ class EventListItem(BaseModel):
     severity: str
     rule_name: str | None = None
     details: str | None = None
+    explanation: ExplanationResponse | None = None
 
 
 class CostRequest(BaseModel):
