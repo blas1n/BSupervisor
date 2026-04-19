@@ -13,6 +13,7 @@ from bsupervisor.api.costs import router as costs_router
 from bsupervisor.api.events import router as events_router
 from bsupervisor.api.incidents import router as incidents_router
 from bsupervisor.api.reports import router as reports_router
+from bsupervisor.api.rule_packs import router as rule_packs_router
 from bsupervisor.api.rules import router as rules_router
 from bsupervisor.api.settings import router as settings_router
 from bsupervisor.api.status import router as status_router
@@ -60,6 +61,7 @@ app.include_router(incidents_router)
 app.include_router(costs_router)
 app.include_router(reports_router)
 app.include_router(rules_router)
+app.include_router(rule_packs_router)
 app.include_router(settings_router)
 app.include_router(status_router)
 
