@@ -6,6 +6,7 @@ import { MaterialIcon } from "../components/MaterialIcon";
 
 const navItems = [
   { to: "/", icon: "dashboard", label: "Dashboard" },
+  { to: "/incidents", icon: "timeline", label: "Incidents" },
   { to: "/rules", icon: "gavel", label: "Rules" },
   { to: "/reports", icon: "analytics", label: "Reports" },
   { to: "/costs", icon: "payments", label: "Costs" },
@@ -14,6 +15,7 @@ const navItems = [
 
 const pageTitles: Record<string, string> = {
   "/": "Safety Dashboard",
+  "/incidents": "Incident Timeline",
   "/rules": "Rules Manager",
   "/reports": "Daily Report",
   "/costs": "Cost Monitor",
