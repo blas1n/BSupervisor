@@ -6,8 +6,10 @@ import {
   createRule,
   updateRule,
   deleteRule as apiDeleteRule,
+  fetchRulePacks,
+  installRulePack,
 } from "../lib/api";
-import type { Rule } from "../lib/api";
+import type { Rule, RulePackSummary } from "../lib/api";
 import { MaterialIcon } from "../components/MaterialIcon";
 
 const ruleTypes = ["action", "pattern", "rate", "cost"];
@@ -43,9 +45,13 @@ export function RulesManager() {
   const [form, setForm] = useState<RuleFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [packs, setPacks] = useState<RulePackSummary[]>([]);
+  const [installingPack, setInstallingPack] = useState<string | null>(null);
+  const [packResult, setPackResult] = useState<{ id: string; installed: number; skipped: number } | null>(null);
 
   useEffect(() => {
     loadRules();
+    fetchRulePacks().then(setPacks).catch(() => {});
   }, []);
 
   async function loadRules() {
@@ -114,6 +120,22 @@ export function RulesManager() {
       await apiDeleteRule(id);
     } catch {
       setRules(prev);
+    }
+  }
+
+  async function handleInstallPack(packId: string) {
+    setInstallingPack(packId);
+    setPackResult(null);
+    try {
+      const result = await installRulePack(packId);
+      setPackResult({ id: packId, installed: result.installed, skipped: result.skipped });
+      if (result.installed > 0) {
+        await loadRules();
+      }
+    } catch {
+      setPackResult(null);
+    } finally {
+      setInstallingPack(null);
     }
   }
 
@@ -333,6 +355,42 @@ export function RulesManager() {
           </table>
         </div>
       </div>
+
+      {/* Rule Template Packs */}
+      {packs.length > 0 && (
+        <div className="bg-gray-900 rounded-xl border border-gray-800/10 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-800/10">
+            <h4 className="font-bold tracking-tight text-gray-50">Rule Template Packs</h4>
+            <p className="text-xs text-gray-500 mt-1">Pre-built safety rule collections — install with one click</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
+            {packs.map((pack) => (
+              <div key={pack.id} data-testid={`pack-${pack.id}`} className="bg-gray-950 rounded-xl p-5 flex flex-col">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2 py-0.5 bg-gray-800 text-gray-400 text-[10px] font-bold rounded-full uppercase">
+                    {pack.category}
+                  </span>
+                  <span className="text-[10px] text-gray-500">{pack.rule_count} rules</span>
+                </div>
+                <h5 className="text-sm font-bold text-gray-100 mb-1">{pack.name}</h5>
+                <p className="text-[10px] text-gray-500 flex-1 mb-4">{pack.description}</p>
+                <button
+                  onClick={() => handleInstallPack(pack.id)}
+                  disabled={installingPack === pack.id}
+                  data-testid={`install-${pack.id}`}
+                  className="w-full px-3 py-2 text-xs font-bold bg-accent/15 text-accent rounded-lg hover:bg-accent/25 transition-colors disabled:opacity-40"
+                >
+                  {installingPack === pack.id
+                    ? "Installing..."
+                    : packResult?.id === pack.id
+                      ? `${packResult.installed} installed, ${packResult.skipped} skipped`
+                      : "Install Pack"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {modalOpen && (

@@ -6,9 +6,9 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Auto-install browser deps if not present (no-root environments)
+// Auto-install browser deps if not present (Linux devcontainer only)
 const LIBS_DIR = "/tmp/playwright-libs";
-if (!existsSync(`${LIBS_DIR}/.installed`)) {
+if (process.platform === "linux" && !existsSync(`${LIBS_DIR}/.installed`)) {
   const script = resolve(__dirname, "scripts/install-playwright-deps.sh");
   if (existsSync(script)) {
     execSync(`bash ${script}`, { stdio: "inherit" });

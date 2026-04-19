@@ -43,6 +43,7 @@ export interface Event {
   severity: "safe" | "warning" | "blocked";
   rule_name?: string;
   details?: string;
+  explanation?: Explanation;
 }
 
 export interface Rule {
@@ -111,6 +112,87 @@ export interface SettingsData {
   connections: ConnectionSettings;
 }
 
+// --- Explainable Block ---
+
+export interface Explanation {
+  rule_name: string;
+  rule_description: string;
+  rule_type: string;
+  matched_field: string;
+  matched_value: string;
+  matched_pattern: string;
+  severity: string;
+  suggestion?: string;
+}
+
+export interface EventDetail extends Event {
+  explanation?: Explanation;
+}
+
+// --- Incidents ---
+
+export interface IncidentListItem {
+  id: string;
+  agent_id: string;
+  title: string;
+  status: string;
+  severity: string;
+  event_count: number;
+  started_at: string;
+  updated_at: string;
+}
+
+export interface TimelineEntry {
+  id: string;
+  timestamp: string;
+  event_type: string;
+  action: string;
+  target: string;
+  allowed: boolean;
+}
+
+export interface IncidentDetail extends IncidentListItem {
+  timeline: TimelineEntry[];
+}
+
+// --- Rule Packs ---
+
+export interface RulePackSummary {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  rule_count: number;
+}
+
+export interface RulePackRule {
+  name: string;
+  description: string;
+  action: string;
+}
+
+export interface RulePackDetail extends RulePackSummary {
+  rules: RulePackRule[];
+}
+
+export interface InstallResult {
+  pack_id: string;
+  installed: number;
+  skipped: number;
+}
+
+// --- Anomalies ---
+
+export interface AnomalyEntry {
+  agent_id: string;
+  metric: string;
+  current_value: string;
+  baseline_mean: string;
+  baseline_stddev: string;
+  multiplier: number;
+  is_anomaly: boolean;
+}
+
 // --- API calls ---
 
 export async function fetchStatus(): Promise<StatusMetrics> {
@@ -166,5 +248,46 @@ export async function updateSettings(
   connections: ConnectionSettings,
 ): Promise<SettingsData> {
   const { data } = await api.put("/settings", connections);
+  return data;
+}
+
+// --- Incidents ---
+
+export async function fetchIncidents(): Promise<IncidentListItem[]> {
+  const { data } = await api.get("/incidents");
+  return data;
+}
+
+export async function fetchIncident(id: string): Promise<IncidentDetail> {
+  const { data } = await api.get(`/incidents/${id}`);
+  return data;
+}
+
+export async function resolveIncident(id: string): Promise<{ id: string; status: string }> {
+  const { data } = await api.post(`/incidents/${id}/resolve`);
+  return data;
+}
+
+// --- Rule Packs ---
+
+export async function fetchRulePacks(): Promise<RulePackSummary[]> {
+  const { data } = await api.get("/rule-packs");
+  return data;
+}
+
+export async function fetchRulePack(id: string): Promise<RulePackDetail> {
+  const { data } = await api.get(`/rule-packs/${id}`);
+  return data;
+}
+
+export async function installRulePack(id: string): Promise<InstallResult> {
+  const { data } = await api.post(`/rule-packs/${id}/install`);
+  return data;
+}
+
+// --- Anomalies ---
+
+export async function fetchAnomalies(): Promise<AnomalyEntry[]> {
+  const { data } = await api.get("/anomalies");
   return data;
 }

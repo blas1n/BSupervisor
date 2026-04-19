@@ -11,8 +11,8 @@ import {
 } from "recharts";
 import { cn, formatNumber } from "../lib/utils";
 import { theme } from "../lib/theme";
-import { fetchCosts } from "../lib/api";
-import type { CostData } from "../lib/api";
+import { fetchCosts, fetchAnomalies } from "../lib/api";
+import type { CostData, AnomalyEntry } from "../lib/api";
 import { MaterialIcon } from "../components/MaterialIcon";
 
 function Sparkline({ data, anomaly }: { data: number[]; anomaly?: boolean }) {
@@ -46,14 +46,16 @@ function Sparkline({ data, anomaly }: { data: number[]; anomaly?: boolean }) {
 
 export function CostMonitor() {
   const [costs, setCosts] = useState<CostData | null>(null);
+  const [anomalyDetails, setAnomalyDetails] = useState<AnomalyEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const data = await fetchCosts();
+        const [data, anomalies] = await Promise.all([fetchCosts(), fetchAnomalies()]);
         setCosts(data);
+        setAnomalyDetails(anomalies);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load cost data");
       } finally {
@@ -253,6 +255,7 @@ export function CostMonitor() {
               <tbody className="divide-y divide-gray-800/30">
                 {costs.agents.map((agent) => {
                   const isAnomaly = costs.anomalies.includes(agent.agent_id);
+                  const anomalyInfo = anomalyDetails.find((a) => a.agent_id === agent.agent_id);
                   return (
                     <tr
                       key={agent.agent_id}
@@ -274,11 +277,16 @@ export function CostMonitor() {
                             {agent.agent_name}
                           </span>
                           {isAnomaly && (
-                            <span className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+                            <span className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent" data-testid="anomaly-badge">
                               Anomaly
                             </span>
                           )}
                         </div>
+                        {anomalyInfo && (
+                          <p className="text-[10px] text-accent mt-1" data-testid="anomaly-detail">
+                            {anomalyInfo.multiplier}x above baseline (avg: {anomalyInfo.baseline_mean})
+                          </p>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right font-mono text-sm text-gray-300">
                         {formatNumber(agent.requests)}
