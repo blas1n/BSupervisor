@@ -16,3 +16,5 @@ class AuditEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     target: Mapped[str] = mapped_column(String(1024), nullable=False)
     metadata_json: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
     allowed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    explanation_json: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
+    feedback_json: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)

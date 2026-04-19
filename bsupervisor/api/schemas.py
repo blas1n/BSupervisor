@@ -18,10 +18,34 @@ class EventRequest(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class ExplanationResponse(BaseModel):
+    rule_name: str
+    rule_description: str
+    rule_type: str
+    matched_field: str
+    matched_value: str
+    matched_pattern: str
+    severity: str
+    suggestion: str | None = None
+
+
 class EventResponse(BaseModel):
     event_id: str
     allowed: bool
     reason: str | None = None
+    explanation: ExplanationResponse | None = None
+
+
+class FeedbackRequest(BaseModel):
+    is_false_positive: bool
+    comment: str = Field(default="", max_length=2000)
+
+    model_config = {"extra": "forbid"}
+
+
+class FeedbackResponse(BaseModel):
+    event_id: str
+    accepted: bool
 
 
 class EventListItem(BaseModel):
