@@ -14,6 +14,15 @@ export async function injectAuth(page: Page) {
       expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
     };
     localStorage.setItem("bsvibe_user", JSON.stringify(fakeUser));
+    (window as unknown as { __E2E_SKIP_SSO__?: boolean }).__E2E_SKIP_SSO__ = true;
+  });
+}
+
+/** For unauthenticated flow tests — block the silent SSO redirect without injecting a session. */
+export async function skipSsoRedirect(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.removeItem("bsvibe_user");
+    (window as unknown as { __E2E_SKIP_SSO__?: boolean }).__E2E_SKIP_SSO__ = true;
   });
 }
 

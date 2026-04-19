@@ -1,7 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { injectAuth, mockAllApis } from "./helpers";
+import { injectAuth, mockAllApis, skipSsoRedirect } from "./helpers";
 
 test.describe("Auth: unauthenticated access", () => {
+  test.beforeEach(async ({ page }) => {
+    await skipSsoRedirect(page);
+  });
+
   test("redirects to /login when no token is present", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveURL(/\/login/);

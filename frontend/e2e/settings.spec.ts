@@ -5,7 +5,10 @@ test.describe("Settings page: generic integrations", () => {
   test.beforeEach(async ({ page }) => {
     await injectAuth(page);
     await mockAllApis(page);
-    await page.goto("/settings");
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes("/api/settings") && r.request().method() === "GET"),
+      page.goto("/settings"),
+    ]);
   });
 
   test("renders page header with Settings title", async ({ page }) => {
@@ -20,9 +23,11 @@ test.describe("Settings page: generic integrations", () => {
   });
 
   test("loads saved integrations from API", async ({ page }) => {
-    // Two integrations from mock data
-    await expect(page.getByText("BSNexus").first()).toBeVisible();
-    await expect(page.getByText("BSGateway").first()).toBeVisible();
+    // Two integrations from mock data — name fields have the values
+    const nameInputs = page.locator('input[placeholder="My Agent Platform"]');
+    await expect(nameInputs).toHaveCount(2);
+    await expect(nameInputs.nth(0)).toHaveValue("BSNexus");
+    await expect(nameInputs.nth(1)).toHaveValue("BSGateway");
   });
 
   test("renders notification channels card", async ({ page }) => {

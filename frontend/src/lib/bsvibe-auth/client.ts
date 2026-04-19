@@ -57,6 +57,11 @@ export class BSVibeAuth {
    * Returns 'redirect' if redirecting to auth server (page will navigate away).
    */
   checkSession(): BSVibeUser | null | 'redirect' {
+    // E2E test hook: skip SSO redirect entirely
+    if (typeof window !== 'undefined' && (window as unknown as { __E2E_SKIP_SSO__?: boolean }).__E2E_SKIP_SSO__) {
+      return this.getUser();
+    }
+
     // 1. Check local storage
     const existing = this.getUser();
     if (existing) return existing;
