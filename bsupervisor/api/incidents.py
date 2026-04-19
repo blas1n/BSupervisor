@@ -1,6 +1,6 @@
 """Incident timeline API endpoints."""
 
-import uuid
+from uuid import UUID
 
 import structlog
 from bsvibe_auth import BSVibeUser
@@ -80,22 +80,16 @@ async def list_incidents(
 
 @router.get("/incidents/{incident_id}", response_model=IncidentDetail)
 async def get_incident(
-    incident_id: str,
+    incident_id: UUID,
     _user: BSVibeUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> IncidentDetail:
-    try:
-        inc_uuid = uuid.UUID(incident_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Incident not found")
-
-    result = await session.execute(select(Incident).where(Incident.id == inc_uuid))
+    result = await session.execute(select(Incident).where(Incident.id == incident_id))
     incident = result.scalar_one_or_none()
     if incident is None:
         raise HTTPException(status_code=404, detail="Incident not found")
 
-    tracker = IncidentTracker(session)
-    events = await tracker.get_timeline(incident.id)
+    events = await IncidentTracker(session).get_timeline(incident.id)
 
     timeline = [
         TimelineEntry(
@@ -124,16 +118,11 @@ async def get_incident(
 
 @router.post("/incidents/{incident_id}/resolve", response_model=ResolveResponse)
 async def resolve_incident(
-    incident_id: str,
+    incident_id: UUID,
     _user: BSVibeUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> ResolveResponse:
-    try:
-        inc_uuid = uuid.UUID(incident_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Incident not found")
-
-    result = await session.execute(select(Incident).where(Incident.id == inc_uuid))
+    result = await session.execute(select(Incident).where(Incident.id == incident_id))
     incident = result.scalar_one_or_none()
     if incident is None:
         raise HTTPException(status_code=404, detail="Incident not found")

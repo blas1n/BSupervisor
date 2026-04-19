@@ -83,26 +83,25 @@ async def install_rule_pack(
     if pack is None:
         raise HTTPException(status_code=404, detail="Rule pack not found")
 
-    installed = 0
-    skipped = 0
+    pack_names = [r["name"] for r in pack["rules"]]
+    existing = await session.execute(select(AuditRule.name).where(AuditRule.name.in_(pack_names)))
+    existing_names = {row[0] for row in existing.all()}
 
-    for rule_data in pack["rules"]:
-        # Check if rule already exists by name
-        result = await session.execute(select(AuditRule).where(AuditRule.name == rule_data["name"]))
-        if result.scalar_one_or_none() is not None:
-            skipped += 1
-            continue
-
-        rule = AuditRule(
-            name=rule_data["name"],
-            description=rule_data["description"],
-            condition=rule_data["condition"],
-            action=rule_data["action"],
-            enabled=True,
-            built_in=True,
+    to_install = [r for r in pack["rules"] if r["name"] not in existing_names]
+    for rule_data in to_install:
+        session.add(
+            AuditRule(
+                name=rule_data["name"],
+                description=rule_data["description"],
+                condition=rule_data["condition"],
+                action=rule_data["action"],
+                enabled=True,
+                built_in=True,
+            )
         )
-        session.add(rule)
-        installed += 1
+
+    installed = len(to_install)
+    skipped = len(pack_names) - installed
 
     if installed > 0:
         await session.commit()

@@ -4,7 +4,7 @@ Compares today's values against a rolling baseline (default 7 days)
 using mean + threshold * stddev to detect spikes.
 """
 
-import math
+import statistics
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -46,134 +46,76 @@ class AnomalyDetector:
         self.threshold_multiplier = threshold_multiplier
 
     async def detect_all(self) -> list[AnomalyResult]:
-        """Run all anomaly detections and return combined results."""
-        cost_anomalies = await self.detect_cost_anomalies()
-        event_anomalies = await self.detect_event_anomalies()
+        cost_anomalies = await self._detect(CostRecord, func.sum(CostRecord.cost_usd), "cost")
+        event_anomalies = await self._detect(AuditEvent, func.count(), "event_count")
         return cost_anomalies + event_anomalies
 
     async def detect_cost_anomalies(self) -> list[AnomalyResult]:
-        """Detect agents whose today's cost is anomalously high."""
-        now = datetime.now(timezone.utc)
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        lookback_start = today_start - timedelta(days=self.lookback_days)
-
-        # Get today's cost per agent
-        today_stmt = (
-            select(CostRecord.agent_id, func.sum(CostRecord.cost_usd).label("total"))
-            .where(CostRecord.timestamp >= today_start)
-            .group_by(CostRecord.agent_id)
-        )
-        today_result = await self.session.execute(today_stmt)
-        today_costs: dict[str, Decimal] = {row.agent_id: row.total for row in today_result.all()}
-
-        if not today_costs:
-            return []
-
-        results: list[AnomalyResult] = []
-
-        for agent_id, today_cost in today_costs.items():
-            # Get historical daily costs
-            history_stmt = (
-                select(
-                    func.date(CostRecord.timestamp).label("day"),
-                    func.sum(CostRecord.cost_usd).label("total"),
-                )
-                .where(
-                    CostRecord.agent_id == agent_id,
-                    CostRecord.timestamp >= lookback_start,
-                    CostRecord.timestamp < today_start,
-                )
-                .group_by(func.date(CostRecord.timestamp))
-            )
-            history_result = await self.session.execute(history_stmt)
-            daily_costs = [row.total for row in history_result.all()]
-
-            if len(daily_costs) < MIN_HISTORY_DAYS:
-                continue
-
-            mean, stddev = _compute_stats(daily_costs)
-            if mean == 0:
-                continue
-
-            multiplier = float((today_cost - mean) / mean) if mean > 0 else 0.0
-            threshold = mean + Decimal(str(self.threshold_multiplier)) * stddev
-            is_anomaly = today_cost > threshold
-
-            if is_anomaly:
-                results.append(
-                    AnomalyResult(
-                        agent_id=agent_id,
-                        metric="cost",
-                        current_value=today_cost,
-                        baseline_mean=mean,
-                        baseline_stddev=stddev,
-                        multiplier=round(multiplier, 2),
-                        is_anomaly=True,
-                    )
-                )
-
-        return results
+        return await self._detect(CostRecord, func.sum(CostRecord.cost_usd), "cost")
 
     async def detect_event_anomalies(self) -> list[AnomalyResult]:
-        """Detect agents whose today's event count is anomalously high."""
+        return await self._detect(AuditEvent, func.count(), "event_count")
+
+    async def _detect(self, table, value_expr, metric: str) -> list[AnomalyResult]:
         now = datetime.now(timezone.utc)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         lookback_start = today_start - timedelta(days=self.lookback_days)
 
-        # Get today's event count per agent
         today_stmt = (
-            select(AuditEvent.agent_id, func.count().label("total"))
-            .where(AuditEvent.timestamp >= today_start)
-            .group_by(AuditEvent.agent_id)
+            select(table.agent_id, value_expr.label("total"))
+            .where(table.timestamp >= today_start)
+            .group_by(table.agent_id)
         )
         today_result = await self.session.execute(today_stmt)
-        today_counts: dict[str, int] = {row.agent_id: row.total for row in today_result.all()}
-
-        if not today_counts:
+        today_totals: dict[str, Decimal] = {row.agent_id: Decimal(str(row.total)) for row in today_result.all()}
+        if not today_totals:
             return []
 
-        results: list[AnomalyResult] = []
-
-        for agent_id, today_count in today_counts.items():
-            history_stmt = (
-                select(
-                    func.date(AuditEvent.timestamp).label("day"),
-                    func.count().label("total"),
-                )
-                .where(
-                    AuditEvent.agent_id == agent_id,
-                    AuditEvent.timestamp >= lookback_start,
-                    AuditEvent.timestamp < today_start,
-                )
-                .group_by(func.date(AuditEvent.timestamp))
+        # Single grouped query for all agents' history (avoids N+1)
+        history_stmt = (
+            select(
+                table.agent_id,
+                func.date(table.timestamp).label("day"),
+                value_expr.label("total"),
             )
-            history_result = await self.session.execute(history_stmt)
-            daily_counts = [Decimal(str(row.total)) for row in history_result.all()]
+            .where(
+                table.agent_id.in_(today_totals.keys()),
+                table.timestamp >= lookback_start,
+                table.timestamp < today_start,
+            )
+            .group_by(table.agent_id, func.date(table.timestamp))
+        )
+        history_result = await self.session.execute(history_stmt)
+        history: dict[str, list[Decimal]] = {}
+        for row in history_result.all():
+            history.setdefault(row.agent_id, []).append(Decimal(str(row.total)))
 
-            if len(daily_counts) < MIN_HISTORY_DAYS:
+        results: list[AnomalyResult] = []
+        for agent_id, today_total in today_totals.items():
+            daily = history.get(agent_id, [])
+            if len(daily) < MIN_HISTORY_DAYS:
                 continue
 
-            mean, stddev = _compute_stats(daily_counts)
+            mean, stddev = _compute_stats(daily)
             if mean == 0:
                 continue
 
-            current = Decimal(str(today_count))
-            multiplier = float((current - mean) / mean) if mean > 0 else 0.0
             threshold = mean + Decimal(str(self.threshold_multiplier)) * stddev
-            is_anomaly = current > threshold
+            if today_total <= threshold:
+                continue
 
-            if is_anomaly:
-                results.append(
-                    AnomalyResult(
-                        agent_id=agent_id,
-                        metric="event_count",
-                        current_value=current,
-                        baseline_mean=mean,
-                        baseline_stddev=stddev,
-                        multiplier=round(multiplier, 2),
-                        is_anomaly=True,
-                    )
+            multiplier = float((today_total - mean) / mean)
+            results.append(
+                AnomalyResult(
+                    agent_id=agent_id,
+                    metric=metric,
+                    current_value=today_total,
+                    baseline_mean=mean,
+                    baseline_stddev=stddev,
+                    multiplier=round(multiplier, 2),
+                    is_anomaly=True,
                 )
+            )
 
         return results
 
@@ -181,20 +123,12 @@ class AnomalyDetector:
 def _compute_stats(values: list[Decimal]) -> tuple[Decimal, Decimal]:
     """Compute mean and population standard deviation.
 
-    When stddev is very small (near zero), uses 10% of mean as a floor
-    to avoid flagging minor variations as anomalies.
+    Floors stddev at 10% of mean so zero-variance baselines don't flag every
+    minor variation as an anomaly.
     """
-    n = len(values)
-    if n == 0:
+    if not values:
         return Decimal("0"), Decimal("0")
 
-    mean = sum(values) / n
-    variance = sum((v - mean) ** 2 for v in values) / n
-    stddev = Decimal(str(math.sqrt(float(variance))))
-
-    # Floor: at least 10% of mean to handle zero-variance baselines
-    min_stddev = mean * Decimal("0.1")
-    if stddev < min_stddev:
-        stddev = min_stddev
-
-    return mean, stddev
+    mean = statistics.mean(values)
+    stddev = Decimal(str(statistics.pstdev(values)))
+    return mean, max(stddev, mean * Decimal("0.1"))

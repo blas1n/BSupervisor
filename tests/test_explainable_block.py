@@ -56,7 +56,9 @@ class TestRuleExplanation:
         assert expl.matched_field == "target"
         assert expl.severity == "critical"
 
-    def test_explanation_to_dict(self):
+    def test_explanation_serializes_via_asdict(self):
+        from dataclasses import asdict
+
         expl = RuleExplanation(
             rule_name="test_rule",
             rule_description="Test",
@@ -66,10 +68,10 @@ class TestRuleExplanation:
             matched_pattern=".env",
             severity="high",
         )
-        d = expl.to_dict()
+        d = asdict(expl)
         assert d["rule_name"] == "test_rule"
         assert d["matched_field"] == "target"
-        assert "suggestion" not in d or d["suggestion"] is None
+        assert d["suggestion"] is None
 
     def test_rule_result_with_explanation(self):
         expl = RuleExplanation(
