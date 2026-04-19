@@ -1,15 +1,23 @@
 """Event ingestion and listing API endpoints."""
 
+import uuid
 from datetime import datetime, timezone
 
 import structlog
 from bsvibe_auth import BSVibeUser
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bsupervisor.api.deps import get_current_user
-from bsupervisor.api.schemas import EventListItem, EventRequest, EventResponse
+from bsupervisor.api.schemas import (
+    EventListItem,
+    EventRequest,
+    EventResponse,
+    ExplanationResponse,
+    FeedbackRequest,
+    FeedbackResponse,
+)
 from bsupervisor.core.rule_engine import RuleEngine
 from bsupervisor.models.audit_event import AuditEvent
 from bsupervisor.models.database import get_session
@@ -70,6 +78,9 @@ async def ingest_event(
     rule_result = await rule_engine.evaluate(event)
     event.allowed = rule_result.allowed
 
+    if rule_result.explanation:
+        event.explanation_json = rule_result.explanation.to_dict()
+
     session.add(event)
     await session.commit()
     await session.refresh(event)
@@ -82,8 +93,41 @@ async def ingest_event(
         allowed=rule_result.allowed,
     )
 
+    explanation_resp = None
+    if rule_result.explanation:
+        explanation_resp = ExplanationResponse(**rule_result.explanation.to_dict())
+
     return EventResponse(
         event_id=str(event.id),
         allowed=rule_result.allowed,
         reason=rule_result.reason,
+        explanation=explanation_resp,
     )
+
+
+@router.post("/events/{event_id}/feedback", response_model=FeedbackResponse)
+async def submit_feedback(
+    event_id: str,
+    payload: FeedbackRequest,
+    _user: BSVibeUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> FeedbackResponse:
+    try:
+        event_uuid = uuid.UUID(event_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    result = await session.execute(select(AuditEvent).where(AuditEvent.id == event_uuid))
+    event = result.scalar_one_or_none()
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    event.feedback_json = {
+        "is_false_positive": payload.is_false_positive,
+        "comment": payload.comment,
+    }
+    await session.commit()
+
+    logger.info("feedback_submitted", event_id=event_id, is_false_positive=payload.is_false_positive)
+
+    return FeedbackResponse(event_id=event_id, accepted=True)

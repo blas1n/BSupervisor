@@ -36,10 +36,35 @@ def invalidate_rules_cache() -> None:
 
 
 @dataclass
+class RuleExplanation:
+    rule_name: str
+    rule_description: str
+    rule_type: str  # "builtin" or "custom"
+    matched_field: str  # which event field triggered the match
+    matched_value: str  # the actual value that matched
+    matched_pattern: str  # the pattern/check that caught it
+    severity: str  # "critical", "high", "medium", "low", "warning"
+    suggestion: str | None = None
+
+    def to_dict(self) -> dict:
+        return {
+            "rule_name": self.rule_name,
+            "rule_description": self.rule_description,
+            "rule_type": self.rule_type,
+            "matched_field": self.matched_field,
+            "matched_value": self.matched_value,
+            "matched_pattern": self.matched_pattern,
+            "severity": self.severity,
+            "suggestion": self.suggestion,
+        }
+
+
+@dataclass
 class RuleResult:
     allowed: bool
     rule_name: str | None = None
     reason: str | None = None
+    explanation: RuleExplanation | None = None
 
 
 class RuleEngine:
@@ -92,6 +117,16 @@ class RuleEngine:
                     allowed=False,
                     rule_name="builtin:block_sensitive_file_delete",
                     reason=f"Deleting {ext} files is not allowed",
+                    explanation=RuleExplanation(
+                        rule_name="builtin:block_sensitive_file_delete",
+                        rule_description="Blocks deletion of sensitive credential files",
+                        rule_type="builtin",
+                        matched_field="target",
+                        matched_value=event.target,
+                        matched_pattern=ext,
+                        severity="critical",
+                        suggestion="Use a secrets manager instead of deleting credential files directly",
+                    ),
                 )
         return RuleResult(allowed=True)
 
@@ -107,6 +142,16 @@ class RuleEngine:
                     allowed=False,
                     rule_name="builtin:block_dangerous_shell",
                     reason=f"Shell command containing '{pattern}' is blocked",
+                    explanation=RuleExplanation(
+                        rule_name="builtin:block_dangerous_shell",
+                        rule_description="Blocks execution of dangerous shell commands",
+                        rule_type="builtin",
+                        matched_field="target",
+                        matched_value=event.target,
+                        matched_pattern=pattern,
+                        severity="critical",
+                        suggestion="Review the command and remove the dangerous operation",
+                    ),
                 )
         return RuleResult(allowed=True)
 
@@ -126,18 +171,31 @@ class RuleEngine:
         rules = _rules_cache
 
         for rule in rules:
-            if self._condition_matches(event, rule.condition):
+            matched_detail = self._condition_match_detail(event, rule.condition)
+            if matched_detail is not None:
+                severity = rule.condition.get("severity", "medium")
+                explanation = RuleExplanation(
+                    rule_name=rule.name,
+                    rule_description=rule.description,
+                    rule_type="custom",
+                    matched_field=matched_detail["field"],
+                    matched_value=matched_detail["value"],
+                    matched_pattern=matched_detail["pattern"],
+                    severity="warning" if rule.action == "warn" else severity,
+                )
                 if rule.action == "block":
                     return RuleResult(
                         allowed=False,
                         rule_name=rule.name,
                         reason=f"Blocked by rule: {rule.description}",
+                        explanation=explanation,
                     )
                 if rule.action == "warn":
                     return RuleResult(
                         allowed=True,
                         rule_name=rule.name,
                         reason=f"Warning from rule: {rule.description}",
+                        explanation=explanation,
                     )
                 # action == "log": just log, no change to result
                 logger.info("rule_matched", rule=rule.name, action=rule.action, agent_id=event.agent_id)
@@ -146,15 +204,42 @@ class RuleEngine:
 
     def _condition_matches(self, event: AuditEvent, condition: dict) -> bool:
         """Check if an event matches a rule condition."""
-        if "event_type" in condition and event.event_type != condition["event_type"]:
-            return False
-        if "action" in condition and event.action != condition["action"]:
-            return False
-        if "target_pattern" in condition and not fnmatch(event.target, condition["target_pattern"]):
-            return False
-        if "agent_id" in condition and event.agent_id != condition["agent_id"]:
-            return False
-        return True
+        return self._condition_match_detail(event, condition) is not None
+
+    def _condition_match_detail(self, event: AuditEvent, condition: dict) -> dict | None:
+        """Check if an event matches a rule condition and return match details.
+
+        Returns None if no match, or a dict with field/value/pattern of the most
+        specific matched condition.
+        """
+        last_match: dict | None = None
+
+        if "event_type" in condition:
+            if event.event_type != condition["event_type"]:
+                return None
+            last_match = {"field": "event_type", "value": event.event_type, "pattern": condition["event_type"]}
+
+        if "action" in condition:
+            if event.action != condition["action"]:
+                return None
+            last_match = {"field": "action", "value": event.action, "pattern": condition["action"]}
+
+        if "target_pattern" in condition:
+            if not fnmatch(event.target, condition["target_pattern"]):
+                return None
+            last_match = {"field": "target", "value": event.target, "pattern": condition["target_pattern"]}
+
+        if "agent_id" in condition:
+            if event.agent_id != condition["agent_id"]:
+                return None
+            last_match = {"field": "agent_id", "value": event.agent_id, "pattern": condition["agent_id"]}
+
+        # If we got here, all conditions matched. Return the most specific match detail.
+        # If no specific conditions were set, return a generic match.
+        if last_match is None:
+            return {"field": "event_type", "value": event.event_type, "pattern": "*"}
+
+        return last_match
 
     async def _check_cost_threshold(self, event: AuditEvent) -> RuleResult:
         today = datetime.now(timezone.utc).date()
@@ -170,5 +255,15 @@ class RuleEngine:
                 allowed=True,
                 rule_name="builtin:cost_threshold_warning",
                 reason=f"Agent daily cost ${daily_cost} exceeds threshold ${self.daily_cost_threshold}",
+                explanation=RuleExplanation(
+                    rule_name="builtin:cost_threshold_warning",
+                    rule_description="Warns when an agent's daily LLM cost exceeds the configured threshold",
+                    rule_type="builtin",
+                    matched_field="agent_id",
+                    matched_value=event.agent_id,
+                    matched_pattern=f"daily_cost > ${self.daily_cost_threshold}",
+                    severity="warning",
+                    suggestion=f"Review agent '{event.agent_id}' usage or increase the daily cost threshold",
+                ),
             )
         return RuleResult(allowed=True)
