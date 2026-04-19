@@ -46,49 +46,34 @@ function buildTopRules(rules: Rule[]) {
     .map((r) => ({ name: r.name, hits: r.hit_count, severity: r.severity }));
 }
 
-function severityIconBg(severity: string): string {
-  switch (severity) {
-    case "blocked":
-      return "bg-accent/10 text-accent";
-    case "warning":
-      return "bg-warning/10 text-warning";
-    default:
-      return "bg-success/10 text-success";
-  }
-}
+const SEVERITY_STYLES: Record<
+  string,
+  { icon: string; iconBg: string; text: string; dot: string; label: string }
+> = {
+  blocked: {
+    icon: "gpp_maybe",
+    iconBg: "bg-accent/10 text-accent",
+    text: "text-accent",
+    dot: "bg-accent",
+    label: "Blocked",
+  },
+  warning: {
+    icon: "visibility_off",
+    iconBg: "bg-warning/10 text-warning",
+    text: "text-warning",
+    dot: "bg-warning",
+    label: "Warning",
+  },
+  safe: {
+    icon: "check_circle",
+    iconBg: "bg-success/10 text-success",
+    text: "text-success-light",
+    dot: "bg-success",
+    label: "Safe",
+  },
+};
 
-function severityIcon(severity: string): string {
-  switch (severity) {
-    case "blocked":
-      return "gpp_maybe";
-    case "warning":
-      return "visibility_off";
-    default:
-      return "check_circle";
-  }
-}
-
-function severityTextColor(severity: string): string {
-  switch (severity) {
-    case "blocked":
-      return "text-accent";
-    case "warning":
-      return "text-warning";
-    default:
-      return "text-success-light";
-  }
-}
-
-function severityDotColor(severity: string): string {
-  switch (severity) {
-    case "blocked":
-      return "bg-accent";
-    case "warning":
-      return "bg-warning";
-    default:
-      return "bg-success";
-  }
-}
+const severityStyle = (s: string) => SEVERITY_STYLES[s] ?? SEVERITY_STYLES.safe;
 
 export function Dashboard() {
   const [status, setStatus] = useState<StatusMetrics | null>(null);
@@ -373,7 +358,9 @@ export function Dashboard() {
                 No events yet
               </p>
             ) : (
-              events.slice(0, 20).map((event) => (
+              events.slice(0, 20).map((event) => {
+                const style = severityStyle(event.severity);
+                return (
                 <div
                   key={event.id}
                   className={cn(
@@ -385,21 +372,18 @@ export function Dashboard() {
                   <div className="flex items-start gap-4">
                     <div className={cn(
                       "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
-                      severityIconBg(event.severity),
+                      style.iconBg,
                     )}>
                       <MaterialIcon
-                        icon={severityIcon(event.severity)}
+                        icon={style.icon}
                         className="text-lg"
                         filled={event.severity === "blocked"}
                       />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center mb-1">
-                        <span className={cn(
-                          "text-[10px] font-bold uppercase",
-                          severityTextColor(event.severity),
-                        )}>
-                          {event.severity === "blocked" ? "Blocked" : event.severity === "warning" ? "Warning" : "Safe"}
+                        <span className={cn("text-[10px] font-bold uppercase", style.text)}>
+                          {style.label}
                         </span>
                         <span className="text-[10px] text-gray-500">
                           {formatTime(event.timestamp)}
@@ -432,7 +416,8 @@ export function Dashboard() {
                     </div>
                   )}
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -477,7 +462,7 @@ export function Dashboard() {
                         <div
                           className={cn(
                             "w-2 h-2 rounded-full",
-                            severityDotColor(rule.severity),
+                            severityStyle(rule.severity).dot,
                           )}
                         />
                         <span className="text-sm font-semibold text-gray-100">

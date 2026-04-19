@@ -23,12 +23,11 @@ class IncidentTracker:
     async def track_event(self, event: AuditEvent) -> Incident | None:
         """Track a blocked event, creating or merging into an incident.
 
-        Returns None for allowed events.
+        Returns None for allowed events. Caller is responsible for committing.
         """
         if event.allowed:
             return None
 
-        # Look for an existing open incident for this agent within the time window
         cutoff = event.timestamp - self.window
         stmt = (
             select(Incident)
@@ -53,7 +52,7 @@ class IncidentTracker:
                 event_count=incident.event_count,
             )
         else:
-            severity = self._determine_severity(event)
+            severity = self._severity_from_explanation(event)
             incident = Incident(
                 agent_id=event.agent_id,
                 title=self._generate_title(event),
@@ -64,15 +63,9 @@ class IncidentTracker:
                 updated_at=event.timestamp,
             )
             self.session.add(incident)
-            logger.info(
-                "incident_created",
-                incident_id=str(incident.id) if incident.id else "pending",
-                agent_id=event.agent_id,
-                severity=severity,
-            )
+            logger.info("incident_created", agent_id=event.agent_id, severity=severity)
 
-        await self.session.commit()
-        await self.session.refresh(incident)
+        await self.session.flush()
         return incident
 
     async def get_timeline(
@@ -102,9 +95,9 @@ class IncidentTracker:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    def _determine_severity(self, event: AuditEvent) -> str:
-        if event.event_type in ("file_delete", "shell_exec"):
-            return "critical"
+    def _severity_from_explanation(self, event: AuditEvent) -> str:
+        if event.explanation_json and "severity" in event.explanation_json:
+            return event.explanation_json["severity"]
         return "high"
 
     def _generate_title(self, event: AuditEvent) -> str:

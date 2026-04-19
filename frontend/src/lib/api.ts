@@ -125,10 +125,6 @@ export interface Explanation {
   suggestion?: string;
 }
 
-export interface EventDetail extends Event {
-  explanation?: Explanation;
-}
-
 // --- Incidents ---
 
 export interface IncidentListItem {

@@ -17,6 +17,7 @@ export function Incidents() {
   }, []);
 
   async function handleSelect(id: string) {
+    if (id === selected?.id) return;
     const detail = await fetchIncident(id);
     setSelected(detail);
   }

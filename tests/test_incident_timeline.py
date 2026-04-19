@@ -77,6 +77,7 @@ class TestIncidentTracker:
             allowed=False,
             timestamp=now,
         )
+        event.explanation_json = {"severity": "critical"}
         await db_session.commit()
         await db_session.refresh(event)
 

@@ -1,6 +1,7 @@
 """Event ingestion and listing API endpoints."""
 
 import uuid
+from dataclasses import asdict
 from datetime import datetime, timezone
 
 import structlog
@@ -38,10 +39,7 @@ async def list_events(
 
     items = []
     for e in events:
-        if not e.allowed:
-            severity = "blocked"
-        else:
-            severity = "safe"
+        severity = "blocked" if not e.allowed else "safe"
         explanation = ExplanationResponse(**e.explanation_json) if e.explanation_json else None
         items.append(
             EventListItem(
@@ -50,6 +48,7 @@ async def list_events(
                 agent_id=e.agent_id,
                 action=e.action,
                 severity=severity,
+                rule_name=explanation.rule_name if explanation else None,
                 details=e.target,
                 explanation=explanation,
             )
@@ -82,16 +81,16 @@ async def ingest_event(
     event.allowed = rule_result.allowed
 
     if rule_result.explanation:
-        event.explanation_json = rule_result.explanation.to_dict()
+        event.explanation_json = asdict(rule_result.explanation)
 
     session.add(event)
+    await session.flush()
+
+    if not rule_result.allowed:
+        await IncidentTracker(session).track_event(event)
+
     await session.commit()
     await session.refresh(event)
-
-    # Track incidents for blocked events
-    if not rule_result.allowed:
-        tracker = IncidentTracker(session)
-        await tracker.track_event(event)
 
     logger.info(
         "event_ingested",
@@ -103,7 +102,7 @@ async def ingest_event(
 
     explanation_resp = None
     if rule_result.explanation:
-        explanation_resp = ExplanationResponse(**rule_result.explanation.to_dict())
+        explanation_resp = ExplanationResponse(**asdict(rule_result.explanation))
 
     return EventResponse(
         event_id=str(event.id),
@@ -115,17 +114,12 @@ async def ingest_event(
 
 @router.post("/events/{event_id}/feedback", response_model=FeedbackResponse)
 async def submit_feedback(
-    event_id: str,
+    event_id: uuid.UUID,
     payload: FeedbackRequest,
     _user: BSVibeUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> FeedbackResponse:
-    try:
-        event_uuid = uuid.UUID(event_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Event not found")
-
-    result = await session.execute(select(AuditEvent).where(AuditEvent.id == event_uuid))
+    result = await session.execute(select(AuditEvent).where(AuditEvent.id == event_id))
     event = result.scalar_one_or_none()
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -136,6 +130,6 @@ async def submit_feedback(
     }
     await session.commit()
 
-    logger.info("feedback_submitted", event_id=event_id, is_false_positive=payload.is_false_positive)
+    logger.info("feedback_submitted", event_id=str(event_id), is_false_positive=payload.is_false_positive)
 
-    return FeedbackResponse(event_id=event_id, accepted=True)
+    return FeedbackResponse(event_id=str(event_id), accepted=True)

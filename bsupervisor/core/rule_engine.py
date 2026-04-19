@@ -40,23 +40,11 @@ class RuleExplanation:
     rule_name: str
     rule_description: str
     rule_type: str  # "builtin" or "custom"
-    matched_field: str  # which event field triggered the match
-    matched_value: str  # the actual value that matched
-    matched_pattern: str  # the pattern/check that caught it
-    severity: str  # "critical", "high", "medium", "low", "warning"
+    matched_field: str
+    matched_value: str
+    matched_pattern: str
+    severity: str
     suggestion: str | None = None
-
-    def to_dict(self) -> dict:
-        return {
-            "rule_name": self.rule_name,
-            "rule_description": self.rule_description,
-            "rule_type": self.rule_type,
-            "matched_field": self.matched_field,
-            "matched_value": self.matched_value,
-            "matched_pattern": self.matched_pattern,
-            "severity": self.severity,
-            "suggestion": self.suggestion,
-        }
 
 
 @dataclass
@@ -78,19 +66,16 @@ class RuleEngine:
 
     async def evaluate(self, event: AuditEvent) -> RuleResult:
         """Evaluate an event against all rules. Returns the first matching result."""
-        # 1. Built-in: block sensitive file deletion
         result = self._check_sensitive_file_delete(event)
         if not result.allowed:
             logger.warning("event_blocked", rule=result.rule_name, reason=result.reason, agent_id=event.agent_id)
             return result
 
-        # 2. Built-in: block dangerous shell commands
         result = self._check_dangerous_shell(event)
         if not result.allowed:
             logger.warning("event_blocked", rule=result.rule_name, reason=result.reason, agent_id=event.agent_id)
             return result
 
-        # 3. DB rules
         result = await self._check_db_rules(event)
         if not result.allowed or result.rule_name is not None:
             if not result.allowed:
@@ -99,7 +84,7 @@ class RuleEngine:
                 logger.warning("event_warned", rule=result.rule_name, reason=result.reason, agent_id=event.agent_id)
             return result
 
-        # 4. Built-in: cost threshold warning (check last, it's a warning not a block)
+        # Cost threshold is a warning, not a block — check last so block rules take priority
         result = await self._check_cost_threshold(event)
         if result.rule_name is not None:
             logger.warning("cost_threshold_exceeded", rule=result.rule_name, agent_id=event.agent_id)
@@ -161,14 +146,15 @@ class RuleEngine:
         now = time.monotonic()
         if _rules_cache is None or (now - _rules_cache_ts) >= _RULES_CACHE_TTL:
             async with _rules_cache_lock:
-                # Double-check after acquiring lock
                 if _rules_cache is None or (time.monotonic() - _rules_cache_ts) >= _RULES_CACHE_TTL:
                     stmt = select(AuditRule).where(AuditRule.enabled.is_(True))
                     result = await self.session.execute(stmt)
                     _rules_cache = list(result.scalars().all())
                     _rules_cache_ts = time.monotonic()
-
-        rules = _rules_cache
+                rules = _rules_cache
+        else:
+            # Snapshot outside the fast-path to avoid NPE if cache is invalidated mid-iteration
+            rules = _rules_cache or []
 
         for rule in rules:
             matched_detail = self._condition_match_detail(event, rule.condition)
@@ -197,14 +183,9 @@ class RuleEngine:
                         reason=f"Warning from rule: {rule.description}",
                         explanation=explanation,
                     )
-                # action == "log": just log, no change to result
                 logger.info("rule_matched", rule=rule.name, action=rule.action, agent_id=event.agent_id)
 
         return RuleResult(allowed=True)
-
-    def _condition_matches(self, event: AuditEvent, condition: dict) -> bool:
-        """Check if an event matches a rule condition."""
-        return self._condition_match_detail(event, condition) is not None
 
     def _condition_match_detail(self, event: AuditEvent, condition: dict) -> dict | None:
         """Check if an event matches a rule condition and return match details.
