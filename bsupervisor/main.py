@@ -11,6 +11,7 @@ from sqlalchemy import text
 
 from bsupervisor.api.costs import router as costs_router
 from bsupervisor.api.events import router as events_router
+from bsupervisor.api.incidents import router as incidents_router
 from bsupervisor.api.reports import router as reports_router
 from bsupervisor.api.rules import router as rules_router
 from bsupervisor.api.settings import router as settings_router
@@ -55,6 +56,7 @@ app.add_middleware(
 )
 
 app.include_router(events_router)
+app.include_router(incidents_router)
 app.include_router(costs_router)
 app.include_router(reports_router)
 app.include_router(rules_router)
