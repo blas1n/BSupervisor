@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from bsupervisor.api.anomalies import router as anomalies_router
 from bsupervisor.api.costs import router as costs_router
 from bsupervisor.api.events import router as events_router
 from bsupervisor.api.incidents import router as incidents_router
@@ -58,6 +59,7 @@ app.add_middleware(
 
 app.include_router(events_router)
 app.include_router(incidents_router)
+app.include_router(anomalies_router)
 app.include_router(costs_router)
 app.include_router(reports_router)
 app.include_router(rules_router)
