@@ -22,9 +22,9 @@ test.describe("Daily Report: Stitch design", () => {
     await expect(page.getByText(new RegExp(monthName))).toBeVisible();
   });
 
-  test("yesterday/tomorrow navigation buttons exist", async ({ page }) => {
-    await expect(page.getByText("Yesterday")).toBeVisible();
-    await expect(page.getByText("Tomorrow")).toBeVisible();
+  test("prev/next chevron navigation buttons exist", async ({ page }) => {
+    await expect(page.getByTestId("date-prev")).toBeVisible();
+    await expect(page.getByTestId("date-next")).toBeVisible();
   });
 
   test("renders PDF download button", async ({ page }) => {

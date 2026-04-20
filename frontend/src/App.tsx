@@ -3,6 +3,7 @@ import { useAuth } from "./hooks/useAuth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
+import { Incidents } from "./pages/Incidents";
 import { RulesManager } from "./pages/RulesManager";
 import { DailyReport } from "./pages/DailyReport";
 import { CostMonitor } from "./pages/CostMonitor";
@@ -40,6 +41,7 @@ export default function App() {
         }
       >
         <Route path="/" element={<Dashboard />} />
+        <Route path="/incidents" element={<Incidents />} />
         <Route path="/rules" element={<RulesManager />} />
         <Route path="/reports" element={<DailyReport />} />
         <Route path="/costs" element={<CostMonitor />} />
