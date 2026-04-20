@@ -130,6 +130,6 @@ async def resolve_incident(
     incident.status = IncidentStatus.RESOLVED
     await session.commit()
 
-    logger.info("incident_resolved", incident_id=incident_id)
+    logger.info("incident_resolved", incident_id=str(incident_id))
 
     return ResolveResponse(id=str(incident.id), status=incident.status)

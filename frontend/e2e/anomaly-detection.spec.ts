@@ -23,8 +23,7 @@ test.describe("Anomaly Detection", () => {
 
   test("non-anomaly agents do not show badge", async ({ page }) => {
     await page.goto("/costs");
-    // Beta and Gamma agents should not have anomaly badge
     const badges = page.getByTestId("anomaly-badge");
-    await expect(badges).toHaveCount(1); // only alpha
+    await expect(badges).toHaveCount(1);
   });
 });

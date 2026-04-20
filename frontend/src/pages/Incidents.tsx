@@ -42,15 +42,12 @@ export function Incidents() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-bold tracking-tight text-gray-50">Incident Timeline</h3>
-          <p className="text-xs text-gray-400">Forensic view of blocked events grouped by agent</p>
-        </div>
+      <div>
+        <h3 className="text-lg font-bold tracking-tight text-gray-50">Incident Timeline</h3>
+        <p className="text-xs text-gray-400">Forensic view of blocked events grouped by agent</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Incident List */}
         <div className="lg:col-span-1 bg-gray-900 rounded-2xl overflow-hidden flex flex-col max-h-[700px]">
           <div className="px-6 py-4 border-b border-gray-800/10">
             <h4 className="text-sm font-bold text-gray-50">Incidents ({incidents.length})</h4>
@@ -96,7 +93,6 @@ export function Incidents() {
           </div>
         </div>
 
-        {/* Incident Detail + Timeline */}
         <div className="lg:col-span-2 bg-gray-900 rounded-2xl overflow-hidden flex flex-col max-h-[700px]">
           {selected ? (
             <>
@@ -120,7 +116,6 @@ export function Incidents() {
               </div>
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="relative">
-                  {/* Vertical line */}
                   <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-800" />
                   <div className="space-y-4">
                     {selected.timeline.map((entry) => (

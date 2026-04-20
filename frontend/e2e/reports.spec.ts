@@ -23,9 +23,8 @@ test.describe("Daily Report: Stitch design", () => {
   });
 
   test("prev/next chevron navigation buttons exist", async ({ page }) => {
-    const buttons = page.locator("button.text-gray-400");
-    await expect(buttons.nth(0).locator("svg")).toBeVisible();
-    await expect(buttons.nth(1).locator("svg")).toBeVisible();
+    await expect(page.getByTestId("date-prev")).toBeVisible();
+    await expect(page.getByTestId("date-next")).toBeVisible();
   });
 
   test("renders PDF download button", async ({ page }) => {

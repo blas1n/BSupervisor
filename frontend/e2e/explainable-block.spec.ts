@@ -5,7 +5,6 @@ test.describe("Explainable Block", () => {
   test.beforeEach(async ({ page }) => {
     await injectAuth(page);
     await mockAllApis(page);
-    // Override events mock with explanation data
     await page.route("**/api/events", (route) =>
       route.fulfill({ json: mockEventsWithExplanation }),
     );
@@ -13,13 +12,11 @@ test.describe("Explainable Block", () => {
 
   test("blocked event in feed is clickable", async ({ page }) => {
     await page.goto("/");
-    // The blocked event should be visible
     await expect(page.getByText("file_write /etc/passwd")).toBeVisible();
   });
 
   test("clicking blocked event shows explanation panel", async ({ page }) => {
     await page.goto("/");
-    // Click the blocked event
     await page.getByText("file_write /etc/passwd").click();
 
     const panel = page.getByTestId("explanation-panel");
@@ -39,7 +36,6 @@ test.describe("Explainable Block", () => {
 
   test("safe event does not show explanation", async ({ page }) => {
     await page.goto("/");
-    // Safe event should not have explanation panel
     await page.getByText("read_file config.yaml").click();
     await expect(page.getByTestId("explanation-panel")).not.toBeVisible();
   });

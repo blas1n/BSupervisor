@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from fnmatch import fnmatch
+from typing import Literal
 
 import structlog
 from sqlalchemy import func, select
@@ -39,7 +40,7 @@ def invalidate_rules_cache() -> None:
 class RuleExplanation:
     rule_name: str
     rule_description: str
-    rule_type: str  # "builtin" or "custom"
+    rule_type: Literal["builtin", "custom"]
     matched_field: str
     matched_value: str
     matched_pattern: str
@@ -215,8 +216,6 @@ class RuleEngine:
                 return None
             last_match = {"field": "agent_id", "value": event.agent_id, "pattern": condition["agent_id"]}
 
-        # If we got here, all conditions matched. Return the most specific match detail.
-        # If no specific conditions were set, return a generic match.
         if last_match is None:
             return {"field": "event_type", "value": event.event_type, "pattern": "*"}
 

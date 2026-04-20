@@ -34,7 +34,6 @@ test.describe("Rule Template Packs", () => {
     await expect(installBtn).toHaveText("Install Pack");
 
     await installBtn.click();
-    // After install, shows result
     await expect(installBtn).toContainText("installed");
   });
 });

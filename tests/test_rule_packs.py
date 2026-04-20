@@ -11,9 +11,6 @@ from bsupervisor.core.rule_packs import RULE_PACKS, get_pack, list_packs
 from bsupervisor.models.audit_rule import AuditRule
 
 
-# --- Pack registry ---
-
-
 class TestRulePackRegistry:
     def test_list_packs_returns_all(self):
         packs = list_packs()
@@ -61,9 +58,6 @@ class TestRulePackRegistry:
         for pack_def in RULE_PACKS:
             names = [r["name"] for r in pack_def["rules"]]
             assert len(names) == len(set(names)), f"Duplicate rule names in pack {pack_def['id']}"
-
-
-# --- Pack installation ---
 
 
 class TestRulePackInstallation:

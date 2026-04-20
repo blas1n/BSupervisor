@@ -37,9 +37,6 @@ def _make_event(
     )
 
 
-# --- RuleExplanation dataclass ---
-
-
 class TestRuleExplanation:
     def test_create_explanation(self):
         expl = RuleExplanation(
@@ -90,9 +87,6 @@ class TestRuleExplanation:
     def test_rule_result_without_explanation(self):
         result = RuleResult(allowed=True)
         assert result.explanation is None
-
-
-# --- Built-in rules produce explanations ---
 
 
 class TestBuiltinExplanations:
@@ -154,9 +148,6 @@ class TestBuiltinExplanations:
         assert result.explanation is None
 
 
-# --- DB rules produce explanations ---
-
-
 class TestDBRuleExplanations:
     async def test_db_block_rule_explanation(self, db_session: AsyncSession):
         rule = AuditRule(
@@ -200,9 +191,6 @@ class TestDBRuleExplanations:
         assert result.explanation is not None
         assert result.explanation.rule_name == "warn_external"
         assert result.explanation.severity == "warning"
-
-
-# --- API response includes explanation ---
 
 
 class TestExplainableBlockAPI:
@@ -265,9 +253,6 @@ class TestExplainableBlockAPI:
         event = result.scalar_one()
         assert event.explanation_json is not None
         assert event.explanation_json["rule_name"] == "builtin:block_dangerous_shell"
-
-
-# --- False positive feedback ---
 
 
 class TestFalsePositiveFeedback:

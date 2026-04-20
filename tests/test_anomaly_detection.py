@@ -65,9 +65,6 @@ async def _seed_event_history(
     await session.commit()
 
 
-# --- AnomalyResult dataclass ---
-
-
 class TestAnomalyResult:
     def test_create(self):
         r = AnomalyResult(
@@ -94,9 +91,6 @@ class TestAnomalyResult:
             is_anomaly=False,
         )
         assert r.is_anomaly is False
-
-
-# --- Cost anomaly detection ---
 
 
 class TestCostAnomalyDetection:
@@ -162,9 +156,6 @@ class TestCostAnomalyDetection:
         assert len(anomalies) == 0
 
 
-# --- Event frequency anomaly detection ---
-
-
 class TestEventFrequencyAnomalyDetection:
     async def test_detects_event_spike(self, db_session: AsyncSession):
         # 7 days of ~10 events/day
@@ -215,9 +206,6 @@ class TestEventFrequencyAnomalyDetection:
         assert len(anomalies) == 0
 
 
-# --- Combined detection ---
-
-
 class TestDetectAll:
     async def test_detect_all_returns_both_types(self, db_session: AsyncSession):
         # Cost spike
@@ -238,9 +226,6 @@ class TestDetectAll:
         detector = AnomalyDetector(db_session, threshold_multiplier=3.0)
         results = await detector.detect_all()
         assert any(r.metric == "cost" for r in results)
-
-
-# --- API endpoint ---
 
 
 class TestAnomalyAPI:

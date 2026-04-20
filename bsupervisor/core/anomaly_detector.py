@@ -8,6 +8,7 @@ import statistics
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Literal
 
 import structlog
 from sqlalchemy import func, select
@@ -23,10 +24,13 @@ DEFAULT_THRESHOLD_MULTIPLIER = 3.0
 MIN_HISTORY_DAYS = 3
 
 
+AnomalyMetric = Literal["cost", "event_count"]
+
+
 @dataclass
 class AnomalyResult:
     agent_id: str
-    metric: str  # "cost" or "event_count"
+    metric: AnomalyMetric
     current_value: Decimal
     baseline_mean: Decimal
     baseline_stddev: Decimal
@@ -56,7 +60,7 @@ class AnomalyDetector:
     async def detect_event_anomalies(self) -> list[AnomalyResult]:
         return await self._detect(AuditEvent, func.count(), "event_count")
 
-    async def _detect(self, table, value_expr, metric: str) -> list[AnomalyResult]:
+    async def _detect(self, table, value_expr, metric: AnomalyMetric) -> list[AnomalyResult]:
         now = datetime.now(timezone.utc)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         lookback_start = today_start - timedelta(days=self.lookback_days)
@@ -67,7 +71,7 @@ class AnomalyDetector:
             .group_by(table.agent_id)
         )
         today_result = await self.session.execute(today_stmt)
-        today_totals: dict[str, Decimal] = {row.agent_id: Decimal(str(row.total)) for row in today_result.all()}
+        today_totals: dict[str, Decimal] = {row.agent_id: Decimal(row.total) for row in today_result.all()}
         if not today_totals:
             return []
 
@@ -88,7 +92,7 @@ class AnomalyDetector:
         history_result = await self.session.execute(history_stmt)
         history: dict[str, list[Decimal]] = {}
         for row in history_result.all():
-            history.setdefault(row.agent_id, []).append(Decimal(str(row.total)))
+            history.setdefault(row.agent_id, []).append(Decimal(row.total))
 
         results: list[AnomalyResult] = []
         for agent_id, today_total in today_totals.items():
@@ -130,5 +134,5 @@ def _compute_stats(values: list[Decimal]) -> tuple[Decimal, Decimal]:
         return Decimal("0"), Decimal("0")
 
     mean = statistics.mean(values)
-    stddev = Decimal(str(statistics.pstdev(values)))
+    stddev = statistics.pstdev(values)
     return mean, max(stddev, mean * Decimal("0.1"))

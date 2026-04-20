@@ -48,8 +48,6 @@ test.describe("Incidents Page", () => {
     const resolveBtn = page.getByTestId("resolve-btn");
     await expect(resolveBtn).toBeVisible();
     await resolveBtn.click();
-
-    // After resolve, button should disappear
     await expect(resolveBtn).not.toBeVisible();
   });
 

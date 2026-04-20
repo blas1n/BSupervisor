@@ -35,9 +35,6 @@ def _make_event(
     return event
 
 
-# --- Incident model ---
-
-
 class TestIncidentModel:
     async def test_create_incident(self, db_session: AsyncSession):
         now = datetime.now(timezone.utc)
@@ -61,9 +58,6 @@ class TestIncidentModel:
     async def test_incident_status_values(self):
         assert IncidentStatus.OPEN == "open"
         assert IncidentStatus.RESOLVED == "resolved"
-
-
-# --- IncidentTracker core logic ---
 
 
 class TestIncidentTracker:
@@ -167,19 +161,16 @@ class TestIncidentTracker:
         now = datetime.now(timezone.utc)
         tracker = IncidentTracker(db_session)
 
-        # Safe event before the block
         _make_event(
             db_session, agent_id="agent-x", target="/tmp/safe1.txt", allowed=True, timestamp=now - timedelta(minutes=5)
         )
-        # Blocked event
         blocked = _make_event(
             db_session, agent_id="agent-x", event_type="file_delete", target="/app/.env", allowed=False, timestamp=now
         )
-        # Safe event after the block
         _make_event(
             db_session, agent_id="agent-x", target="/tmp/safe2.txt", allowed=True, timestamp=now + timedelta(minutes=1)
         )
-        # Unrelated agent event (should NOT appear)
+        # Unrelated agent — should NOT appear in timeline
         _make_event(db_session, agent_id="other-agent", target="/tmp/other.txt", allowed=True, timestamp=now)
 
         await db_session.commit()
@@ -193,9 +184,6 @@ class TestIncidentTracker:
         assert agent_ids == {"agent-x"}
         # Ordered by timestamp
         assert timeline[0].timestamp <= timeline[1].timestamp <= timeline[2].timestamp
-
-
-# --- API endpoints ---
 
 
 class TestIncidentAPI:
