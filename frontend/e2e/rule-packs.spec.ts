@@ -24,8 +24,8 @@ test.describe("Rule Template Packs", () => {
     await page.goto("/rules");
     const pack = page.getByTestId("pack-healthcare-hipaa");
     await expect(pack.getByText("Healthcare HIPAA Pack")).toBeVisible();
-    await expect(pack.getByText("healthcare")).toBeVisible();
     await expect(pack.getByText("4 rules")).toBeVisible();
+    await expect(pack.getByText("healthcare", { exact: true })).toBeVisible();
   });
 
   test("install button triggers installation", async ({ page }) => {
