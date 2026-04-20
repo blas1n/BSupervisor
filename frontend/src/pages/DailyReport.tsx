@@ -134,6 +134,27 @@ export function DailyReport() {
     setDate(d.toISOString().slice(0, 10));
   }
 
+  function downloadMarkdown() {
+    if (!report) return;
+    const blob = new Blob([report.markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bsupervisor-report-${date}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadPdf() {
+    if (!report) return;
+    const doc = window.open("", "_blank");
+    if (!doc) return;
+    doc.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>BSupervisor Report ${date}</title><style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#111}h1,h2,h3{margin-top:1.5em}table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid #ddd;padding:.5em .75em;text-align:left}th{background:#f5f5f5}code{background:#f0f0f0;padding:.1em .3em;border-radius:3px;font-family:ui-monospace,monospace}</style></head><body>${parseMarkdown(report.markdown)}</body></html>`);
+    doc.document.close();
+    doc.focus();
+    doc.print();
+  }
+
   const displayDate = new Date(date + "T12:00:00").toLocaleDateString(
     "en-US",
     {
@@ -159,10 +180,18 @@ export function DailyReport() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button className="flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-gray-100 py-2 px-4 bg-gray-800 hover:bg-gray-700 transition-colors">
+          <button
+            onClick={downloadPdf}
+            disabled={!report}
+            className="flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-gray-100 py-2 px-4 bg-gray-800 hover:bg-gray-700 transition-colors disabled:opacity-40"
+          >
             <MaterialIcon icon="picture_as_pdf" className="text-sm" /> PDF
           </button>
-          <button className="flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-gray-100 py-2 px-4 bg-gray-800 hover:bg-gray-700 transition-colors">
+          <button
+            onClick={downloadMarkdown}
+            disabled={!report}
+            className="flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-gray-100 py-2 px-4 bg-gray-800 hover:bg-gray-700 transition-colors disabled:opacity-40"
+          >
             <MaterialIcon icon="markdown" className="text-sm" /> MD
           </button>
         </div>
@@ -176,23 +205,10 @@ export function DailyReport() {
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <button
-          onClick={() => changeDate(-1)}
-          className="text-gray-500 hover:text-accent transition-colors"
-        >
-          Yesterday
-        </button>
-        <span className="text-accent underline underline-offset-8 decoration-2 flex items-center gap-2">
+        <span className="text-accent flex items-center gap-2">
           <MaterialIcon icon="event" className="text-sm" />
           {displayDate}
         </span>
-        <button
-          onClick={() => changeDate(1)}
-          disabled={date >= today}
-          className="text-gray-500 hover:text-accent transition-colors disabled:opacity-30"
-        >
-          Tomorrow
-        </button>
         <button
           onClick={() => changeDate(1)}
           disabled={date >= today}
