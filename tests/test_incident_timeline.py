@@ -168,13 +168,17 @@ class TestIncidentTracker:
         tracker = IncidentTracker(db_session)
 
         # Safe event before the block
-        _make_event(db_session, agent_id="agent-x", target="/tmp/safe1.txt", allowed=True, timestamp=now - timedelta(minutes=5))
+        _make_event(
+            db_session, agent_id="agent-x", target="/tmp/safe1.txt", allowed=True, timestamp=now - timedelta(minutes=5)
+        )
         # Blocked event
         blocked = _make_event(
             db_session, agent_id="agent-x", event_type="file_delete", target="/app/.env", allowed=False, timestamp=now
         )
         # Safe event after the block
-        _make_event(db_session, agent_id="agent-x", target="/tmp/safe2.txt", allowed=True, timestamp=now + timedelta(minutes=1))
+        _make_event(
+            db_session, agent_id="agent-x", target="/tmp/safe2.txt", allowed=True, timestamp=now + timedelta(minutes=1)
+        )
         # Unrelated agent event (should NOT appear)
         _make_event(db_session, agent_id="other-agent", target="/tmp/other.txt", allowed=True, timestamp=now)
 

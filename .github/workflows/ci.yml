@@ -13,10 +13,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/ruff-action@v3
         with:
-          args: check bsupervisor/
-      - uses: astral-sh/ruff-action@v3
-        with:
-          args: format --check bsupervisor/
+          args: check bsupervisor/ tests/
+      - run: ruff format --check bsupervisor/ tests/
 
   test:
     runs-on: ubuntu-latest
