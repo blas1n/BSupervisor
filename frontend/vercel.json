@@ -5,5 +5,6 @@
       "destination": "https://api-supervisor.bsvibe.dev/api/:path*"
     },
     { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  ],
+  "installCommand": "pnpm install"
 }
