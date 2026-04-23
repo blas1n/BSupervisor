@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../hooks/useAuth";
 import { MaterialIcon } from "../components/MaterialIcon";
 
 const navItems = [
   { to: "/", icon: "dashboard", label: "Dashboard" },
+  { to: "/incidents", icon: "timeline", label: "Incidents" },
   { to: "/rules", icon: "gavel", label: "Rules" },
   { to: "/reports", icon: "analytics", label: "Reports" },
   { to: "/costs", icon: "payments", label: "Costs" },
@@ -14,6 +15,7 @@ const navItems = [
 
 const pageTitles: Record<string, string> = {
   "/": "Safety Dashboard",
+  "/incidents": "Incident Timeline",
   "/rules": "Rules Manager",
   "/reports": "Daily Report",
   "/costs": "Cost Monitor",
@@ -88,14 +90,14 @@ export function Layout() {
           {user && (
             <div className="mb-2 flex items-center gap-3 rounded-xl bg-gray-900 p-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">
-                {(user.name || "U").charAt(0).toUpperCase()}
+                {user.email.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1 overflow-hidden">
                 <p className="truncate text-xs font-bold text-gray-200">
-                  {user.name || "User"}
+                  {user.email}
                 </p>
                 <p className="truncate text-[10px] text-gray-500">
-                  {user.email}
+                  {user.role}
                 </p>
               </div>
             </div>

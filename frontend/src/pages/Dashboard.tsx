@@ -46,49 +46,34 @@ function buildTopRules(rules: Rule[]) {
     .map((r) => ({ name: r.name, hits: r.hit_count, severity: r.severity }));
 }
 
-function severityIconBg(severity: string): string {
-  switch (severity) {
-    case "blocked":
-      return "bg-accent/10 text-accent";
-    case "warning":
-      return "bg-warning/10 text-warning";
-    default:
-      return "bg-success/10 text-success";
-  }
-}
+const SEVERITY_STYLES: Record<
+  string,
+  { icon: string; iconBg: string; text: string; dot: string; label: string }
+> = {
+  blocked: {
+    icon: "gpp_maybe",
+    iconBg: "bg-accent/10 text-accent",
+    text: "text-accent",
+    dot: "bg-accent",
+    label: "Blocked",
+  },
+  warning: {
+    icon: "visibility_off",
+    iconBg: "bg-warning/10 text-warning",
+    text: "text-warning",
+    dot: "bg-warning",
+    label: "Warning",
+  },
+  safe: {
+    icon: "check_circle",
+    iconBg: "bg-success/10 text-success",
+    text: "text-success-light",
+    dot: "bg-success",
+    label: "Safe",
+  },
+};
 
-function severityIcon(severity: string): string {
-  switch (severity) {
-    case "blocked":
-      return "gpp_maybe";
-    case "warning":
-      return "visibility_off";
-    default:
-      return "check_circle";
-  }
-}
-
-function severityTextColor(severity: string): string {
-  switch (severity) {
-    case "blocked":
-      return "text-accent";
-    case "warning":
-      return "text-warning";
-    default:
-      return "text-success-light";
-  }
-}
-
-function severityDotColor(severity: string): string {
-  switch (severity) {
-    case "blocked":
-      return "bg-accent";
-    case "warning":
-      return "bg-warning";
-    default:
-      return "bg-success";
-  }
-}
+const severityStyle = (s: string) => SEVERITY_STYLES[s] ?? SEVERITY_STYLES.safe;
 
 export function Dashboard() {
   const [status, setStatus] = useState<StatusMetrics | null>(null);
@@ -96,6 +81,7 @@ export function Dashboard() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -372,43 +358,66 @@ export function Dashboard() {
                 No events yet
               </p>
             ) : (
-              events.slice(0, 20).map((event) => (
+              events.slice(0, 20).map((event) => {
+                const style = severityStyle(event.severity);
+                return (
                 <div
                   key={event.id}
-                  className="p-4 bg-gray-950 rounded-xl flex items-start gap-4 hover:bg-gray-800 transition-colors"
+                  className={cn(
+                    "p-4 bg-gray-950 rounded-xl hover:bg-gray-800 transition-colors",
+                    event.explanation && "cursor-pointer",
+                  )}
+                  onClick={() => event.explanation && setExpandedEvent(expandedEvent === event.id ? null : event.id)}
                 >
-                  <div className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
-                    severityIconBg(event.severity),
-                  )}>
-                    <MaterialIcon
-                      icon={severityIcon(event.severity)}
-                      className="text-lg"
-                      filled={event.severity === "blocked"}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className={cn(
-                        "text-[10px] font-bold uppercase",
-                        severityTextColor(event.severity),
-                      )}>
-                        {event.severity === "blocked" ? "Blocked" : event.severity === "warning" ? "Warning" : "Safe"}
-                      </span>
-                      <span className="text-[10px] text-gray-500">
-                        {formatTime(event.timestamp)}
-                      </span>
+                  <div className="flex items-start gap-4">
+                    <div className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                      style.iconBg,
+                    )}>
+                      <MaterialIcon
+                        icon={style.icon}
+                        className="text-lg"
+                        filled={event.severity === "blocked"}
+                      />
                     </div>
-                    <p className="text-xs font-medium text-gray-100 truncate">
-                      {event.action}
-                    </p>
-                    <p className="text-[10px] text-gray-500">
-                      {event.agent_id}
-                      {event.rule_name && ` | ${event.rule_name}`}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className={cn("text-[10px] font-bold uppercase", style.text)}>
+                          {style.label}
+                        </span>
+                        <span className="text-[10px] text-gray-500">
+                          {formatTime(event.timestamp)}
+                        </span>
+                      </div>
+                      <p className="text-xs font-medium text-gray-100 truncate">
+                        {event.action}
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        {event.agent_id}
+                        {event.rule_name && ` | ${event.rule_name}`}
+                      </p>
+                    </div>
                   </div>
+                  {/* Explanation panel */}
+                  {event.explanation && expandedEvent === event.id && (
+                    <div className="mt-3 ml-12 p-3 bg-gray-900 rounded-lg border border-gray-800/30" data-testid="explanation-panel">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MaterialIcon icon="info" className="text-sm text-accent" />
+                        <span className="text-[10px] font-bold uppercase text-accent">Why this was blocked</span>
+                      </div>
+                      <div className="space-y-1 text-[10px]">
+                        <p className="text-gray-300"><span className="text-gray-500">Rule:</span> {event.explanation.rule_description}</p>
+                        <p className="text-gray-300"><span className="text-gray-500">Matched:</span> <code className="bg-gray-950 px-1 rounded">{event.explanation.matched_pattern}</code> in {event.explanation.matched_field}</p>
+                        <p className="text-gray-300"><span className="text-gray-500">Value:</span> <code className="bg-gray-950 px-1 rounded">{event.explanation.matched_value}</code></p>
+                        {event.explanation.suggestion && (
+                          <p className="text-success mt-1"><span className="text-gray-500">Suggestion:</span> {event.explanation.suggestion}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -453,7 +462,7 @@ export function Dashboard() {
                         <div
                           className={cn(
                             "w-2 h-2 rounded-full",
-                            severityDotColor(rule.severity),
+                            severityStyle(rule.severity).dot,
                           )}
                         />
                         <span className="text-sm font-semibold text-gray-100">

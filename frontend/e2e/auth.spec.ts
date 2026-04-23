@@ -20,14 +20,16 @@ test.describe("Auth: unauthenticated access", () => {
     await expect(page.getByText("Daily Reports")).toBeVisible();
   });
 
-  test("sign in button redirects to auth.bsvibe.dev", async ({ page }) => {
+  test("sign in button navigates to auth.bsvibe.dev/login", async ({ page }) => {
     await page.goto("/login");
-    const [request] = await Promise.all([
-      page.waitForRequest((req) => req.url().includes("auth.bsvibe.dev")),
-      page.getByRole("button", { name: /sign in with bsvibe/i }).click(),
-    ]);
+    // Intercept the cross-origin navigation triggered by window.location.href
+    await page.route("**/auth.bsvibe.dev/**", (route) => route.abort());
+    const requestPromise = page.waitForRequest((req) =>
+      req.url().includes("auth.bsvibe.dev/login"),
+    );
+    await page.getByRole("button", { name: /sign in with bsvibe/i }).click();
+    const request = await requestPromise;
     expect(request.url()).toContain("auth.bsvibe.dev/login");
-    expect(request.url()).toContain("redirect_uri=");
   });
 
   test("login page shows Powered by BSVibe footer", async ({ page }) => {

@@ -1,5 +1,5 @@
 import { Shield, Activity, AlertTriangle, FileText, ArrowRight } from "lucide-react";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../hooks/useAuth";
 
 const features = [
   {

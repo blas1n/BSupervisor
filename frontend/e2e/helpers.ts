@@ -1,14 +1,20 @@
 import type { Page } from "@playwright/test";
 
-/** Inject fake auth tokens into localStorage so ProtectedRoute lets us through. */
+/** Fake JWT with sub/email/app_metadata claims for useAuth decoding. */
+const FAKE_JWT =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMyIsImVtYWlsIjoidGVzdEBleGFtcGxlLmNvbSIsImFwcF9tZXRhZGF0YSI6eyJ0ZW5hbnRfaWQiOiJ0ZW5hbnQtMSIsInJvbGUiOiJtZW1iZXIifSwiZXhwIjo5OTk5OTk5OTk5fQ.fake-signature";
+
+/** Mock the auth.bsvibe.dev/api/session endpoint so useAuth resolves a user. */
 export async function injectAuth(page: Page) {
-  await page.addInitScript(() => {
-    localStorage.setItem("bsupervisor_token", "fake-jwt-token");
-    localStorage.setItem(
-      "bsupervisor_user",
-      JSON.stringify({ email: "test@example.com", name: "Test User" }),
-    );
-  });
+  await page.route("**/auth.bsvibe.dev/api/session", (route) =>
+    route.fulfill({
+      json: {
+        access_token: FAKE_JWT,
+        refresh_token: "fake-refresh",
+        expires_in: 3600,
+      },
+    }),
+  );
 }
 
 // ---- Mock API data ----
@@ -131,6 +137,131 @@ export const mockCosts = {
   anomalies: ["agent-alpha"],
 };
 
+export const mockIncidents = [
+  {
+    id: "inc-1",
+    agent_id: "agent-alpha",
+    title: "Blocked file_delete: /secrets/private.key",
+    status: "open",
+    severity: "critical",
+    event_count: 3,
+    started_at: new Date(Date.now() - 3600000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "inc-2",
+    agent_id: "agent-beta",
+    title: "Blocked shell_exec: sudo rm -rf /",
+    status: "resolved",
+    severity: "critical",
+    event_count: 1,
+    started_at: new Date(Date.now() - 7200000).toISOString(),
+    updated_at: new Date(Date.now() - 7000000).toISOString(),
+  },
+];
+
+export const mockIncidentDetail = {
+  ...mockIncidents[0],
+  timeline: [
+    {
+      id: "tl-1",
+      timestamp: new Date(Date.now() - 3600000).toISOString(),
+      event_type: "file_access",
+      action: "read",
+      target: "/secrets/private.key",
+      allowed: true,
+    },
+    {
+      id: "tl-2",
+      timestamp: new Date(Date.now() - 1800000).toISOString(),
+      event_type: "file_delete",
+      action: "delete",
+      target: "/secrets/private.key",
+      allowed: false,
+    },
+    {
+      id: "tl-3",
+      timestamp: new Date(Date.now() - 600000).toISOString(),
+      event_type: "file_delete",
+      action: "delete",
+      target: "/app/.env",
+      allowed: false,
+    },
+  ],
+};
+
+export const mockRulePacks = [
+  {
+    id: "healthcare-hipaa",
+    name: "Healthcare HIPAA Pack",
+    description: "Rules for HIPAA compliance.",
+    category: "healthcare",
+    rule_count: 4,
+  },
+  {
+    id: "financial-compliance",
+    name: "Financial Compliance Pack",
+    description: "Rules for financial services.",
+    category: "finance",
+    rule_count: 4,
+  },
+  {
+    id: "langchain-agent",
+    name: "LangChain Agent Pack",
+    description: "Safety rules for LangChain-based agents.",
+    category: "ai-framework",
+    rule_count: 4,
+  },
+];
+
+export const mockAnomalies = [
+  {
+    agent_id: "agent-alpha",
+    metric: "cost",
+    current_value: "45.00",
+    baseline_mean: "10.00",
+    baseline_stddev: "2.00",
+    multiplier: 3.5,
+    is_anomaly: true,
+  },
+];
+
+export const mockEventsWithExplanation = [
+  {
+    id: "evt-1",
+    timestamp: new Date().toISOString(),
+    agent_id: "agent-alpha",
+    action: "file_write /etc/passwd",
+    severity: "blocked",
+    rule_name: "System File Protection",
+    explanation: {
+      rule_name: "builtin:block_sensitive_file_delete",
+      rule_description: "Blocks deletion of sensitive credential files",
+      rule_type: "builtin",
+      matched_field: "target",
+      matched_value: "/etc/passwd",
+      matched_pattern: ".env",
+      severity: "critical",
+      suggestion: "Use a secrets manager instead",
+    },
+  },
+  {
+    id: "evt-2",
+    timestamp: new Date().toISOString(),
+    agent_id: "agent-beta",
+    action: "api_call https://external.io",
+    severity: "warning",
+    rule_name: "External API Monitor",
+  },
+  {
+    id: "evt-3",
+    timestamp: new Date().toISOString(),
+    agent_id: "agent-gamma",
+    action: "read_file config.yaml",
+    severity: "safe",
+  },
+];
+
 export const mockSettings = {
   connections: {
     integrations: [
@@ -196,6 +327,35 @@ export async function mockAllApis(page: Page) {
   );
   await page.route("**/api/costs", (route) =>
     route.fulfill({ json: mockCosts }),
+  );
+  await page.route("**/api/incidents/*", (route) => {
+    if (route.request().method() === "POST") {
+      return route.fulfill({ json: { id: "inc-1", status: "resolved" } });
+    }
+    return route.fulfill({ json: mockIncidentDetail });
+  });
+  await page.route("**/api/incidents", (route) =>
+    route.fulfill({ json: mockIncidents }),
+  );
+  await page.route("**/api/rule-packs/*/install", (route) =>
+    route.fulfill({ json: { pack_id: "healthcare-hipaa", installed: 4, skipped: 0 } }),
+  );
+  await page.route("**/api/rule-packs/*", (route) =>
+    route.fulfill({
+      json: {
+        ...mockRulePacks[0],
+        rules: [
+          { name: "HIPAA: PHI in Output", description: "Detects PHI", action: "block" },
+          { name: "HIPAA: SSN Exposure", description: "Blocks SSN", action: "block" },
+        ],
+      },
+    }),
+  );
+  await page.route("**/api/rule-packs", (route) =>
+    route.fulfill({ json: mockRulePacks }),
+  );
+  await page.route("**/api/anomalies", (route) =>
+    route.fulfill({ json: mockAnomalies }),
   );
   await page.route("**/api/settings", (route) => {
     if (route.request().method() === "GET") {

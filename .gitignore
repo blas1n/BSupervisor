@@ -21,3 +21,4 @@ htmlcov/
 .pnpm-store/
 .env.production
 .vercel
+.gitrepo
