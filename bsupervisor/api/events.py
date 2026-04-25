@@ -19,7 +19,9 @@ from bsupervisor.api.schemas import (
     FeedbackRequest,
     FeedbackResponse,
 )
+from bsupervisor.config import settings as app_settings
 from bsupervisor.core.incident_tracker import IncidentTracker
+from bsupervisor.core.rate_limiter import InMemoryRateLimiter
 from bsupervisor.core.rule_engine import RuleEngine
 from bsupervisor.models.audit_event import AuditEvent
 from bsupervisor.models.database import get_session
@@ -27,6 +29,24 @@ from bsupervisor.models.database import get_session
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/api", tags=["events"])
+
+# Module-level limiter so quotas survive across requests within a process.
+# Window is 60s — `events_rate_limit_per_minute` is the per-source budget.
+# Tests can swap this out by reassigning ``events._events_rate_limiter``.
+_events_rate_limiter = InMemoryRateLimiter(
+    max_requests=app_settings.events_rate_limit_per_minute,
+    window_seconds=60.0,
+)
+
+
+def _rate_limit_key(payload: EventRequest) -> str:
+    """Bucket key for rate-limiting incoming events.
+
+    ``source`` is the upstream system (bsnexus, cli, …). We deliberately do
+    NOT use ``agent_id`` because hostile traffic can rotate that field; the
+    source field is operator-controlled.
+    """
+    return f"source:{payload.source}"
 
 
 @router.get("/events", response_model=list[EventListItem])
@@ -62,6 +82,10 @@ async def ingest_event(
     _user: BSVibeUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> EventResponse:
+    if not _events_rate_limiter.allow(_rate_limit_key(payload)):
+        logger.warning("events_rate_limited", source=payload.source, agent_id=payload.agent_id)
+        raise HTTPException(status_code=429, detail="rate limit exceeded for this source")
+
     timestamp = payload.timestamp or datetime.now(timezone.utc)
 
     event = AuditEvent(

@@ -8,6 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bsupervisor.api.deps import get_current_user
 from bsupervisor.api.schemas import ConnectionSettings, SettingsResponse
+from bsupervisor.config import settings as app_settings
+from bsupervisor.core.encryption import EncryptionManager
+from bsupervisor.core.secret_vault import decrypt_connections, encrypt_connections
 from bsupervisor.models.database import get_session
 from bsupervisor.models.settings import Settings
 
@@ -17,6 +20,16 @@ router = APIRouter(prefix="/api", tags=["settings"])
 
 CONNECTIONS_KEY = "connections"
 
+_encryption_manager: EncryptionManager | None = None
+
+
+def get_encryption_manager() -> EncryptionManager:
+    """Return the process-wide :class:`EncryptionManager`, instantiated on first use."""
+    global _encryption_manager  # noqa: PLW0603
+    if _encryption_manager is None:
+        _encryption_manager = EncryptionManager(key=app_settings.encryption_key)
+    return _encryption_manager
+
 
 async def _get_connections(session: AsyncSession) -> ConnectionSettings:
     """Load connection settings from DB, or return defaults."""
@@ -25,7 +38,7 @@ async def _get_connections(session: AsyncSession) -> ConnectionSettings:
     row = result.scalar_one_or_none()
     if row is None:
         return ConnectionSettings()
-    return ConnectionSettings(**row.value)
+    return decrypt_connections(row.value, get_encryption_manager())
 
 
 @router.get("/settings", response_model=SettingsResponse)
@@ -47,15 +60,17 @@ async def update_settings(
     result = await session.execute(stmt)
     row = result.scalar_one_or_none()
 
+    encrypted_value = encrypt_connections(payload, get_encryption_manager())
+
     if row is None:
         row = Settings(
             key=CONNECTIONS_KEY,
-            value=payload.model_dump(),
+            value=encrypted_value,
             description="Connection settings for external integrations",
         )
         session.add(row)
     else:
-        row.value = payload.model_dump()
+        row.value = encrypted_value
 
     await session.commit()
     logger.info("settings_updated", key=CONNECTIONS_KEY)

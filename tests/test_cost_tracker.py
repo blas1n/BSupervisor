@@ -239,3 +239,31 @@ class TestCostAPI:
         )
         assert resp.status_code == 201
         assert resp.json()["cost_usd"] == "0.00000123"
+
+    async def test_post_cost_negative_amount_rejected(self, client) -> None:
+        """Negative costs would let an attacker offset legitimate spend (cost-threshold bypass)."""
+        resp = await client.post(
+            "/api/costs",
+            json={
+                "agent_id": "agent-1",
+                "model": "gpt-4",
+                "tokens_in": 100,
+                "tokens_out": 50,
+                "cost_usd": "-0.005",
+            },
+        )
+        assert resp.status_code == 422
+
+    async def test_post_cost_zero_amount_allowed(self, client) -> None:
+        """Zero is a legitimate cost (cached / free-tier model calls)."""
+        resp = await client.post(
+            "/api/costs",
+            json={
+                "agent_id": "agent-1",
+                "model": "gpt-4",
+                "tokens_in": 100,
+                "tokens_out": 50,
+                "cost_usd": "0",
+            },
+        )
+        assert resp.status_code == 201
