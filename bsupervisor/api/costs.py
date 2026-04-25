@@ -11,13 +11,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bsupervisor.api.deps import get_current_user
 from bsupervisor.api.schemas import CostAgentEntry, CostDataResponse, CostRequest, CostResponse
+from bsupervisor.config import settings
 from bsupervisor.core.cost_tracker import CostTracker
+from bsupervisor.core.dates import day_window
 from bsupervisor.models.cost_record import CostRecord
 from bsupervisor.models.database import get_session
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/api", tags=["costs"])
+
+# Length of the dashboard sparkline window. Audit §M5 — keeping this as a
+# named constant makes it easy to test and tune.
+TREND_DAYS = 30
 
 
 @router.get("/costs", response_model=CostDataResponse)
@@ -26,7 +32,7 @@ async def list_costs(
     session: AsyncSession = Depends(get_session),
 ) -> CostDataResponse:
     now = datetime.now(timezone.utc)
-    today_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+    today_start, _ = day_window(now.date())
 
     # Total spent today
     total_spent = (
@@ -37,10 +43,11 @@ async def list_costs(
         )
     ).scalar_one()
 
-    budget = Decimal("100.00")
+    # Audit §M17 — budget read from settings (was hardcoded to $100).
+    budget = settings.daily_budget_usd
     budget_pct = float(total_spent / budget * 100) if budget > 0 else 0.0
 
-    # Per-agent breakdown
+    # Per-agent breakdown (already a single GROUP BY).
     agent_rows = (
         await session.execute(
             select(
@@ -71,20 +78,29 @@ async def list_costs(
             )
         )
 
-    # 30-day trend
-    trend = []
-    for i in range(29, -1, -1):
-        d = now - timedelta(days=i)
-        day_start = datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
-        day_end = datetime(d.year, d.month, d.day, 23, 59, 59, 999999, tzinfo=timezone.utc)
-        day_cost = (
-            await session.execute(
-                select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0"))).where(
-                    CostRecord.timestamp >= day_start, CostRecord.timestamp <= day_end
-                )
+    # Audit §M5 — 30-day trend in a single GROUP BY query (was 30 separate
+    # queries in a Python loop). We bucket by calendar UTC day using
+    # ``func.date(...)`` (portable across SQLite and PostgreSQL); the result
+    # is a sparse map ``{date_str: cost}`` that we densify into TREND_DAYS
+    # entries below so days with no traffic still show up as ``0``.
+    window_start, _ = day_window((now - timedelta(days=TREND_DAYS - 1)).date())
+    bucket_rows = (
+        await session.execute(
+            select(
+                func.date(CostRecord.timestamp).label("day"),
+                func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0")).label("cost"),
             )
-        ).scalar_one()
-        trend.append({"date": day_start.strftime("%Y-%m-%d"), "cost": float(day_cost)})
+            .where(CostRecord.timestamp >= window_start)
+            .group_by(func.date(CostRecord.timestamp))
+        )
+    ).all()
+    by_day = {str(row.day): float(row.cost) if row.cost else 0.0 for row in bucket_rows}
+
+    trend = []
+    for i in range(TREND_DAYS - 1, -1, -1):
+        d = (now - timedelta(days=i)).date()
+        date_str = d.strftime("%Y-%m-%d")
+        trend.append({"date": date_str, "cost": by_day.get(date_str, 0.0)})
 
     return CostDataResponse(
         budget=f"${budget:.2f}",

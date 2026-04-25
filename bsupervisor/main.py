@@ -1,6 +1,5 @@
 """BSupervisor — AI agent auditing and safety system."""
 
-import os
 from contextlib import asynccontextmanager
 
 import structlog
@@ -18,6 +17,7 @@ from bsupervisor.api.rule_packs import router as rule_packs_router
 from bsupervisor.api.rules import router as rules_router
 from bsupervisor.api.settings import router as settings_router
 from bsupervisor.api.status import router as status_router
+from bsupervisor.config import settings
 from bsupervisor.core.seed_rules import seed_default_rules
 from bsupervisor.models.database import async_session_factory, engine
 
@@ -45,13 +45,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-_cors_origins = [
-    o.strip() for o in os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3500").split(",") if o.strip()
-]
-
+# Audit §M18 — CORS origins flow through pydantic-settings (was reading
+# ``os.environ.get`` directly, bypassing validation).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
+    allow_origins=settings.cors_allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],

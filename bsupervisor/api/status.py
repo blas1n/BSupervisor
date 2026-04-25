@@ -1,6 +1,5 @@
 """Status API endpoint — today's summary."""
 
-from datetime import datetime, timezone
 from decimal import Decimal
 
 from bsvibe_auth import BSVibeUser
@@ -10,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bsupervisor.api.deps import get_current_user
 from bsupervisor.api.schemas import StatusResponse
+from bsupervisor.core.dates import today_window
 from bsupervisor.models.audit_event import AuditEvent
 from bsupervisor.models.cost_record import CostRecord
 from bsupervisor.models.database import get_session
@@ -22,9 +22,7 @@ async def get_status(
     _user: BSVibeUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    today = datetime.now(timezone.utc).date()
-    start = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
-    end = datetime(today.year, today.month, today.day, 23, 59, 59, 999999, tzinfo=timezone.utc)
+    start, end = today_window()
 
     total_events = (
         await session.execute(

@@ -1,12 +1,13 @@
 """Daily report generator — aggregates audit events and costs."""
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal
 
 import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bsupervisor.core.dates import day_window
 from bsupervisor.models.audit_event import AuditEvent
 from bsupervisor.models.cost_record import CostRecord
 from bsupervisor.models.daily_report import DailyReport
@@ -20,8 +21,7 @@ class Reporter:
 
     async def generate_daily_report(self, target_date: date) -> DailyReport:
         """Generate and persist a daily report for the given date."""
-        start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc)
-        end = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, 999999, tzinfo=timezone.utc)
+        start, end = day_window(target_date)
 
         total_events = await self._count_events(start, end)
         blocked_count = await self._count_blocked(start, end)
