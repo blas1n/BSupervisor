@@ -24,6 +24,7 @@ class CostTracker:
         tokens_in: int,
         tokens_out: int,
         cost_usd: Decimal,
+        tenant_id: str | None = None,
     ) -> CostRecord:
         record = CostRecord(
             agent_id=agent_id,
@@ -32,6 +33,7 @@ class CostTracker:
             tokens_out=tokens_out,
             cost_usd=cost_usd,
             timestamp=datetime.now(timezone.utc),
+            tenant_id=tenant_id,
         )
         self._session.add(record)
         await self._session.commit()

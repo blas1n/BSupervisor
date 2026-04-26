@@ -1,12 +1,11 @@
 """Settings API endpoints for managing connection configurations."""
 
 import structlog
-from bsvibe_auth import BSVibeUser
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import get_current_user
+from bsupervisor.api.deps import CurrentUser, require_permission
 from bsupervisor.api.schemas import ConnectionSettings, SettingsResponse
 from bsupervisor.config import settings as app_settings
 from bsupervisor.core.encryption import EncryptionManager
@@ -43,7 +42,8 @@ async def _get_connections(session: AsyncSession) -> ConnectionSettings:
 
 @router.get("/settings", response_model=SettingsResponse)
 async def get_settings(
-    _user: BSVibeUser = Depends(get_current_user),
+    _user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.config.read")),
     session: AsyncSession = Depends(get_session),
 ) -> SettingsResponse:
     connections = await _get_connections(session)
@@ -53,7 +53,8 @@ async def get_settings(
 @router.put("/settings", response_model=SettingsResponse)
 async def update_settings(
     payload: ConnectionSettings,
-    _user: BSVibeUser = Depends(get_current_user),
+    _user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.config.write")),
     session: AsyncSession = Depends(get_session),
 ) -> SettingsResponse:
     stmt = select(Settings).where(Settings.key == CONNECTIONS_KEY)

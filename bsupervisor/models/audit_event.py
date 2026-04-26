@@ -18,6 +18,10 @@ class AuditEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     allowed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     explanation_json: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
     feedback_json: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
+    # P0.5 — tenant scoping. Nullable in Phase 0 because legacy events
+    # ingested before the multi-tenant cutover have no tenant; backfill
+    # is deferred to Phase 0.4-후속.
+    tenant_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True, default=None)
 
     # Audit §M6 — composite index for incident timeline queries
     # (``WHERE agent_id = :id AND timestamp BETWEEN ... ORDER BY timestamp``)

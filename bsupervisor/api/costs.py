@@ -4,12 +4,16 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import structlog
-from bsvibe_auth import BSVibeUser
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import get_current_user
+from bsupervisor.api.deps import (
+    CurrentUser,
+    ServiceKey,
+    bsupervisor_service_auth,
+    require_permission,
+)
 from bsupervisor.api.schemas import CostAgentEntry, CostDataResponse, CostRequest, CostResponse
 from bsupervisor.config import settings
 from bsupervisor.core.cost_tracker import CostTracker
@@ -28,17 +32,25 @@ TREND_DAYS = 30
 
 @router.get("/costs", response_model=CostDataResponse)
 async def list_costs(
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.costs.read")),
     session: AsyncSession = Depends(get_session),
 ) -> CostDataResponse:
     now = datetime.now(timezone.utc)
     today_start, _ = day_window(now.date())
 
+    tenant_filter = []
+    if user.active_tenant_id:
+        tenant_filter = [
+            (CostRecord.tenant_id == user.active_tenant_id) | (CostRecord.tenant_id.is_(None)),
+        ]
+
     # Total spent today
     total_spent = (
         await session.execute(
             select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0"))).where(
-                CostRecord.timestamp >= today_start
+                CostRecord.timestamp >= today_start,
+                *tenant_filter,
             )
         )
     ).scalar_one()
@@ -56,7 +68,7 @@ async def list_costs(
                 func.sum(CostRecord.tokens_in + CostRecord.tokens_out).label("tokens"),
                 func.sum(CostRecord.cost_usd).label("cost"),
             )
-            .where(CostRecord.timestamp >= today_start)
+            .where(CostRecord.timestamp >= today_start, *tenant_filter)
             .group_by(CostRecord.agent_id)
         )
     ).all()
@@ -90,7 +102,7 @@ async def list_costs(
                 func.date(CostRecord.timestamp).label("day"),
                 func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0")).label("cost"),
             )
-            .where(CostRecord.timestamp >= window_start)
+            .where(CostRecord.timestamp >= window_start, *tenant_filter)
             .group_by(func.date(CostRecord.timestamp))
         )
     ).all()
@@ -115,9 +127,15 @@ async def list_costs(
 @router.post("/costs", response_model=CostResponse, status_code=201)
 async def ingest_cost(
     payload: CostRequest,
-    _user: BSVibeUser = Depends(get_current_user),
+    svc: ServiceKey = Depends(bsupervisor_service_auth),
     session: AsyncSession = Depends(get_session),
 ) -> CostResponse:
+    """Service-only ingestion endpoint.
+
+    P0.5 — BSGateway / BSNexus call this with their service JWT
+    (``aud="bsupervisor"``). Tenant binding (if any) comes from the
+    service token's ``tenant_id`` claim.
+    """
     tracker = CostTracker(session)
     record = await tracker.record_cost(
         agent_id=payload.agent_id,
@@ -125,6 +143,7 @@ async def ingest_cost(
         tokens_in=payload.tokens_in,
         tokens_out=payload.tokens_out,
         cost_usd=payload.cost_usd,
+        tenant_id=svc.tenant_id,
     )
 
     return CostResponse(

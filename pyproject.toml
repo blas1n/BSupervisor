@@ -12,6 +12,10 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "structlog>=23.0.0",
     "bsvibe-auth[fastapi] @ git+https://github.com/BSVibe/BSVibe-Auth.git@v0.4.0#subdirectory=python",
+    # P0.5 — shared authz library (bsvibe-python PR #1, branch feat/bsvibe-authz-impl).
+    # Switch to a versioned release once that PR merges to main.
+    "bsvibe-authz @ git+https://github.com/BSVibe/bsvibe-python.git@feat/bsvibe-authz-impl#subdirectory=packages/bsvibe-authz",
+    "httpx>=0.28.1",
 ]
 
 [tool.pytest.ini_options]

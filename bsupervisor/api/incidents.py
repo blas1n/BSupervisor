@@ -3,13 +3,12 @@
 from uuid import UUID
 
 import structlog
-from bsvibe_auth import BSVibeUser
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import get_current_user
+from bsupervisor.api.deps import CurrentUser, require_permission
 from bsupervisor.core.incident_tracker import IncidentTracker
 from bsupervisor.models.database import get_session
 from bsupervisor.models.incident import Incident, IncidentStatus
@@ -56,12 +55,21 @@ class ResolveResponse(BaseModel):
     status: str
 
 
+def _scope_to_tenant(stmt, user, model):
+    if user.active_tenant_id:
+        stmt = stmt.where((model.tenant_id == user.active_tenant_id) | (model.tenant_id.is_(None)))
+    return stmt
+
+
 @router.get("/incidents", response_model=list[IncidentListItem])
 async def list_incidents(
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.incidents.read")),
     session: AsyncSession = Depends(get_session),
 ) -> list[IncidentListItem]:
-    result = await session.execute(select(Incident).order_by(Incident.updated_at.desc()).limit(50))
+    stmt = select(Incident).order_by(Incident.updated_at.desc()).limit(50)
+    stmt = _scope_to_tenant(stmt, user, Incident)
+    result = await session.execute(stmt)
     incidents = result.scalars().all()
     return [
         IncidentListItem(
@@ -81,10 +89,13 @@ async def list_incidents(
 @router.get("/incidents/{incident_id}", response_model=IncidentDetail)
 async def get_incident(
     incident_id: UUID,
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.incidents.read")),
     session: AsyncSession = Depends(get_session),
 ) -> IncidentDetail:
-    result = await session.execute(select(Incident).where(Incident.id == incident_id))
+    stmt = select(Incident).where(Incident.id == incident_id)
+    stmt = _scope_to_tenant(stmt, user, Incident)
+    result = await session.execute(stmt)
     incident = result.scalar_one_or_none()
     if incident is None:
         raise HTTPException(status_code=404, detail="Incident not found")
@@ -119,10 +130,13 @@ async def get_incident(
 @router.post("/incidents/{incident_id}/resolve", response_model=ResolveResponse)
 async def resolve_incident(
     incident_id: UUID,
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.incidents.write")),
     session: AsyncSession = Depends(get_session),
 ) -> ResolveResponse:
-    result = await session.execute(select(Incident).where(Incident.id == incident_id))
+    stmt = select(Incident).where(Incident.id == incident_id)
+    stmt = _scope_to_tenant(stmt, user, Incident)
+    result = await session.execute(stmt)
     incident = result.scalar_one_or_none()
     if incident is None:
         raise HTTPException(status_code=404, detail="Incident not found")

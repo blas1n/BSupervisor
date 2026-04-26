@@ -5,12 +5,18 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 
 import structlog
-from bsvibe_auth import BSVibeUser
+from bsvibe_authz import User
 from fastapi import APIRouter, Depends, HTTPException
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import get_current_user
+from bsupervisor.api.deps import (
+    CurrentUser,
+    ServiceKey,
+    bsupervisor_service_auth,
+    require_permission,
+)
 from bsupervisor.api.schemas import (
     EventListItem,
     EventRequest,
@@ -51,10 +57,16 @@ def _rate_limit_key(payload: EventRequest) -> str:
 
 @router.get("/events", response_model=list[EventListItem])
 async def list_events(
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.events.read")),
     session: AsyncSession = Depends(get_session),
 ) -> list[EventListItem]:
-    result = await session.execute(select(AuditEvent).order_by(AuditEvent.timestamp.desc()).limit(100))
+    stmt = select(AuditEvent).order_by(AuditEvent.timestamp.desc()).limit(100)
+    if user.active_tenant_id:
+        stmt = stmt.where(
+            (AuditEvent.tenant_id == user.active_tenant_id) | (AuditEvent.tenant_id.is_(None)),
+        )
+    result = await session.execute(stmt)
     events = result.scalars().all()
 
     items = []
@@ -79,15 +91,29 @@ async def list_events(
 @router.post("/events", response_model=EventResponse, status_code=201)
 async def ingest_event(
     payload: EventRequest,
-    _user: BSVibeUser = Depends(get_current_user),
+    svc: ServiceKey = Depends(bsupervisor_service_auth),
     session: AsyncSession = Depends(get_session),
 ) -> EventResponse:
+    """Ingest an event.
+
+    P0.5 — service-only: BSGateway / BSNexus call this with their service JWT
+    (``aud="bsupervisor"``, scope ``bsupervisor.events``). Sprint 1 H6 rate
+    limiter is preserved untouched.
+    """
     if not _events_rate_limiter.allow(_rate_limit_key(payload)):
-        logger.warning("events_rate_limited", source=payload.source, agent_id=payload.agent_id)
+        logger.warning(
+            "events_rate_limited",
+            source=payload.source,
+            agent_id=payload.agent_id,
+            caller=svc.sub,
+        )
         raise HTTPException(status_code=429, detail="rate limit exceeded for this source")
 
     timestamp = payload.timestamp or datetime.now(timezone.utc)
 
+    # The service token MAY carry a tenant_id — when it does, every event it
+    # ingests is bound to that tenant. Untenanted ingestion is allowed for
+    # the ``service:`` calling convention as a transitional measure (Phase 0).
     event = AuditEvent(
         agent_id=payload.agent_id,
         source=payload.source,
@@ -97,6 +123,7 @@ async def ingest_event(
         metadata_json=payload.metadata,
         allowed=True,
         timestamp=timestamp,
+        tenant_id=svc.tenant_id,
     )
 
     # Evaluate rules before persisting
@@ -122,6 +149,8 @@ async def ingest_event(
         agent_id=event.agent_id,
         event_type=event.event_type,
         allowed=rule_result.allowed,
+        caller=svc.sub,
+        tenant_id=svc.tenant_id,
     )
 
     explanation_resp = None
@@ -140,10 +169,16 @@ async def ingest_event(
 async def submit_feedback(
     event_id: uuid.UUID,
     payload: FeedbackRequest,
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.events.write")),
     session: AsyncSession = Depends(get_session),
 ) -> FeedbackResponse:
-    result = await session.execute(select(AuditEvent).where(AuditEvent.id == event_id))
+    stmt = select(AuditEvent).where(AuditEvent.id == event_id)
+    if user.active_tenant_id:
+        stmt = stmt.where(
+            (AuditEvent.tenant_id == user.active_tenant_id) | (AuditEvent.tenant_id.is_(None)),
+        )
+    result = await session.execute(stmt)
     event = result.scalar_one_or_none()
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -157,3 +192,9 @@ async def submit_feedback(
     logger.info("feedback_submitted", event_id=str(event_id), is_false_positive=payload.is_false_positive)
 
     return FeedbackResponse(event_id=str(event_id), accepted=True)
+
+
+# Silence "imported but unused" — User is part of the public type surface
+# and exported here so dependent modules can ``from bsupervisor.api.events
+# import User`` if needed.
+__all__ = ["User", "ingest_event", "list_events", "router", "submit_feedback"]

@@ -1,13 +1,12 @@
 """Rule template packs API endpoints."""
 
 import structlog
-from bsvibe_auth import BSVibeUser
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import get_current_user
+from bsupervisor.api.deps import CurrentUser, require_permission
 from bsupervisor.core.rule_engine import invalidate_rules_cache
 from bsupervisor.core.rule_packs import get_pack, list_packs
 from bsupervisor.models.audit_rule import AuditRule
@@ -49,7 +48,8 @@ class InstallResponse(BaseModel):
 
 @router.get("/rule-packs", response_model=list[PackSummary])
 async def list_rule_packs(
-    _user: BSVibeUser = Depends(get_current_user),
+    _user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.rules.read")),
 ) -> list[PackSummary]:
     return [PackSummary(**p) for p in list_packs()]
 
@@ -57,7 +57,8 @@ async def list_rule_packs(
 @router.get("/rule-packs/{pack_id}", response_model=PackDetail)
 async def get_rule_pack(
     pack_id: str,
-    _user: BSVibeUser = Depends(get_current_user),
+    _user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.rules.read")),
 ) -> PackDetail:
     pack = get_pack(pack_id)
     if pack is None:
@@ -76,7 +77,8 @@ async def get_rule_pack(
 @router.post("/rule-packs/{pack_id}/install", response_model=InstallResponse)
 async def install_rule_pack(
     pack_id: str,
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.rules.write")),
     session: AsyncSession = Depends(get_session),
 ) -> InstallResponse:
     pack = get_pack(pack_id)
@@ -97,6 +99,7 @@ async def install_rule_pack(
                 action=rule_data["action"],
                 enabled=True,
                 built_in=True,
+                tenant_id=user.active_tenant_id,
             )
         )
 

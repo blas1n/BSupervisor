@@ -1,11 +1,10 @@
 """Anomaly detection API endpoint."""
 
-from bsvibe_auth import BSVibeUser
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import get_current_user
+from bsupervisor.api.deps import CurrentUser, require_permission
 from bsupervisor.core.anomaly_detector import AnomalyDetector
 from bsupervisor.models.database import get_session
 
@@ -24,7 +23,8 @@ class AnomalyEntry(BaseModel):
 
 @router.get("/anomalies", response_model=list[AnomalyEntry])
 async def list_anomalies(
-    _user: BSVibeUser = Depends(get_current_user),
+    _user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.anomalies.read")),
     session: AsyncSession = Depends(get_session),
 ) -> list[AnomalyEntry]:
     detector = AnomalyDetector(session)

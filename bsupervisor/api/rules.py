@@ -3,13 +3,12 @@
 from uuid import UUID
 
 import structlog
-from bsvibe_auth import BSVibeUser
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import get_current_user
+from bsupervisor.api.deps import CurrentUser, require_permission
 from bsupervisor.api.schemas import RuleCreateRequest, RuleResponse, RuleUpdateRequest
 from bsupervisor.core.rule_engine import invalidate_rules_cache
 from bsupervisor.models.audit_rule import AuditRule
@@ -38,10 +37,15 @@ def _rule_to_response(rule: AuditRule) -> RuleResponse:
 
 @router.get("/rules", response_model=list[RuleResponse])
 async def list_rules(
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.rules.read")),
     session: AsyncSession = Depends(get_session),
 ) -> list[RuleResponse]:
-    result = await session.execute(select(AuditRule).order_by(AuditRule.name))
+    stmt = select(AuditRule).order_by(AuditRule.name)
+    if user.active_tenant_id:
+        # Built-in rules have no tenant_id; surface them to every tenant.
+        stmt = stmt.where((AuditRule.tenant_id == user.active_tenant_id) | (AuditRule.tenant_id.is_(None)))
+    result = await session.execute(stmt)
     rules = result.scalars().all()
     return [_rule_to_response(r) for r in rules]
 
@@ -49,7 +53,8 @@ async def list_rules(
 @router.post("/rules", response_model=RuleResponse, status_code=201)
 async def create_rule(
     payload: RuleCreateRequest,
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.rules.write")),
     session: AsyncSession = Depends(get_session),
 ) -> RuleResponse:
     rule = AuditRule(
@@ -58,6 +63,7 @@ async def create_rule(
         condition=payload.to_condition(),
         action=payload.action,
         enabled=payload.enabled,
+        tenant_id=user.active_tenant_id,
     )
     session.add(rule)
     try:
@@ -76,11 +82,14 @@ async def create_rule(
 async def update_rule(
     rule_id: UUID,
     payload: RuleUpdateRequest,
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.rules.write")),
     session: AsyncSession = Depends(get_session),
 ) -> RuleResponse:
     rule = await session.get(AuditRule, rule_id)
     if rule is None:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    if user.active_tenant_id and rule.tenant_id and rule.tenant_id != user.active_tenant_id:
         raise HTTPException(status_code=404, detail="Rule not found")
 
     update_data = payload.model_dump(exclude_unset=True)
@@ -106,11 +115,14 @@ async def update_rule(
 @router.delete("/rules/{rule_id}", status_code=204)
 async def delete_rule(
     rule_id: UUID,
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.rules.write")),
     session: AsyncSession = Depends(get_session),
 ) -> None:
     rule = await session.get(AuditRule, rule_id)
     if rule is None:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    if user.active_tenant_id and rule.tenant_id and rule.tenant_id != user.active_tenant_id:
         raise HTTPException(status_code=404, detail="Rule not found")
 
     if rule.built_in:
