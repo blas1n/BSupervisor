@@ -3,9 +3,13 @@
 from contextlib import asynccontextmanager
 
 import structlog
+from bsvibe_core import configure_logging
+from bsvibe_fastapi import (
+    RequestIdMiddleware,
+    add_cors_middleware,
+    make_health_router,
+)
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from bsupervisor.api.anomalies import router as anomalies_router
@@ -20,6 +24,9 @@ from bsupervisor.api.status import router as status_router
 from bsupervisor.config import settings
 from bsupervisor.core.seed_rules import seed_default_rules
 from bsupervisor.models.database import async_session_factory, engine
+
+# Phase A — structured JSON logging via shared bsvibe-core helper.
+configure_logging(level="info" if not settings.debug else "debug", service_name="bsupervisor")
 
 logger = structlog.get_logger(__name__)
 
@@ -45,15 +52,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# RequestIdMiddleware must wrap the rest so every log line emitted
+# inside a handler carries ``request_id=<value>`` via structlog
+# contextvars.
+app.add_middleware(RequestIdMiddleware)
+
 # Audit §M18 — CORS origins flow through pydantic-settings (was reading
-# ``os.environ.get`` directly, bypassing validation).
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allow_headers=["Authorization", "Content-Type"],
-)
+# ``os.environ.get`` directly, bypassing validation). Phase A: delegated
+# to the shared ``bsvibe_fastapi.add_cors_middleware`` helper.
+add_cors_middleware(app, settings)
 
 app.include_router(events_router)
 app.include_router(incidents_router)
@@ -66,23 +73,35 @@ app.include_router(settings_router)
 app.include_router(status_router)
 
 
-@app.get("/api/health")
-async def health_check() -> dict:
-    return {"status": "ok"}
-
-
-@app.get("/api/health/ready")
-async def readiness_check() -> JSONResponse:
+# Phase A health/readiness — uses ``bsvibe_fastapi.make_health_router``
+# under the BSupervisor ``/api`` prefix. The legacy ``/api/health/ready``
+# route is kept as a thin alias so existing probes / dashboards do not
+# break; ``/api/health/deps`` is the preferred shared name.
+async def _health_deps() -> dict[str, str]:
     try:
         async with async_session_factory() as session:
             await session.execute(text("SELECT 1"))
-        return JSONResponse(
-            status_code=200,
-            content={"status": "ready", "database": "ok"},
-        )
+        return {"database": "ok"}
     except Exception:
         logger.error("readiness_check_failed", exc_info=True)
-        return JSONResponse(
-            status_code=503,
-            content={"status": "not_ready", "database": "error"},
-        )
+        return {"database": "error"}
+
+
+_health_router = make_health_router(deps_callable=_health_deps)
+app.include_router(_health_router, prefix="/api")
+
+
+@app.get("/api/health/ready")
+async def readiness_check():
+    """Legacy alias for :py:func:`make_health_router`'s ``/health/deps``.
+
+    Kept so existing load-balancer probes and dashboards do not 404
+    while the new ``/api/health/deps`` shape rolls out.
+    """
+    from fastapi.responses import JSONResponse
+
+    deps = await _health_deps()
+    all_ok = all(value == "ok" for value in deps.values())
+    if all_ok:
+        return JSONResponse(status_code=200, content={"status": "ready", **deps})
+    return JSONResponse(status_code=503, content={"status": "not_ready", **deps})

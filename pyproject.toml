@@ -12,9 +12,15 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "structlog>=23.0.0",
     "bsvibe-auth[fastapi] @ git+https://github.com/BSVibe/BSVibe-Auth.git@v0.4.0#subdirectory=python",
-    # P0.5 — shared authz library (bsvibe-python PR #1, branch feat/bsvibe-authz-impl).
-    # Switch to a versioned release once that PR merges to main.
-    "bsvibe-authz @ git+https://github.com/BSVibe/bsvibe-python.git@feat/bsvibe-authz-impl#subdirectory=packages/bsvibe-authz",
+    # Phase A shared packages (bsvibe-python). All packages pinned to
+    # ``integration/phase-a`` while feature branches consolidate onto main.
+    # Switch to versioned releases once that branch merges.
+    "bsvibe-core @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-a#subdirectory=packages/bsvibe-core",
+    "bsvibe-fastapi @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-a#subdirectory=packages/bsvibe-fastapi",
+    "bsvibe-sqlalchemy @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-a#subdirectory=packages/bsvibe-sqlalchemy",
+    "bsvibe-alerts @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-a#subdirectory=packages/bsvibe-alerts",
+    # P0.5 — shared authz library (PR #1).
+    "bsvibe-authz @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-a#subdirectory=packages/bsvibe-authz",
     "httpx>=0.28.1",
 ]
 
