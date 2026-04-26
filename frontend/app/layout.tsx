@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { AuthProviderClient } from "@/src/components/AuthProviderClient";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "BSupervisor",
 };
+
+const AUTH_URL = process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? "https://auth.bsvibe.dev";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -22,7 +25,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
         />
       </head>
-      <body className="bg-gray-950 text-gray-100 antialiased">{children}</body>
+      <body className="bg-gray-950 text-gray-100 antialiased">
+        <AuthProviderClient authUrl={AUTH_URL}>{children}</AuthProviderClient>
+      </body>
     </html>
   );
 }

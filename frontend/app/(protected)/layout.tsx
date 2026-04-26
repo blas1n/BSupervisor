@@ -1,34 +1,29 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useAuth } from "@/src/hooks/useAuth";
+import { ProtectedRoute } from "@bsvibe/layout";
 import { Layout } from "@/src/components/Layout";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+
+/**
+ * Phase A — auth gate delegated to `@bsvibe/layout` `ProtectedRoute`.
+ *
+ * The shared component implements the BSNexus Phase Z pattern
+ * (`useEffect + router.replace`) so every product inherits the same
+ * "no navigation during render" discipline. BSupervisor still owns the
+ * inner `<Layout>` (sidebar / header branding) until that is rolled
+ * into a shared `<AppShell>` slot.
+ */
+const Spinner = (
+  <div className="flex min-h-screen items-center justify-center bg-gray-950">
+    <Loader2 className="h-8 w-8 animate-spin text-accent" />
+  </div>
+);
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
-    }
-  }, [loading, user, router]);
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950">
-        <Loader2 className="h-8 w-8 animate-spin text-accent" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    // useEffect will redirect; render nothing while redirect is in flight
-    return null;
-  }
-
-  return <Layout>{children}</Layout>;
+  return (
+    <ProtectedRoute redirectTo="/login" fallback={Spinner}>
+      <Layout>{children}</Layout>
+    </ProtectedRoute>
+  );
 }

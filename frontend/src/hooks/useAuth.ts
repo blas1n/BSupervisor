@@ -1,15 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+/**
+ * BSupervisor auth hook — Phase A consumer of `@bsvibe/auth`.
+ *
+ * The shared `@bsvibe/auth` package exposes `<AuthProvider>` + `useAuth()`
+ * with cookie-SSO semantics (silent `/api/session` check + 401 = logged-out).
+ * BSupervisor wraps that with two product-specific helpers:
+ *
+ * - `login()` / `logout()` — redirect-based interactions with the auth app,
+ *   not part of the shared hook surface (each product owns its post-logout URL).
+ * - `getAccessToken()` — short-lived token cache used by `@bsvibe/api`'s
+ *   bearer-mode fetch. Calls `/api/session` directly so any consumer can
+ *   ask for a token outside React (e.g. inside an axios interceptor).
+ *
+ * The legacy local `useAuth` shape (`{ user, loading, login, logout }`) is
+ * preserved so existing components keep compiling. The richer
+ * `@bsvibe/auth` surface (`tenants`, `activeTenant`, `hasPermission`,
+ * `switchTenant`) is also re-exported for new code.
+ */
 
-interface User {
-  id: string;
-  email: string;
-  tenantId: string;
-  role: string;
-}
+import { useAuth as useAuthShared } from '@bsvibe/auth';
 
-const AUTH_URL = 'https://auth.bsvibe.dev';
+const AUTH_URL = process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? 'https://auth.bsvibe.dev';
 
 interface SessionResponse {
   access_token: string;
@@ -19,6 +31,7 @@ interface SessionResponse {
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
+/** Return a cached `access_token` or fetch a new one from `/api/session`. */
 export async function getAccessToken(): Promise<string | null> {
   if (cachedToken && Date.now() < cachedToken.expiresAt - 30_000) {
     return cachedToken.value;
@@ -37,44 +50,54 @@ export async function getAccessToken(): Promise<string | null> {
   }
 }
 
-export function clearTokenCache() { cachedToken = null; }
-
-function decodeJwt(token: string): Record<string, unknown> {
-  const parts = token.split('.');
-  let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-  const pad = base64.length % 4;
-  if (pad) base64 += '='.repeat(4 - pad);
-  return JSON.parse(atob(base64));
+export function clearTokenCache() {
+  cachedToken = null;
 }
 
+/**
+ * BSupervisor-flavoured `useAuth` — re-exposes the shared hook plus
+ * `login()` / `logout()` redirects so the existing component tree
+ * (`Layout.tsx`, `Login.tsx`, etc.) keeps working unchanged.
+ */
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const shared = useAuthShared();
 
-  useEffect(() => {
-    (async () => {
-      const token = await getAccessToken();
-      if (!token) { setLoading(false); return; }
-      const payload = decodeJwt(token);
-      const appMeta = payload.app_metadata as Record<string, string> | undefined;
-      setUser({
-        id: payload.sub as string,
-        email: payload.email as string,
-        tenantId: appMeta?.tenant_id ?? '',
-        role: appMeta?.role ?? 'member',
-      });
-      setLoading(false);
-    })();
-  }, []);
-
-  function login() { window.location.href = `${AUTH_URL}/login`; }
+  function login() {
+    window.location.href = `${AUTH_URL}/login`;
+  }
 
   async function logout() {
-    await fetch(`${AUTH_URL}/api/session`, { method: 'DELETE', credentials: 'include' });
+    await fetch(`${AUTH_URL}/api/session`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
     clearTokenCache();
-    setUser(null);
     window.location.href = 'https://bsvibe.dev/';
   }
 
-  return { user, loading, login, logout };
+  // Map the shared `User` shape (no role/tenantId) into the legacy local
+  // shape used by BSupervisor components. The `role` / `tenantId` fields
+  // come from `activeTenant` instead of the JWT app_metadata.
+  const user = shared.user
+    ? {
+        id: shared.user.id,
+        email: shared.user.email,
+        tenantId: shared.activeTenant?.id ?? '',
+        role: shared.activeTenant?.role ?? 'member',
+      }
+    : null;
+
+  return {
+    user,
+    loading: shared.isLoading,
+    login,
+    logout,
+    // Forward the richer shared surface for new code paths.
+    tenants: shared.tenants,
+    activeTenant: shared.activeTenant,
+    hasPermission: shared.hasPermission,
+    switchTenant: shared.switchTenant,
+    refresh: shared.refresh,
+    error: shared.error,
+  };
 }

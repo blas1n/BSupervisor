@@ -11,6 +11,13 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@bsvibe/api": "file:../../../bsvibe-frontend-lib/main/packages/api",
+    "@bsvibe/auth": "file:../../../bsvibe-frontend-lib/main/packages/auth",
+    "@bsvibe/design-tokens": "file:../../../bsvibe-frontend-lib/main/packages/design-tokens",
+    "@bsvibe/i18n": "file:../../../bsvibe-frontend-lib/main/packages/i18n",
+    "@bsvibe/layout": "file:../../../bsvibe-frontend-lib/main/packages/layout",
+    "@bsvibe/types": "file:../../../bsvibe-frontend-lib/main/packages/types",
+    "@bsvibe/ui": "file:../../../bsvibe-frontend-lib/main/packages/ui",
     "axios": "^1.14.0",
     "lucide-react": "^1.7.0",
     "next": "^15.0.0",
