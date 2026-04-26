@@ -19,6 +19,7 @@ htmlcov/
 *.log
 .agent/
 .pnpm-store/
+.next/
 .env.production
 .vercel
 .gitrepo

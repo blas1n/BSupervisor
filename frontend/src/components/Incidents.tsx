@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { cn, formatTime } from "../lib/utils";
 import { fetchIncidents, fetchIncident, resolveIncident } from "../lib/api";

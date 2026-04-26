@@ -1,5 +1,8 @@
-import { useState } from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+"use client";
+
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "../lib/utils";
 import { useAuth } from "../hooks/useAuth";
 import { MaterialIcon } from "../components/MaterialIcon";
@@ -23,10 +26,10 @@ const pageTitles: Record<string, string> = {
 };
 
 
-export function Layout() {
-  const location = useLocation();
+export function Layout({ children }: { children: ReactNode }) {
+  const pathname = usePathname() ?? "/";
   const { user, logout } = useAuth();
-  const title = pageTitles[location.pathname] ?? "BSupervisor";
+  const title = pageTitles[pathname] ?? "BSupervisor";
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -56,33 +59,29 @@ export function Layout() {
 
         {/* Nav */}
         <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
-          {navItems.map(({ to, icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/"}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                cn(
+          {navItems.map(({ to, icon, label }) => {
+            const isActive = to === "/" ? pathname === "/" : pathname.startsWith(to);
+            return (
+              <Link
+                key={to}
+                href={to}
+                onClick={() => setSidebarOpen(false)}
+                className={cn(
                   "flex items-center gap-3 px-4 py-3 text-sm uppercase font-bold tracking-tight transition-all duration-200",
                   isActive
                     ? "text-gray-50 bg-gray-900 rounded-lg border-l-4 border-accent"
                     : "text-gray-500 hover:text-gray-200 hover:bg-gray-900",
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <MaterialIcon
-                    icon={icon}
-                    className="text-xl"
-                    filled={isActive}
-                  />
-                  <span>{label}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
+                )}
+              >
+                <MaterialIcon
+                  icon={icon}
+                  className="text-xl"
+                  filled={isActive}
+                />
+                <span>{label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
         {/* User & Logout */}
@@ -156,7 +155,7 @@ export function Layout() {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+          {children}
         </main>
       </div>
     </div>

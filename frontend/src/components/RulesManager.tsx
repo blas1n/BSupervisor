@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { SeverityBadge } from "../components/SeverityBadge";
 import { cn, formatNumber } from "../lib/utils";

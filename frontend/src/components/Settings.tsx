@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import {
   fetchSettings,
@@ -50,19 +52,17 @@ export function Settings() {
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
 
   useEffect(() => {
-    loadSettings();
+    (async () => {
+      try {
+        const data = await fetchSettings();
+        setForm(data.connections);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load settings");
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
-
-  async function loadSettings() {
-    try {
-      const data = await fetchSettings();
-      setForm(data.connections);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load settings");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleSave() {
     setSaving(true);
