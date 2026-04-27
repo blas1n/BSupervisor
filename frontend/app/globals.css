@@ -65,7 +65,47 @@ body {
 .bsvibe-appshell__main {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem;
+  /* Phase B: tighter padding on mobile so DataTable / cards have breathing room. */
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .bsvibe-appshell__main {
+    padding: 1.5rem;
+  }
+}
+
+/* ----------------------------------------------------------------------
+ * Phase B: mobile-friendly responsive utilities (DataTable / cards).
+ * ---------------------------------------------------------------------- */
+
+/* Tables in cards should always horizontally scroll cleanly on small viewports
+ * with a thin shadow indicator — every product wraps tables in
+ * `<div class="overflow-x-auto">` already; this class augments that. */
+.bsvibe-table-shell {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* A simpler card-stack alternative that products can opt into on narrow
+ * viewports. Each `.bsvibe-card-row` becomes a stacked card under 640px. */
+@media (max-width: 639px) {
+  .bsvibe-card-stack { display: flex; flex-direction: column; gap: 0.5rem; }
+  .bsvibe-card-stack__row {
+    border: 1px solid var(--color-gray-800);
+    border-radius: 0.75rem;
+    background: var(--color-gray-900);
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* Reduce minimum tap-target size for mobile-friendly buttons. */
+.bsvibe-tap {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .bsvibe-header {
@@ -73,12 +113,19 @@ body {
   align-items: center;
   justify-content: space-between;
   height: 4rem;
-  padding: 0 2rem;
+  /* Phase B: leave space on the left for the mobile hamburger trigger. */
+  padding: 0 1rem 0 4rem;
   background-color: rgba(10, 11, 15, 0.6);
   backdrop-filter: blur(16px);
   position: sticky;
   top: 0;
   z-index: 40;
+}
+
+@media (min-width: 768px) {
+  .bsvibe-header {
+    padding: 0 2rem;
+  }
 }
 
 .bsvibe-header__title {
@@ -122,14 +169,20 @@ body {
 
 .bsvibe-sidebar__hamburger {
   position: fixed;
-  top: 1rem;
-  left: 1rem;
+  top: 0.75rem;
+  left: 0.75rem;
   z-index: 60;
   background: transparent;
   border: 0;
   color: var(--color-gray-400);
   font-size: 1.5rem;
   cursor: pointer;
+  /* Phase B: 44px minimum touch target for iOS HIG / Material guidelines. */
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .bsvibe-sidebar__backdrop {
@@ -153,6 +206,8 @@ body {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
+  /* Phase B: 44px minimum touch target on mobile drawer items. */
+  min-height: 44px;
   font-size: 0.875rem;
   font-weight: 700;
   text-transform: uppercase;
