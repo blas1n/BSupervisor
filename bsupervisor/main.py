@@ -22,6 +22,7 @@ from bsupervisor.api.rules import router as rules_router
 from bsupervisor.api.settings import router as settings_router
 from bsupervisor.api.status import router as status_router
 from bsupervisor.config import settings
+from bsupervisor.core.audit import build_relay
 from bsupervisor.core.seed_rules import seed_default_rules
 from bsupervisor.models.database import async_session_factory, engine
 
@@ -40,9 +41,20 @@ async def lifespan(app: FastAPI):
         if seeded:
             logger.info("default_rules_seeded", count=seeded)
 
-    yield
-    await engine.dispose()
-    logger.info("app_shutdown")
+    # Phase Audit Batch 2 — start the shared bsvibe-audit OutboxRelay so
+    # supervisor.* events queued in the per-request transaction get
+    # shipped to BSVibe-Auth. The relay is a no-op when
+    # ``BSVIBE_AUTH_AUDIT_URL`` is empty (dev / CI default).
+    audit_relay = build_relay(session_factory=async_session_factory)
+    await audit_relay.start()
+    logger.info("audit_relay_started", running=audit_relay.is_running())
+
+    try:
+        yield
+    finally:
+        await audit_relay.stop()
+        await engine.dispose()
+        logger.info("app_shutdown")
 
 
 app = FastAPI(

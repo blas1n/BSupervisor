@@ -15,12 +15,20 @@ dependencies = [
     # Phase A shared packages (bsvibe-python). All packages pinned to
     # ``integration/phase-a`` while feature branches consolidate onto main.
     # Switch to versioned releases once that branch merges.
-    "bsvibe-core @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-a#subdirectory=packages/bsvibe-core",
-    "bsvibe-fastapi @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-a#subdirectory=packages/bsvibe-fastapi",
-    "bsvibe-sqlalchemy @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-a#subdirectory=packages/bsvibe-sqlalchemy",
-    "bsvibe-alerts @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-a#subdirectory=packages/bsvibe-alerts",
+    # All packages pinned to ``integration/phase-audit-batch-2`` so uv resolves
+    # a single ``bsvibe-core`` revision shared by every shared package
+    # (``integration/phase-a`` + audit drop). Switch to versioned releases once
+    # the integration branch merges.
+    "bsvibe-core @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-audit-batch-2#subdirectory=packages/bsvibe-core",
+    "bsvibe-fastapi @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-audit-batch-2#subdirectory=packages/bsvibe-fastapi",
+    "bsvibe-sqlalchemy @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-audit-batch-2#subdirectory=packages/bsvibe-sqlalchemy",
+    "bsvibe-alerts @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-audit-batch-2#subdirectory=packages/bsvibe-alerts",
     # P0.5 — shared authz library (PR #1).
-    "bsvibe-authz @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-a#subdirectory=packages/bsvibe-authz",
+    "bsvibe-authz @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-audit-batch-2#subdirectory=packages/bsvibe-authz",
+    # Phase Audit Batch 2 — outbox-pattern audit emission. Producer-only:
+    # BSupervisor inserts events into its own ``audit_outbox`` table inside
+    # the request's transaction; ``OutboxRelay`` ships them to BSVibe-Auth.
+    "bsvibe-audit @ git+https://github.com/BSVibe/bsvibe-python.git@integration/phase-audit-batch-2#subdirectory=packages/bsvibe-audit",
     "httpx>=0.28.1",
 ]
 

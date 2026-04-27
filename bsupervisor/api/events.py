@@ -5,6 +5,8 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 
 import structlog
+from bsvibe_audit import AuditResource
+from bsvibe_audit.events.supervisor import AlertPublished, BudgetExceeded, RuleViolated
 from bsvibe_authz import User
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -26,6 +28,7 @@ from bsupervisor.api.schemas import (
     FeedbackResponse,
 )
 from bsupervisor.config import settings as app_settings
+from bsupervisor.core.audit import make_actor, safe_emit, severity_from_explanation
 from bsupervisor.core.incident_tracker import IncidentTracker
 from bsupervisor.core.rate_limiter import InMemoryRateLimiter
 from bsupervisor.core.rule_engine import RuleEngine
@@ -43,6 +46,20 @@ _events_rate_limiter = InMemoryRateLimiter(
     max_requests=app_settings.events_rate_limit_per_minute,
     window_seconds=60.0,
 )
+
+
+def _extract_current_cost(reason: str) -> str:
+    """Pull the ``$<amount>`` after ``cost`` out of the reason string.
+
+    The cost-threshold builtin formats its reason as
+    ``"Agent daily cost $X exceeds threshold $Y"``. We pluck X out so
+    the audit payload carries it numerically without re-running the
+    sum query inside the request path.
+    """
+    import re
+
+    match = re.search(r"daily cost \$([0-9]+(?:\.[0-9]+)?)", reason)
+    return match.group(1) if match else ""
 
 
 def _rate_limit_key(payload: EventRequest) -> str:
@@ -107,6 +124,27 @@ async def ingest_event(
             agent_id=payload.agent_id,
             caller=svc.sub,
         )
+        # Phase Audit Batch 2 — Sprint 1 H6 rate limiter publishes a
+        # ``supervisor.alert.published`` event so downstream consumers
+        # can correlate rate-limit spikes with incidents. Emit BEFORE
+        # raising so the row lives inside the active session txn (the
+        # 429 path commits via the FastAPI session dependency cleanup).
+        await safe_emit(
+            AlertPublished(
+                actor=make_actor(actor_type="service", actor_id=svc.sub),
+                tenant_id=svc.tenant_id,
+                resource=AuditResource(type="rate_limit", id=_rate_limit_key(payload)),
+                data={
+                    "alert_type": "rate_limit_exceeded",
+                    "source": payload.source,
+                    "agent_id": payload.agent_id,
+                    "limit_per_minute": app_settings.events_rate_limit_per_minute,
+                    "severity": "warning",
+                },
+            ),
+            session=session,
+        )
+        await session.commit()
         raise HTTPException(status_code=429, detail="rate limit exceeded for this source")
 
     timestamp = payload.timestamp or datetime.now(timezone.utc)
@@ -137,8 +175,78 @@ async def ingest_event(
     session.add(event)
     await session.flush()
 
+    incident = None
     if not rule_result.allowed:
-        await IncidentTracker(session).track_event(event)
+        incident = await IncidentTracker(session).track_event(event)
+
+    # Phase Audit Batch 2 — supervisor.budget.exceeded. The rule engine
+    # surfaces cost-threshold breaches as a non-blocking warning with a
+    # well-known rule_name; emit a typed budget event with the relevant
+    # numeric context so consumers can route differently than rule
+    # violations.
+    if rule_result.rule_name == "builtin:cost_threshold_warning":
+        explanation = rule_result.explanation
+        # ``matched_pattern`` is "daily_cost > $<threshold>"; pull the
+        # threshold and reason text out for the wire payload.
+        await safe_emit(
+            BudgetExceeded(
+                actor=make_actor(actor_type="service", actor_id=svc.sub),
+                tenant_id=svc.tenant_id,
+                resource=AuditResource(type="agent", id=event.agent_id),
+                data={
+                    "agent_id": event.agent_id,
+                    "current_cost_usd": _extract_current_cost(rule_result.reason or ""),
+                    "threshold_usd": str(app_settings.daily_cost_threshold_usd),
+                    "reason": rule_result.reason or "",
+                    "severity": "warning",
+                    "matched_pattern": (explanation.matched_pattern if explanation is not None else ""),
+                },
+            ),
+            session=session,
+        )
+
+    # Phase Audit Batch 2 — supervisor.rule.violated. Emit on every
+    # block AND every warn (anything that surfaced a rule_name); the
+    # cost-threshold builtin emits its own ``supervisor.budget.exceeded``
+    # above and is excluded here to avoid duplication.
+    if rule_result.rule_name is not None and rule_result.rule_name != "builtin:cost_threshold_warning":
+        action_taken = "block" if not rule_result.allowed else "warn"
+        await safe_emit(
+            RuleViolated(
+                actor=make_actor(actor_type="service", actor_id=svc.sub),
+                tenant_id=svc.tenant_id,
+                resource=AuditResource(type="event", id=str(event.id)),
+                data={
+                    "rule_name": rule_result.rule_name,
+                    "action_taken": action_taken,
+                    "agent_id": event.agent_id,
+                    "event_type": event.event_type,
+                    "target": event.target,
+                    "reason": rule_result.reason or "",
+                    "severity": severity_from_explanation(event.explanation_json),
+                },
+            ),
+            session=session,
+        )
+
+    # Phase Audit Batch 2 — supervisor.alert.published on NEW incidents
+    # (existing-incident merges already share the alert that fired when
+    # the parent incident was created, so we don't re-emit on merge).
+    if incident is not None and incident.event_count == 1:
+        await safe_emit(
+            AlertPublished(
+                actor=make_actor(actor_type="service", actor_id=svc.sub),
+                tenant_id=svc.tenant_id,
+                resource=AuditResource(type="incident", id=str(incident.id)),
+                data={
+                    "alert_type": "incident_created",
+                    "agent_id": event.agent_id,
+                    "incident_title": incident.title,
+                    "severity": incident.severity,
+                },
+            ),
+            session=session,
+        )
 
     await session.commit()
     await session.refresh(event)
