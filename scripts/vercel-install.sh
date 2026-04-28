@@ -65,8 +65,9 @@ console.log('Removed @bsvibe/* deps:', removed.join(', '));
 
 echo "[vercel-install] Running npm install in frontend/"
 cd "$REPO_ROOT/frontend"
-# Lockfile referenced the old file: deps; regenerate it.
-rm -f package-lock.json
+# Build cache may carry stale node_modules with workspace:* refs from a
+# previous failed build — clean out everything before the fresh install.
+rm -rf node_modules package-lock.json .next
 # Vercel's runner has a user .npmrc with pnpm-only options
 # (auto-install-peers, strict-peer-dependencies) that npm 10 mis-parses
 # and then crashes with "Cannot read properties of null (reading 'matches')"
