@@ -89,28 +89,38 @@ for pkg_dir in "$REPO_ROOT/.bsvibe-frontend-lib/packages"/*/; do
   target_dir="node_modules/@bsvibe/$pkg_name"
   rm -rf "$target_dir"
   mkdir -p "$target_dir"
-  # Copy only what consumers need: dist/ + the manifest, with workspace:*
-  # rewritten to a literal version (npm cannot interpret workspace: protocol).
-  if [ -d "$pkg_dir/dist" ]; then
-    cp -r "$pkg_dir/dist" "$target_dir/dist"
-  else
-    echo "[vercel-install] WARN: $pkg_dir/dist missing — skipping $pkg_name" >&2
-  fi
+  # Copy everything declared in package.json's "files" field (dist + any
+  # additional asset dirs like styles/, tools/) plus README, LICENSE so
+  # subpath exports such as @bsvibe/design-tokens/css resolve correctly.
   node -e "
 const fs = require('fs');
+const path = require('path');
 const src = JSON.parse(fs.readFileSync('$pkg_dir/package.json', 'utf8'));
+const files = (src.files && src.files.length) ? src.files : ['dist'];
+for (const f of files) {
+  const from = path.join('$pkg_dir', f);
+  const to = path.join('$target_dir', f);
+  if (fs.existsSync(from)) {
+    fs.cpSync(from, to, { recursive: true });
+  }
+}
+for (const f of ['README.md', 'LICENSE']) {
+  const from = path.join('$pkg_dir', f);
+  const to = path.join('$target_dir', f);
+  if (fs.existsSync(from)) fs.cpSync(from, to);
+}
 for (const k of ['dependencies', 'devDependencies', 'peerDependencies']) {
   const deps = src[k] || {};
   for (const name of Object.keys(deps)) {
     if (typeof deps[name] === 'string' && deps[name].startsWith('workspace:')) {
-      // Replace workspace:* with a wildcard so npm does not try to resolve it.
-      // The actual code under dist/ resolves @bsvibe/* via node_modules sibling lookup.
+      // npm cannot interpret workspace: protocol outside a workspace.
+      // Replace with '*' since the dist/ output already has paths resolved.
       deps[name] = '*';
     }
   }
 }
 delete src.devDependencies;
-fs.writeFileSync('$target_dir/package.json', JSON.stringify(src, null, 2) + '\n');
+fs.writeFileSync(path.join('$target_dir', 'package.json'), JSON.stringify(src, null, 2) + '\n');
 "
 done
 
