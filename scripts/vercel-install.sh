@@ -43,36 +43,62 @@ echo "[vercel-install] Building @bsvibe/* packages…"
   npx --yes pnpm@10 -r run build
 )
 
-echo "[vercel-install] Rewriting frontend file: deps to point at .bsvibe-frontend-lib/packages/*"
+echo "[vercel-install] Removing @bsvibe/* deps from frontend package.json (will install via direct copy)"
 node -e "
 const fs = require('fs');
 const path = require('path');
 const pkgPath = path.join('$REPO_ROOT', 'frontend', 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-let changed = false;
+const removed = [];
 for (const key of ['dependencies', 'devDependencies']) {
   const deps = pkg[key] || {};
   for (const name of Object.keys(deps)) {
-    const v = deps[name];
-    if (typeof v === 'string' && v.startsWith('file:') && v.includes('bsvibe-frontend-lib/main/packages/')) {
-      const m = v.match(/packages\/([^/]+)\/?$/);
-      if (m) {
-        deps[name] = 'file:../.bsvibe-frontend-lib/packages/' + m[1];
-        changed = true;
-      }
+    if (name.startsWith('@bsvibe/')) {
+      removed.push(name);
+      delete deps[name];
     }
   }
 }
-if (changed) {
-  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-  console.log('Updated', pkgPath);
-}
+fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+console.log('Removed @bsvibe/* deps:', removed.join(', '));
 "
 
 echo "[vercel-install] Running npm install in frontend/"
 cd "$REPO_ROOT/frontend"
-# Lockfile expects old file: paths, so regenerate it.
+# Lockfile referenced the old file: deps; regenerate it.
 rm -f package-lock.json
 npm install --no-audit --no-fund
+
+echo "[vercel-install] Copying built @bsvibe/* packages into frontend/node_modules/"
+mkdir -p node_modules/@bsvibe
+for pkg_dir in "$REPO_ROOT/.bsvibe-frontend-lib/packages"/*/; do
+  pkg_name=$(basename "$pkg_dir")
+  target_dir="node_modules/@bsvibe/$pkg_name"
+  rm -rf "$target_dir"
+  mkdir -p "$target_dir"
+  # Copy only what consumers need: dist/ + the manifest, with workspace:*
+  # rewritten to a literal version (npm cannot interpret workspace: protocol).
+  if [ -d "$pkg_dir/dist" ]; then
+    cp -r "$pkg_dir/dist" "$target_dir/dist"
+  else
+    echo "[vercel-install] WARN: $pkg_dir/dist missing — skipping $pkg_name" >&2
+  fi
+  node -e "
+const fs = require('fs');
+const src = JSON.parse(fs.readFileSync('$pkg_dir/package.json', 'utf8'));
+for (const k of ['dependencies', 'devDependencies', 'peerDependencies']) {
+  const deps = src[k] || {};
+  for (const name of Object.keys(deps)) {
+    if (typeof deps[name] === 'string' && deps[name].startsWith('workspace:')) {
+      // Replace workspace:* with a wildcard so npm does not try to resolve it.
+      // The actual code under dist/ resolves @bsvibe/* via node_modules sibling lookup.
+      deps[name] = '*';
+    }
+  }
+}
+delete src.devDependencies;
+fs.writeFileSync('$target_dir/package.json', JSON.stringify(src, null, 2) + '\n');
+"
+done
 
 echo "[vercel-install] Done."
