@@ -67,16 +67,19 @@ echo "[vercel-install] Running npm install in frontend/"
 cd "$REPO_ROOT/frontend"
 # Lockfile referenced the old file: deps; regenerate it.
 rm -f package-lock.json
-# The Vercel runner's user/global .npmrc carries pnpm-only options
+# Vercel's runner has a user .npmrc with pnpm-only options
 # (auto-install-peers, strict-peer-dependencies) that npm 10 mis-parses
 # and then crashes with "Cannot read properties of null (reading 'matches')"
-# on file: deps. Force npm to ignore those by pointing user/global config
-# at /dev/null and supplying our own minimal .npmrc.
+# on file: deps. Force npm to ignore the user config by pointing
+# --userconfig at an empty file we control.
+EMPTY_NPMRC="$(mktemp)"
+: > "$EMPTY_NPMRC"
 cat > .npmrc <<'EOF'
 audit=false
 fund=false
 EOF
-npm --userconfig=/dev/null --globalconfig=/dev/null install --no-audit --no-fund
+npm --userconfig="$EMPTY_NPMRC" install --no-audit --no-fund
+rm -f "$EMPTY_NPMRC"
 
 echo "[vercel-install] Copying built @bsvibe/* packages into frontend/node_modules/"
 mkdir -p node_modules/@bsvibe
