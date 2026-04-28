@@ -10,17 +10,17 @@ AI agent auditing and safety system.
 - **CSS**: Tailwind 4 (config-less, via `@tailwindcss/postcss`)
 - **Tests (e2e)**: Playwright
 - **Lint**: ESLint flat config + typescript-eslint
-- **Package manager**: npm (`package-lock.json`)
+- **Package manager**: pnpm (`pnpm-lock.yaml`)
 
 ## Scripts
 
 ```bash
-npm install          # install deps
-npm run dev          # start Next.js dev server (default port 3000)
-npm run build        # production build
-npm run start        # start production server (after build)
-npm run lint         # eslint
-npm run test:e2e     # Playwright e2e tests
+pnpm install         # install deps
+pnpm run dev         # start Next.js dev server (default port 3000)
+pnpm run build       # production build
+pnpm run start       # start production server (after build)
+pnpm run lint        # eslint
+pnpm run test:e2e    # Playwright e2e tests
 ```
 
 ## Environment
