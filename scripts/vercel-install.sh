@@ -29,8 +29,18 @@ fi
 echo "[vercel-install] Building @bsvibe/* packages…"
 (
   cd "$LIB_DIR"
+  # The .npmrc references ${NPM_TOKEN}; the read fails harmlessly on Vercel
+  # without the secret because we only consume packages from the workspace
+  # itself, not from the GitHub Package Registry. Strip the registry directive
+  # to silence the warnings and avoid any auth attempt.
+  if [ -f .npmrc ]; then
+    grep -v 'NPM_TOKEN\|@bsvibe:registry\|//npm.pkg.github.com' .npmrc > .npmrc.clean || true
+    mv .npmrc.clean .npmrc
+  fi
   npx --yes pnpm@10 install --frozen-lockfile || npx --yes pnpm@10 install --no-frozen-lockfile
-  npx --yes pnpm@10 -r --parallel run build
+  # Build serially because @bsvibe/auth, @bsvibe/api etc depend on @bsvibe/types.
+  # --parallel races the dependent packages before types' dist exists.
+  npx --yes pnpm@10 -r run build
 )
 
 echo "[vercel-install] Rewriting frontend file: deps to point at .bsvibe-frontend-lib/packages/*"
