@@ -62,3 +62,81 @@ class TestTenantIdColumnShape:
         assert cols["tenant_id"].index or any(
             "tenant_id" in idx.columns.keys() for idx in inspect(CostRecord).tables[0].indexes
         )
+
+
+class TestTenantIdMigrationFreshDatabase:
+    """Fresh Alembic upgrade must not assume the incidents table already exists."""
+
+    def test_0004_creates_incidents_before_adding_tenant_indexes(self, monkeypatch) -> None:
+        import importlib.util
+        from pathlib import Path
+
+        migration_path = Path("alembic/versions/0004_tenant_id_columns.py")
+        spec = importlib.util.spec_from_file_location("bsupervisor_0004_migration", migration_path)
+        assert spec is not None and spec.loader is not None
+        migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migration)
+
+        operations: list[object] = []
+
+        class FakeOp:
+            def get_bind(self):
+                return object()
+
+            def create_table(self, *args, **kwargs):
+                operations.append(("create_table", args[0]))
+
+            def create_index(self, *args, **kwargs):
+                operations.append(("create_index", args[0], args[1]))
+
+            def add_column(self, table_name, column):
+                operations.append(("add_column", table_name, column.name))
+
+        class FakeInspector:
+            def get_table_names(self):
+                return ["audit_events", "audit_rules", "cost_records", "daily_reports"]
+
+            def get_columns(self, table):
+                return []
+
+        monkeypatch.setattr(migration, "op", FakeOp())
+        monkeypatch.setattr(migration, "inspect", lambda _bind: FakeInspector())
+
+        migration.upgrade()
+
+        assert ("create_table", "incidents") in operations
+        assert ("add_column", "audit_events", "tenant_id") in operations
+
+
+class TestAuditEventJsonColumnMigration:
+    """Model columns used by the events API must be present after Alembic upgrade."""
+
+    def test_audit_event_json_columns_exist_on_model(self) -> None:
+        assert _has_column(AuditEvent, "explanation_json")
+        assert _has_column(AuditEvent, "feedback_json")
+
+    def test_0006_adds_explanation_and_feedback_columns(self, monkeypatch) -> None:
+        import importlib.util
+        from pathlib import Path
+
+        migration_path = Path("alembic/versions/0006_audit_event_explanation_feedback.py")
+        spec = importlib.util.spec_from_file_location("bsupervisor_0006_migration", migration_path)
+        assert spec is not None and spec.loader is not None
+        migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migration)
+
+        operations: list[tuple[str, str, str]] = []
+
+        class FakeOp:
+            def add_column(self, table_name, column):
+                operations.append(("add_column", table_name, column.name))
+
+            def drop_column(self, table_name, column_name):
+                operations.append(("drop_column", table_name, column_name))
+
+        monkeypatch.setattr(migration, "op", FakeOp())
+
+        migration.upgrade()
+
+        assert ("add_column", "audit_events", "explanation_json") in operations
+        assert ("add_column", "audit_events", "feedback_json") in operations

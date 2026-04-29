@@ -65,7 +65,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm run dev -- --port 3010",
+    command: "pnpm exec next dev -p 3010",
     port: 3010,
     reuseExistingServer: true,
     timeout: 60_000,
