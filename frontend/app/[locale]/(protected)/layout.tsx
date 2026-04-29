@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ProtectedRoute } from "@bsvibe/layout";
+import { AuthProviderClient } from "@/src/components/AuthProviderClient";
 import { Layout } from "@/src/components/Layout";
 import { Loader2 } from "lucide-react";
 
@@ -20,10 +21,14 @@ const Spinner = (
   </div>
 );
 
+const AUTH_URL = process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? "https://auth.bsvibe.dev";
+
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
-    <ProtectedRoute redirectTo="/login" fallback={Spinner}>
-      <Layout>{children}</Layout>
-    </ProtectedRoute>
+    <AuthProviderClient authUrl={AUTH_URL}>
+      <ProtectedRoute redirectTo="/login" fallback={Spinner}>
+        <Layout>{children}</Layout>
+      </ProtectedRoute>
+    </AuthProviderClient>
   );
 }

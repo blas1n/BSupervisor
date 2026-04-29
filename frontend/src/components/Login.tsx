@@ -1,7 +1,8 @@
 "use client";
 
 import { Shield, Activity, AlertTriangle, FileText, ArrowRight } from "lucide-react";
-import { useAuth } from "../hooks/useAuth";
+
+const AUTH_URL = process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? "https://auth.bsvibe.dev";
 
 const features = [
   {
@@ -22,7 +23,9 @@ const features = [
 ];
 
 export function Login() {
-  const { login } = useAuth();
+  function login() {
+    window.location.href = `${AUTH_URL}/login`;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4">

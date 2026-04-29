@@ -5,6 +5,7 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   allowedDevOrigins: ["bsserver"],
+  devIndicators: false,
   // Proxy /api/* to the backend (replaces Vite dev proxy + Vercel rewrites).
   // In production, NEXT_PUBLIC_API_URL is typically set so the client calls
   // the API server directly; this rewrite keeps relative `/api` calls working

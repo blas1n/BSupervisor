@@ -3,14 +3,11 @@ import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { BSVibeIntlProvider, isSupportedLocale } from "@bsvibe/i18n";
-import { AuthProviderClient } from "@/src/components/AuthProviderClient";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "BSupervisor",
 };
-
-const AUTH_URL = process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? "https://auth.bsvibe.dev";
 
 export function generateStaticParams() {
   return [{ locale: "ko" }, { locale: "en" }];
@@ -57,7 +54,7 @@ export default async function RootLayout({
       </head>
       <body className="bg-gray-950 text-gray-100 antialiased">
         <BSVibeIntlProvider locale={locale} messages={messages}>
-          <AuthProviderClient authUrl={AUTH_URL}>{children}</AuthProviderClient>
+          {children}
         </BSVibeIntlProvider>
       </body>
     </html>
