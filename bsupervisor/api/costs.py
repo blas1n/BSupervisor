@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import structlog
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,9 +41,7 @@ async def list_costs(
 
     tenant_filter = []
     if user.active_tenant_id:
-        tenant_filter = [
-            (CostRecord.tenant_id == user.active_tenant_id) | (CostRecord.tenant_id.is_(None)),
-        ]
+        tenant_filter = [CostRecord.tenant_id == user.active_tenant_id]
 
     # Total spent today
     total_spent = (
@@ -133,9 +131,12 @@ async def ingest_cost(
     """Service-only ingestion endpoint.
 
     P0.5 — BSGateway / BSNexus call this with their service JWT
-    (``aud="bsupervisor"``). Tenant binding (if any) comes from the
-    service token's ``tenant_id`` claim.
+    (``aud="bsupervisor"``). Tenant binding comes from the required
+    service token ``tenant_id`` claim.
     """
+    if not svc.tenant_id:
+        raise HTTPException(status_code=403, detail="service token missing tenant_id")
+
     tracker = CostTracker(session)
     record = await tracker.record_cost(
         agent_id=payload.agent_id,

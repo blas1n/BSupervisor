@@ -27,8 +27,8 @@ async def get_status(
     event_filter = [AuditEvent.timestamp >= start, AuditEvent.timestamp <= end]
     cost_filter = [CostRecord.timestamp >= start, CostRecord.timestamp <= end]
     if user.active_tenant_id:
-        event_filter.append((AuditEvent.tenant_id == user.active_tenant_id) | (AuditEvent.tenant_id.is_(None)))
-        cost_filter.append((CostRecord.tenant_id == user.active_tenant_id) | (CostRecord.tenant_id.is_(None)))
+        event_filter.append(AuditEvent.tenant_id == user.active_tenant_id)
+        cost_filter.append(CostRecord.tenant_id == user.active_tenant_id)
 
     total_events = (
         await session.execute(select(func.count()).select_from(AuditEvent).where(*event_filter))

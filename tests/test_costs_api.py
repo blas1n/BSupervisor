@@ -33,6 +33,7 @@ async def _sample_costs(db_session: AsyncSession) -> None:
             tokens_out=20,
             cost_usd=Decimal("0.5"),
             timestamp=now - timedelta(days=offset, hours=2),
+            tenant_id="tenant-test",
         )
         for offset in range(5)
     ]
@@ -44,6 +45,7 @@ async def _sample_costs(db_session: AsyncSession) -> None:
             tokens_out=200,
             cost_usd=Decimal("1.25"),
             timestamp=now,
+            tenant_id="tenant-test",
         )
     )
     db_session.add_all(rows)
@@ -106,6 +108,7 @@ class TestCostsTrendBatching:
                     tokens_out=1,
                     cost_usd=Decimal("0.4"),
                     timestamp=now,
+                    tenant_id="tenant-test",
                 ),
                 CostRecord(
                     agent_id="y",
@@ -114,6 +117,7 @@ class TestCostsTrendBatching:
                     tokens_out=1,
                     cost_usd=Decimal("0.6"),
                     timestamp=now,
+                    tenant_id="tenant-test",
                 ),
             ]
         )
@@ -152,6 +156,7 @@ class TestCostsBudgetConfigurable:
                 tokens_out=1,
                 cost_usd=Decimal("25.00"),
                 timestamp=datetime.now(timezone.utc),
+                tenant_id="tenant-test",
             )
         )
         await db_session.commit()

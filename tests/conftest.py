@@ -100,7 +100,7 @@ async def client(db_session) -> AsyncIterator[AsyncClient]:
         return _fake_user
 
     async def _override_service_auth():
-        # Mimic a verified service token from BSGateway with no tenant.
+        # Mimic a verified service token from BSGateway bound to the test tenant.
         from bsvibe_authz import ServiceTokenPayload
 
         return ServiceTokenPayload(
@@ -111,7 +111,7 @@ async def client(db_session) -> AsyncIterator[AsyncClient]:
             iat=0,
             exp=2_000_000_000,
             token_type="service",
-            tenant_id=None,
+            tenant_id="tenant-test",
         )
 
     app.dependency_overrides[get_session] = _override_get_session

@@ -276,6 +276,21 @@ class TestEventsServiceOnly:
         )
         assert resp.status_code in (401, 403)
 
+    async def test_post_events_service_jwt_without_tenant_rejected(self, authz_client: AsyncClient) -> None:
+        token = _make_service_jwt(scope="bsupervisor.events", tenant_id=None)
+        resp = await authz_client.post(
+            "/api/events",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "agent_id": "agent-1",
+                "source": "bsgateway",
+                "event_type": "tool_use",
+                "action": "exec",
+                "target": "/tmp/x",
+            },
+        )
+        assert resp.status_code == 403
+
 
 # ---------------------------------------------------------------------------
 # require_permission — denied path returns 403

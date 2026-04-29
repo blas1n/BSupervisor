@@ -80,9 +80,7 @@ async def list_events(
 ) -> list[EventListItem]:
     stmt = select(AuditEvent).order_by(AuditEvent.timestamp.desc()).limit(100)
     if user.active_tenant_id:
-        stmt = stmt.where(
-            (AuditEvent.tenant_id == user.active_tenant_id) | (AuditEvent.tenant_id.is_(None)),
-        )
+        stmt = stmt.where(AuditEvent.tenant_id == user.active_tenant_id)
     result = await session.execute(stmt)
     events = result.scalars().all()
 
@@ -149,9 +147,11 @@ async def ingest_event(
 
     timestamp = payload.timestamp or datetime.now(timezone.utc)
 
-    # The service token MAY carry a tenant_id — when it does, every event it
-    # ingests is bound to that tenant. Untenanted ingestion is allowed for
-    # the ``service:`` calling convention as a transitional measure (Phase 0).
+    if not svc.tenant_id:
+        raise HTTPException(status_code=403, detail="service token missing tenant_id")
+
+    # The service token tenant_id binds every ingested event to exactly one
+    # tenant. Untenanted writes would become globally visible dashboard rows.
     event = AuditEvent(
         agent_id=payload.agent_id,
         source=payload.source,
@@ -283,9 +283,7 @@ async def submit_feedback(
 ) -> FeedbackResponse:
     stmt = select(AuditEvent).where(AuditEvent.id == event_id)
     if user.active_tenant_id:
-        stmt = stmt.where(
-            (AuditEvent.tenant_id == user.active_tenant_id) | (AuditEvent.tenant_id.is_(None)),
-        )
+        stmt = stmt.where(AuditEvent.tenant_id == user.active_tenant_id)
     result = await session.execute(stmt)
     event = result.scalar_one_or_none()
     if event is None:
