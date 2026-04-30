@@ -321,7 +321,7 @@ function IntegrationCard({
           <select
             value={integration.type}
             onChange={(e) => onUpdate({ type: e.target.value as IntegrationType })}
-            className="w-full rounded-xl border border-gray-800/40 bg-gray-850 px-3 py-2 text-sm text-gray-100 outline-none transition-colors focus:border-accent/50"
+            className="min-h-10 w-full rounded-xl border border-gray-800/40 bg-gray-850 px-3 py-2 text-sm text-gray-100 outline-none transition-colors focus:border-accent/50"
           >
             {INTEGRATION_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
@@ -415,7 +415,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-gray-800/40 bg-gray-850 px-3 py-2 text-sm text-gray-100 placeholder-gray-600 outline-none transition-colors focus:border-accent/50"
+        className="min-h-10 w-full rounded-xl border border-gray-800/40 bg-gray-850 px-3 py-2 text-sm text-gray-100 placeholder-gray-600 outline-none transition-colors focus:border-accent/50"
       />
     </div>
   );

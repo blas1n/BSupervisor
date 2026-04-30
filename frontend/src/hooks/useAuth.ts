@@ -22,19 +22,77 @@
 import { useAuth as useAuthShared } from '@bsvibe/auth';
 
 const AUTH_URL = process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? 'https://auth.bsvibe.dev';
+const LS_ACCESS_TOKEN = 'bsupervisor_access_token';
+const LS_REFRESH_TOKEN = 'bsupervisor_refresh_token';
+const LS_EXPIRES_AT = 'bsupervisor_expires_at';
 
 interface SessionResponse {
   access_token: string;
   refresh_token: string;
   expires_in: number;
+  user?: {
+    id: string;
+    email: string;
+  };
+  tenants?: Array<{
+    id: string;
+    name: string;
+    role: string;
+  }>;
+  active_tenant_id?: string;
 }
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
+
+function decodeJwt(token: string): Record<string, unknown> {
+  const parts = token.split('.');
+  let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+  const pad = base64.length % 4;
+  if (pad) base64 += '='.repeat(4 - pad);
+  return JSON.parse(atob(base64));
+}
+
+function readStoredToken(): { value: string; refreshToken: string; expiresAt: number } | null {
+  if (typeof window === 'undefined') return null;
+  const value = localStorage.getItem(LS_ACCESS_TOKEN);
+  const refreshToken = localStorage.getItem(LS_REFRESH_TOKEN) ?? '';
+  const expiresAt = Number(localStorage.getItem(LS_EXPIRES_AT) ?? '0');
+  if (!value || !Number.isFinite(expiresAt) || Date.now() >= expiresAt - 30_000) return null;
+  return { value, refreshToken, expiresAt };
+}
+
+export function readStoredSession(): SessionResponse | null {
+  const stored = readStoredToken();
+  if (!stored) return null;
+  const payload = decodeJwt(stored.value) as {
+    sub?: string;
+    email?: string;
+    app_metadata?: { tenant_id?: string; role?: string };
+  };
+  const tenantId = payload.app_metadata?.tenant_id ?? '';
+  const role = payload.app_metadata?.role ?? 'member';
+  return {
+    access_token: stored.value,
+    refresh_token: stored.refreshToken,
+    expires_in: Math.max(1, Math.floor((stored.expiresAt - Date.now()) / 1000)),
+    user: {
+      id: payload.sub ?? '',
+      email: payload.email ?? '',
+    },
+    tenants: tenantId ? [{ id: tenantId, name: 'BSVibe', role }] : [],
+    active_tenant_id: tenantId || undefined,
+  };
+}
 
 /** Return a cached `access_token` or fetch a new one from `/api/session`. */
 export async function getAccessToken(): Promise<string | null> {
   if (cachedToken && Date.now() < cachedToken.expiresAt - 30_000) {
     return cachedToken.value;
+  }
+  const stored = readStoredToken();
+  if (stored) {
+    cachedToken = { value: stored.value, expiresAt: stored.expiresAt };
+    return stored.value;
   }
   try {
     const res = await fetch(`${AUTH_URL}/api/session`, { credentials: 'include' });
@@ -52,6 +110,11 @@ export async function getAccessToken(): Promise<string | null> {
 
 export function clearTokenCache() {
   cachedToken = null;
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(LS_ACCESS_TOKEN);
+    localStorage.removeItem(LS_REFRESH_TOKEN);
+    localStorage.removeItem(LS_EXPIRES_AT);
+  }
 }
 
 /**

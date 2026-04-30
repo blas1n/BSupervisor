@@ -104,13 +104,13 @@ function LocaleSwitcher() {
   }
 
   return (
-    <div className="flex items-center gap-1 rounded-full bg-gray-900 p-0.5 text-[10px] font-bold uppercase tracking-widest">
+    <div className="flex items-center gap-1 rounded-full bg-gray-900 p-1 text-[10px] font-bold uppercase tracking-widest">
       <button
         type="button"
         onClick={() => switchTo("en")}
         aria-pressed={current === "en"}
         data-testid="locale-en"
-        className={`rounded-full px-2 py-1 transition-colors ${
+        className={`min-h-10 min-w-10 rounded-full px-2 py-1 transition-colors ${
           current === "en" ? "bg-accent/15 text-accent" : "text-gray-400 hover:text-gray-200"
         }`}
       >
@@ -121,7 +121,7 @@ function LocaleSwitcher() {
         onClick={() => switchTo("ko")}
         aria-pressed={current === "ko"}
         data-testid="locale-ko"
-        className={`rounded-full px-2 py-1 transition-colors ${
+        className={`min-h-10 min-w-10 rounded-full px-2 py-1 transition-colors ${
           current === "ko" ? "bg-accent/15 text-accent" : "text-gray-400 hover:text-gray-200"
         }`}
       >

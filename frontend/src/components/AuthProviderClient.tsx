@@ -13,6 +13,32 @@
 
 import { AuthProvider } from "@bsvibe/auth";
 import type { ReactNode } from "react";
+import { readStoredSession } from "@/src/hooks/useAuth";
+
+function createSessionAwareFetch(authUrl: string): typeof fetch {
+  const sessionUrl = `${authUrl.replace(/\/+$/, "")}/api/session`;
+
+  return async (input, init) => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+
+    if (url === sessionUrl) {
+      const storedSession = readStoredSession();
+      if (storedSession) {
+        return new Response(JSON.stringify(storedSession), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    return fetch(input, init);
+  };
+}
 
 export function AuthProviderClient({
   authUrl,
@@ -21,5 +47,9 @@ export function AuthProviderClient({
   authUrl: string;
   children: ReactNode;
 }) {
-  return <AuthProvider authUrl={authUrl}>{children}</AuthProvider>;
+  return (
+    <AuthProvider authUrl={authUrl} fetchImpl={createSessionAwareFetch(authUrl)}>
+      {children}
+    </AuthProvider>
+  );
 }

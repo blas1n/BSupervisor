@@ -297,7 +297,7 @@ export function DailyReport() {
           onClick={() => changeDate(-1)}
           data-testid="date-prev"
           aria-label="Previous day"
-          className="text-gray-400 hover:text-accent transition-colors"
+          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-900 hover:text-accent transition-colors"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -310,7 +310,7 @@ export function DailyReport() {
           disabled={date >= today}
           data-testid="date-next"
           aria-label="Next day"
-          className="text-gray-400 hover:text-accent transition-colors disabled:opacity-30"
+          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-900 hover:text-accent transition-colors disabled:opacity-30"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
