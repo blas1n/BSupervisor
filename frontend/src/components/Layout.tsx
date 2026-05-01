@@ -7,6 +7,8 @@ import {
   AppShell,
   Header,
   ResponsiveSidebar,
+  SidebarBrand,
+  SidebarUserCard,
   type SidebarItem,
 } from "@bsvibe/layout";
 import { useAuth } from "../hooks/useAuth";
@@ -39,54 +41,6 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
   "/costs": "costs",
   "/settings": "settings",
 };
-
-function Logo() {
-  const t = useT("supervisor.branding");
-  return (
-    <div className="flex items-center gap-3 px-6 py-8">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900">
-        <MaterialIcon icon="security" className="text-2xl text-accent" filled />
-      </div>
-      <div>
-        <span className="text-xl font-black text-accent tracking-tighter">
-          BSupervisor
-        </span>
-        <span className="block text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase">
-          {t("tagline")}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function UserCard() {
-  const { user, logout } = useAuth();
-  const t = useT("supervisor.userMenu");
-  return (
-    <div className="border-t border-gray-800/10 px-4 py-4">
-      {user && (
-        <div className="mb-2 flex items-center gap-3 rounded-xl bg-gray-900 p-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">
-            {user.email.charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <p className="truncate text-xs font-bold text-gray-200">
-              {user.email}
-            </p>
-            <p className="truncate text-[10px] text-gray-500">{user.role}</p>
-          </div>
-        </div>
-      )}
-      <button
-        onClick={logout}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-gray-500 transition-colors hover:bg-gray-900 hover:text-gray-300"
-      >
-        <MaterialIcon icon="logout" className="text-lg" />
-        {t("signOut")}
-      </button>
-    </div>
-  );
-}
 
 function LocaleSwitcher() {
   const router = useRouter();
@@ -189,6 +143,9 @@ function normalizePath(pathname: string): string {
 export function Layout({ children }: { children: ReactNode }) {
   const tNav = useT("supervisor.nav");
   const tTitles = useT("supervisor.pageTitles");
+  const tBranding = useT("supervisor.branding");
+  const tUserMenu = useT("supervisor.userMenu");
+  const { user, logout } = useAuth();
   const pathname = usePathname() ?? "/";
   const normalized = normalizePath(pathname);
   const titleKey = PAGE_TITLE_KEYS[normalized] ?? null;
@@ -205,8 +162,23 @@ export function Layout({ children }: { children: ReactNode }) {
       sidebar={
         <ResponsiveSidebar
           items={navItems}
-          logo={<Logo />}
-          footer={<UserCard />}
+          logo={
+            <SidebarBrand
+              icon={<MaterialIcon icon="security" filled />}
+              name="BSupervisor"
+              tagline={tBranding("tagline")}
+            />
+          }
+          footer={
+            user ? (
+              <SidebarUserCard
+                email={user.email}
+                role={user.role}
+                onSignOut={logout}
+                signOutLabel={tUserMenu("signOut")}
+              />
+            ) : null
+          }
           ariaLabel="BSupervisor primary navigation"
         />
       }
