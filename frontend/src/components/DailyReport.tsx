@@ -260,20 +260,21 @@ export function DailyReport() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
-      {/* Date navigation & toolbar */}
-      <div className="flex justify-between items-end">
-        <div>
+    <div className="mx-auto max-w-5xl space-y-8 flex flex-col min-h-full">
+      {/* Date navigation & toolbar — title stacks above export buttons on
+          mobile so the PDF/MD pair doesn't get clipped at the right edge. */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-end">
+        <div className="min-w-0">
           <h1 className="text-4xl font-extrabold tracking-tighter mb-2 text-gray-50">
             DAILY INTELLIGENCE BRIEF
           </h1>
-          <div className="flex items-center gap-4 text-[10px] tracking-widest uppercase text-gray-600 font-bold">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] tracking-widest uppercase text-gray-600 font-bold">
             <span>Status: <span className="text-success-light">Operational</span></span>
-            <span>&bull;</span>
+            <span className="hidden sm:inline">&bull;</span>
             <span>ID: OBS-{date}</span>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 self-start sm:self-auto sm:gap-4">
           <button
             onClick={downloadPdf}
             disabled={!report}
@@ -316,8 +317,9 @@ export function DailyReport() {
         </button>
       </div>
 
-      {/* Report card */}
-      <section className="bg-gray-900 p-12 shadow-2xl relative overflow-hidden">
+      {/* Report card — flex-grows to fill remaining viewport so the desktop
+          layout doesn't leave a large empty band below sparse reports. */}
+      <section className="bg-gray-900 p-12 shadow-2xl relative overflow-hidden flex-1">
         {/* Accent bar */}
         <div className="absolute top-0 left-0 w-1 h-full bg-accent" />
 

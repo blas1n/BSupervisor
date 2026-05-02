@@ -43,14 +43,16 @@ export function Incidents() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 flex flex-col min-h-full">
       <div>
         <h3 className="text-lg font-bold tracking-tight text-gray-50">Incident Timeline</h3>
         <p className="text-xs text-gray-400">Forensic view of blocked events grouped by agent</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 bg-gray-900 rounded-2xl overflow-hidden flex flex-col max-h-[700px]">
+      {/* Grid grows to fill the remaining viewport so empty states don't
+          leave a tall blank band underneath the cards. */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+        <div className="lg:col-span-1 bg-gray-900 rounded-2xl overflow-hidden flex flex-col">
           <div className="px-6 py-4 border-b border-gray-800/10">
             <h4 className="text-sm font-bold text-gray-50">Incidents ({incidents.length})</h4>
           </div>
@@ -95,7 +97,7 @@ export function Incidents() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 bg-gray-900 rounded-2xl overflow-hidden flex flex-col max-h-[700px]">
+        <div className="lg:col-span-2 bg-gray-900 rounded-2xl overflow-hidden flex flex-col">
           {selected ? (
             <>
               <div className="px-6 py-4 border-b border-gray-800/10 flex items-center justify-between">
