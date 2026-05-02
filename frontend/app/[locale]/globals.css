@@ -38,8 +38,16 @@
 }
 
 :root {
-  /* Override the shared default accent so role aliases pick up rose too. */
+  /* Override BOTH:
+     - role alias `--accent` (used by hand-written CSS) — rose
+     - Tailwind 4 token `--color-accent` (used by `text-accent` etc.)
+     The duplicate `--color-accent` declaration here wins at runtime
+     because regular `:root` comes after `@theme`-generated rules in
+     the compiled cascade. Without this, the imported design-tokens
+     default (BSNexus blue #3b82f6) overrides our @theme block. */
   --accent: #f43f5e;
+  --color-accent: #f43f5e;
+  --color-accent-hover: #e11d48;
 }
 
 body {

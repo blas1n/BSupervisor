@@ -186,7 +186,7 @@ export function RulesManager() {
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-accent-light to-accent text-gray-50 font-bold rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-accent/10"
+          className="flex items-center gap-2 px-6 py-3 bg-accent text-gray-50 font-bold rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-accent/10"
         >
           <MaterialIcon icon="add" className="text-lg" />
           <span>Create Rule</span>

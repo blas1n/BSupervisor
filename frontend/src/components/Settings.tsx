@@ -245,7 +245,7 @@ export function Settings() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-accent-light to-accent text-gray-50 font-bold rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-accent/10 disabled:opacity-40"
+          className="flex items-center gap-2 px-6 py-3 bg-accent text-gray-50 font-bold rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-accent/10 disabled:opacity-40"
         >
           <MaterialIcon icon={saving ? "progress_activity" : "save"} className={cn("text-lg", saving && "animate-spin")} />
           <span>{saving ? "Saving..." : "Save Settings"}</span>

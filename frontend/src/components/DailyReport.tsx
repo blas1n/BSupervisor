@@ -319,7 +319,7 @@ export function DailyReport() {
       {/* Report card */}
       <section className="bg-gray-900 p-12 shadow-2xl relative overflow-hidden">
         {/* Accent bar */}
-        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-accent to-accent-light" />
+        <div className="absolute top-0 left-0 w-1 h-full bg-accent" />
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
