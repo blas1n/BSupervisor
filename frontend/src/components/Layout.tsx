@@ -6,6 +6,7 @@ import { useT, useCurrentLocale } from "@bsvibe/i18n";
 import {
   AppShell,
   Header,
+  LanguageToggle,
   ResponsiveSidebar,
   SidebarBrand,
   SidebarUserCard,
@@ -42,46 +43,32 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
   "/settings": "settings",
 };
 
-function LocaleSwitcher() {
+function SidebarLocaleSwitcher() {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
   const current = useCurrentLocale();
 
-  function switchTo(next: "ko" | "en") {
+  // Strip any leading `/ko` or `/en` segment, then re-prefix only when
+  // switching to the non-default locale (`ko`). Default `en` is bare-rooted
+  // because middleware uses `localePrefix: 'as-needed'` with default `en`.
+  const onChange = (next: string) => {
     if (next === current) return;
-    // Strip any leading `/ko` or `/en` segment, then re-prefix only when
-    // switching to the non-default locale (`ko`). Default `en` is bare-rooted
-    // because middleware uses `localePrefix: 'as-needed'` with default `en`.
     const stripped = pathname.replace(/^\/(ko|en)(?=\/|$)/, "") || "/";
     const nextPath = next === "ko" ? `/ko${stripped === "/" ? "" : stripped}` : stripped;
     router.replace(nextPath);
-  }
+  };
 
   return (
-    <div className="flex items-center gap-1 rounded-full bg-gray-900 p-1 text-[10px] font-bold uppercase tracking-widest">
-      <button
-        type="button"
-        onClick={() => switchTo("en")}
-        aria-pressed={current === "en"}
-        data-testid="locale-en"
-        className={`min-h-10 min-w-10 rounded-full px-2 py-1 transition-colors ${
-          current === "en" ? "bg-accent/15 text-accent" : "text-gray-400 hover:text-gray-200"
-        }`}
-      >
-        EN
-      </button>
-      <button
-        type="button"
-        onClick={() => switchTo("ko")}
-        aria-pressed={current === "ko"}
-        data-testid="locale-ko"
-        className={`min-h-10 min-w-10 rounded-full px-2 py-1 transition-colors ${
-          current === "ko" ? "bg-accent/15 text-accent" : "text-gray-400 hover:text-gray-200"
-        }`}
-      >
-        KO
-      </button>
-    </div>
+    <LanguageToggle
+      value={current}
+      options={[
+        { value: "en", label: "EN" },
+        { value: "ko", label: "KO" },
+      ]}
+      onChange={onChange}
+      ariaLabel="Language"
+      dataTestId="locale"
+    />
   );
 }
 
@@ -100,7 +87,6 @@ function HeaderRightSlot() {
           className="rounded-full bg-gray-900 border-none py-1.5 pl-10 pr-4 text-xs w-64 text-gray-100 placeholder-gray-500 outline-none focus:ring-1 focus:ring-accent/50"
         />
       </div>
-      <LocaleSwitcher />
       <div className="flex items-center gap-4 text-gray-400">
         <MaterialIcon
           icon="notifications"
@@ -170,14 +156,17 @@ export function Layout({ children }: { children: ReactNode }) {
             />
           }
           footer={
-            user ? (
-              <SidebarUserCard
-                email={user.email}
-                role={user.role}
-                onSignOut={logout}
-                signOutLabel={tUserMenu("signOut")}
-              />
-            ) : null
+            <div className="flex flex-col gap-2">
+              <SidebarLocaleSwitcher />
+              {user ? (
+                <SidebarUserCard
+                  email={user.email}
+                  role={user.role}
+                  onSignOut={logout}
+                  signOutLabel={tUserMenu("signOut")}
+                />
+              ) : null}
+            </div>
           }
           ariaLabel="BSupervisor primary navigation"
         />
