@@ -125,11 +125,12 @@ export function clearTokenCache() {
  */
 export function useAuth() {
   const shared = useAuthShared();
-  // The shared offline stub hardcodes `tenants: [{ name: 'BSVibe' }]`
-  // when only a JWT is around. We fetch /api/session ourselves once a
-  // token is available so the sidebar tagline shows the actual tenant
-  // name (e.g. the seeded "BSVibe E2E"). Best-effort — null on failure.
-  const [tenantNameOverride, setTenantNameOverride] = useState<string | null>(null);
+  // The shared offline stub hardcodes a single fake tenant. Fetch
+  // /api/session ourselves so the sidebar shows the real workspace
+  // name + the full multi-tenant list (drives the SidebarTenantSwitcher
+  // dropdown). Best-effort — falls back to the stub on failure.
+  type LiveTenant = { id: string; name: string; role?: string };
+  const [liveTenants, setLiveTenants] = useState<LiveTenant[]>([]);
 
   useEffect(() => {
     if (!shared.user || !shared.activeTenant?.id) return;
@@ -144,12 +145,9 @@ export function useAuth() {
         });
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as {
-          tenants?: Array<{ id: string; name: string }>;
-          active_tenant_id?: string;
+          tenants?: LiveTenant[];
         };
-        const activeId = data.active_tenant_id ?? shared.activeTenant?.id;
-        const name = data.tenants?.find((t) => t.id === activeId)?.name ?? null;
-        if (!cancelled) setTenantNameOverride(name);
+        if (!cancelled && data.tenants) setLiveTenants(data.tenants);
       } catch {
         // ignore
       }
@@ -158,6 +156,10 @@ export function useAuth() {
       cancelled = true;
     };
   }, [shared.user, shared.activeTenant?.id]);
+
+  const activeTenantId = shared.activeTenant?.id;
+  const tenantNameOverride =
+    liveTenants.find((t) => t.id === activeTenantId)?.name ?? null;
 
   function login() {
     window.location.href = `${AUTH_URL}/login`;
@@ -191,8 +193,9 @@ export function useAuth() {
     loading: shared.isLoading,
     login,
     logout,
-    // Forward the richer shared surface for new code paths.
-    tenants: shared.tenants,
+    // Prefer the live /api/session list (real names) when available;
+    // fall back to the shared offline stub.
+    tenants: liveTenants.length > 0 ? liveTenants : shared.tenants,
     activeTenant: shared.activeTenant,
     hasPermission: shared.hasPermission,
     switchTenant: shared.switchTenant,
