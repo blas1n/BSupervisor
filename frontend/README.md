@@ -1,73 +1,49 @@
-# React + TypeScript + Vite
+# BSupervisor Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Next.js 15 (App Router) + React 19 + Tailwind 4 dashboard for the BSupervisor
+AI agent auditing and safety system.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Framework**: Next.js 15 (App Router)
+- **React**: 19
+- **CSS**: Tailwind 4 (config-less, via `@tailwindcss/postcss`)
+- **Tests (e2e)**: Playwright
+- **Lint**: ESLint flat config + typescript-eslint
+- **Package manager**: pnpm (`pnpm-lock.yaml`)
 
-## React Compiler
+## Scripts
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install         # install deps
+pnpm run dev         # start Next.js dev server (default port 3000)
+pnpm run build       # production build
+pnpm run start       # start production server (after build)
+pnpm run lint        # eslint
+pnpm run test:e2e    # Playwright e2e tests
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Environment
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Copy `.env.example` to `.env.local` and adjust:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- `NEXT_PUBLIC_API_URL` — public API base URL inlined into the client bundle.
+  Leave empty to use the relative `/api` path (proxied via `next.config.mjs`).
+- `API_PROXY_TARGET` — server-only target for the `/api/*` rewrite during
+  local dev (defaults to `http://localhost:8000`).
+
+## Routes
+
+| Path          | Component       | Auth     |
+|---------------|-----------------|----------|
+| `/login`      | `Login`         | Public   |
+| `/`           | `Dashboard`     | Required |
+| `/incidents`  | `Incidents`     | Required |
+| `/rules`      | `RulesManager`  | Required |
+| `/reports`    | `DailyReport`   | Required |
+| `/costs`      | `CostMonitor`   | Required |
+| `/settings`   | `Settings`      | Required |
+
+Authenticated routes live under the `app/(protected)/` route group; the
+group's `layout.tsx` handles the auth gate via `useAuth()` (cookie-based SSO
+to `auth.bsvibe.dev`).

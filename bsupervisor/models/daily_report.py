@@ -3,7 +3,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, Integer, JSON, Numeric
+from sqlalchemy import Date, Integer, JSON, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from bsupervisor.models.base import Base, UUIDPrimaryKeyMixin
@@ -17,3 +17,7 @@ class DailyReport(UUIDPrimaryKeyMixin, Base):
     blocked_count: Mapped[int] = mapped_column(Integer, nullable=False)
     total_cost_usd: Mapped[Decimal] = mapped_column(Numeric(precision=20, scale=8), nullable=False)
     report_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    # P0.5 — tenant scoping. Phase 0.4-후속 will add a composite
+    # ``(tenant_id, date)`` unique constraint and drop the standalone
+    # uniqueness on ``date``.
+    tenant_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True, default=None)

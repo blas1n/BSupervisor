@@ -7,6 +7,7 @@ import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bsupervisor.core.dates import day_window
 from bsupervisor.models.cost_record import CostRecord
 
 logger = structlog.get_logger(__name__)
@@ -23,6 +24,7 @@ class CostTracker:
         tokens_in: int,
         tokens_out: int,
         cost_usd: Decimal,
+        tenant_id: str | None = None,
     ) -> CostRecord:
         record = CostRecord(
             agent_id=agent_id,
@@ -31,6 +33,7 @@ class CostTracker:
             tokens_out=tokens_out,
             cost_usd=cost_usd,
             timestamp=datetime.now(timezone.utc),
+            tenant_id=tenant_id,
         )
         self._session.add(record)
         await self._session.commit()
@@ -47,8 +50,7 @@ class CostTracker:
         return record
 
     async def get_daily_cost(self, agent_id: str, target_date: date) -> Decimal:
-        start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc)
-        end = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, 999999, tzinfo=timezone.utc)
+        start, end = day_window(target_date)
 
         stmt = (
             select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0")))
@@ -60,8 +62,7 @@ class CostTracker:
         return result.scalar_one()
 
     async def get_daily_total(self, target_date: date) -> Decimal:
-        start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc)
-        end = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, 999999, tzinfo=timezone.utc)
+        start, end = day_window(target_date)
 
         stmt = (
             select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0")))

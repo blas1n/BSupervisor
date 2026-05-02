@@ -1,5 +1,6 @@
 """Tests for Settings API endpoints — generic integrations."""
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bsupervisor.models.settings import Settings
@@ -197,3 +198,110 @@ class TestSettingsModel:
         assert row.id is not None
         assert row.key == "test_key"
         assert row.value == {"hello": "world"}
+
+
+class TestSettingsSecretEncryption:
+    """Stored credentials must be encrypted at rest (S1-2 / Audit H5)."""
+
+    async def test_api_key_not_persisted_in_plaintext(self, client, db_session: AsyncSession):
+        plaintext_key = "sk-very-secret-12345"
+        payload = {
+            "integrations": [
+                {
+                    "id": "int-1",
+                    "name": "Prod Nexus",
+                    "type": "bsnexus",
+                    "endpoint_url": "https://nexus.bsvibe.dev",
+                    "api_key": plaintext_key,
+                },
+            ],
+            "telegram_bot_token": "tg-secret-token",
+            "slack_webhook_url": "https://hooks.slack.com/secret",
+        }
+        resp = await client.put("/api/settings", json=payload)
+        assert resp.status_code == 200
+
+        # Force a fresh read — the on-disk value must not contain the plaintext.
+        result = await db_session.execute(select(Settings).where(Settings.key == "connections"))
+        row = result.scalar_one()
+        serialized = str(row.value)
+        assert plaintext_key not in serialized
+        assert "tg-secret-token" not in serialized
+        assert "https://hooks.slack.com/secret" not in serialized
+
+    async def test_api_key_round_trip_through_get(self, client):
+        plaintext_key = "sk-roundtrip-9876"
+        payload = {
+            "integrations": [
+                {
+                    "id": "int-1",
+                    "name": "OpenAI",
+                    "type": "openai",
+                    "endpoint_url": "https://api.openai.com",
+                    "api_key": plaintext_key,
+                },
+            ],
+            "telegram_bot_token": "tg-roundtrip",
+            "slack_webhook_url": "",
+        }
+        put_resp = await client.put("/api/settings", json=payload)
+        assert put_resp.status_code == 200
+
+        get_resp = await client.get("/api/settings")
+        assert get_resp.status_code == 200
+        conn = get_resp.json()["connections"]
+        # GET returns the decrypted value so the UI can manage credentials.
+        assert conn["integrations"][0]["api_key"] == plaintext_key
+        assert conn["telegram_bot_token"] == "tg-roundtrip"
+
+    async def test_empty_secrets_remain_empty(self, client, db_session: AsyncSession):
+        payload = {
+            "integrations": [
+                {
+                    "id": "int-1",
+                    "name": "Anon Integration",
+                    "type": "custom",
+                    "endpoint_url": "http://internal",
+                    "api_key": "",
+                },
+            ],
+            "telegram_bot_token": "",
+            "slack_webhook_url": "",
+        }
+        resp = await client.put("/api/settings", json=payload)
+        assert resp.status_code == 200
+
+        get_resp = await client.get("/api/settings")
+        conn = get_resp.json()["connections"]
+        assert conn["integrations"][0]["api_key"] == ""
+        assert conn["telegram_bot_token"] == ""
+        assert conn["slack_webhook_url"] == ""
+
+    async def test_legacy_plaintext_value_still_readable(self, client, db_session: AsyncSession):
+        """Backward compat: rows written before encryption was introduced must still work."""
+        legacy = Settings(
+            key="connections",
+            value={
+                "integrations": [
+                    {
+                        "id": "int-old",
+                        "name": "Legacy",
+                        "type": "bsnexus",
+                        "endpoint_url": "https://nexus",
+                        "api_key": "legacy-plaintext-key",
+                    },
+                ],
+                "telegram_bot_token": "legacy-tg",
+                "slack_webhook_url": "legacy-slack",
+            },
+            description="Connection settings",
+        )
+        db_session.add(legacy)
+        await db_session.commit()
+
+        resp = await client.get("/api/settings")
+        assert resp.status_code == 200
+        conn = resp.json()["connections"]
+        assert conn["integrations"][0]["api_key"] == "legacy-plaintext-key"
+        assert conn["telegram_bot_token"] == "legacy-tg"
+        assert conn["slack_webhook_url"] == "legacy-slack"

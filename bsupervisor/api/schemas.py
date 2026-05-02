@@ -64,7 +64,9 @@ class CostRequest(BaseModel):
     model: str = Field(..., min_length=1, max_length=255)
     tokens_in: int = Field(..., ge=0)
     tokens_out: int = Field(..., ge=0)
-    cost_usd: Decimal = Field(...)
+    # Reject negative cost — legitimate flows never produce negative deltas, and
+    # allowing them lets an attacker zero out or mask real spend (Audit §H7).
+    cost_usd: Decimal = Field(..., ge=Decimal("0"))
 
     model_config = {"extra": "forbid"}
 
@@ -101,7 +103,13 @@ class CostDataResponse(BaseModel):
 # Status
 # ---------------------------------------------------------------------------
 
+# Audit §H8 — keep these allow-lists in sync with `core.rule_engine` and the
+# seed-rule definitions. The `type` field is metadata used by the UI to render
+# pattern editors; the matcher itself is keyed off the persisted `condition`
+# dict.
 VALID_RULE_ACTIONS = {"block", "warn", "log"}
+VALID_RULE_TYPES = {"pattern", "regex", "literal", "action", "cost", "rate"}
+VALID_RULE_SEVERITIES = {"low", "medium", "high", "critical", "warning", "info"}
 
 
 class StatusResponse(BaseModel):
@@ -130,6 +138,10 @@ class RuleCreateRequest(BaseModel):
     def model_post_init(self, __context) -> None:
         if self.action not in VALID_RULE_ACTIONS:
             raise ValueError(f"action must be one of {VALID_RULE_ACTIONS}")
+        if self.type not in VALID_RULE_TYPES:
+            raise ValueError(f"type must be one of {VALID_RULE_TYPES}")
+        if self.severity not in VALID_RULE_SEVERITIES:
+            raise ValueError(f"severity must be one of {VALID_RULE_SEVERITIES}")
 
     def to_condition(self) -> dict:
         return {"type": self.type, "pattern": self.pattern, "severity": self.severity}
@@ -149,6 +161,10 @@ class RuleUpdateRequest(BaseModel):
     def model_post_init(self, __context) -> None:
         if self.action is not None and self.action not in VALID_RULE_ACTIONS:
             raise ValueError(f"action must be one of {VALID_RULE_ACTIONS}")
+        if self.type is not None and self.type not in VALID_RULE_TYPES:
+            raise ValueError(f"type must be one of {VALID_RULE_TYPES}")
+        if self.severity is not None and self.severity not in VALID_RULE_SEVERITIES:
+            raise ValueError(f"severity must be one of {VALID_RULE_SEVERITIES}")
 
     def to_condition_updates(self, existing: dict) -> dict:
         cond = dict(existing)

@@ -46,7 +46,9 @@ test.describe("Daily Report: Stitch design", () => {
   });
 
   test("report card has accent bar", async ({ page }) => {
-    const accentBar = page.locator("section .bg-gradient-to-b");
+    // Accent bar is now a flat `bg-accent` strip (gradient was removed
+    // because the brand spec calls for solid rose without gradients).
+    const accentBar = page.locator("section .bg-accent").first();
     await expect(accentBar).toBeVisible();
   });
 

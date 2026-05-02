@@ -11,6 +11,9 @@ node_modules
 .pnpm-store/
 dist
 dist-ssr
+.next
+out
+next-env.d.ts
 *.local
 
 # Playwright

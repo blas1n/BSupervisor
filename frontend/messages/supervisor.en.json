@@ -1,0 +1,28 @@
+{
+  "branding": {
+    "tagline": "AI Sentinel",
+    "liveStatus": "Live Surveillance"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "incidents": "Incidents",
+    "rules": "Rules",
+    "reports": "Reports",
+    "costs": "Costs",
+    "settings": "Settings"
+  },
+  "pageTitles": {
+    "dashboard": "Safety Dashboard",
+    "incidents": "Incident Timeline",
+    "rules": "Rules Manager",
+    "reports": "Daily Report",
+    "costs": "Cost Monitor",
+    "settings": "Settings"
+  },
+  "header": {
+    "searchPlaceholder": "Search events..."
+  },
+  "userMenu": {
+    "signOut": "Sign out"
+  }
+}

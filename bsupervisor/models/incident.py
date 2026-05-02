@@ -24,3 +24,5 @@ class Incident(UUIDPrimaryKeyMixin, Base):
     event_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    # P0.5 — tenant scoping (Phase 0 nullable; tightened in 0.4-후속).
+    tenant_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True, default=None)

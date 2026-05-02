@@ -23,6 +23,18 @@ logger = structlog.get_logger(__name__)
 SENSITIVE_EXTENSIONS = (".env", ".key", ".pem")
 DANGEROUS_SHELL_PATTERNS = ("sudo", "rm -rf", "chmod 777")
 
+# Allow-listed keys for stored rule conditions (Audit §H8).
+# Unknown keys are silently ignored in the matcher; rules whose conditions
+# contain ZERO known keys are treated as non-matching (instead of falling
+# through to "match everything").
+_ALLOWED_CONDITION_MATCH_KEYS = frozenset({"event_type", "action", "target_pattern", "agent_id"})
+
+# Metadata keys that may co-exist with the matchers without affecting matching.
+_ALLOWED_CONDITION_META_KEYS = frozenset({"type", "pattern", "severity"})
+
+# Allow-listed actions for stored audit rules (Audit §M10).
+_ALLOWED_RULE_ACTIONS = frozenset({"block", "warn", "log"})
+
 _rules_cache: list[AuditRule] | None = None
 _rules_cache_ts: float = 0.0
 _RULES_CACHE_TTL = 30.0  # seconds
@@ -158,6 +170,12 @@ class RuleEngine:
             rules = _rules_cache or []
 
         for rule in rules:
+            # Skip rows whose persisted action is not in the whitelist — Audit §M10
+            # / §H8 fail-closed: a corrupted action MUST NOT default to "block".
+            if rule.action not in _ALLOWED_RULE_ACTIONS:
+                logger.warning("rule_skipped_invalid_action", rule=rule.name, action=rule.action)
+                continue
+
             matched_detail = self._condition_match_detail(event, rule.condition)
             if matched_detail is not None:
                 severity = rule.condition.get("severity", "medium")
@@ -191,33 +209,40 @@ class RuleEngine:
     def _condition_match_detail(self, event: AuditEvent, condition: dict) -> dict | None:
         """Check if an event matches a rule condition and return match details.
 
-        Returns None if no match, or a dict with field/value/pattern of the most
-        specific matched condition.
+        Returns None if no recognized matcher key is present, or no matcher
+        succeeds. Unknown keys are ignored (Audit §H8 — never fall through to
+        "match everything" because of a typo'd key).
         """
+        if not isinstance(condition, dict):
+            return None
+
+        # Find the recognized matcher keys present on this condition. If there
+        # are none, the rule cannot match anything — fail-closed.
+        recognized_keys = _ALLOWED_CONDITION_MATCH_KEYS & set(condition.keys())
+        if not recognized_keys:
+            return None
+
         last_match: dict | None = None
 
-        if "event_type" in condition:
+        if "event_type" in recognized_keys:
             if event.event_type != condition["event_type"]:
                 return None
             last_match = {"field": "event_type", "value": event.event_type, "pattern": condition["event_type"]}
 
-        if "action" in condition:
+        if "action" in recognized_keys:
             if event.action != condition["action"]:
                 return None
             last_match = {"field": "action", "value": event.action, "pattern": condition["action"]}
 
-        if "target_pattern" in condition:
+        if "target_pattern" in recognized_keys:
             if not fnmatch(event.target, condition["target_pattern"]):
                 return None
             last_match = {"field": "target", "value": event.target, "pattern": condition["target_pattern"]}
 
-        if "agent_id" in condition:
+        if "agent_id" in recognized_keys:
             if event.agent_id != condition["agent_id"]:
                 return None
             last_match = {"field": "agent_id", "value": event.agent_id, "pattern": condition["agent_id"]}
-
-        if last_match is None:
-            return {"field": "event_type", "value": event.event_type, "pattern": "*"}
 
         return last_match
 

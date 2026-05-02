@@ -282,6 +282,131 @@ class TestDBRules:
         assert result.allowed is True
 
 
+class TestDBRuleConditionWhitelist:
+    """Audit §H8 — unknown condition keys must NOT silently match all events."""
+
+    async def test_unknown_key_in_condition_does_not_match(self, db_session: AsyncSession):
+        """A typo'd key (e.g. 'target_patten') must not promote the rule to a wildcard."""
+        rule = AuditRule(
+            name="rule_with_typo",
+            description="Misconfigured rule",
+            condition={"target_patten": "*production*"},  # intentional typo
+            action="block",
+            enabled=True,
+        )
+        db_session.add(rule)
+        await db_session.commit()
+
+        engine = RuleEngine(db_session)
+        event = _make_event(event_type="db_query", target="staging-db.internal:5432")
+        result = await engine.evaluate(event)
+        # Without whitelist enforcement the rule's lone (unknown) key would
+        # leave last_match=None and fall through to a "match anything" branch.
+        assert result.allowed is True
+        assert result.rule_name is None
+
+    async def test_only_unknown_keys_does_not_match(self, db_session: AsyncSession):
+        rule = AuditRule(
+            name="all_unknown_keys",
+            description="Should never match",
+            condition={"foo": "bar", "baz": "qux"},
+            action="block",
+            enabled=True,
+        )
+        db_session.add(rule)
+        await db_session.commit()
+
+        engine = RuleEngine(db_session)
+        event = _make_event(event_type="anything", target="anywhere")
+        result = await engine.evaluate(event)
+        assert result.allowed is True
+
+    async def test_known_key_plus_unknown_key_uses_known_only(self, db_session: AsyncSession):
+        rule = AuditRule(
+            name="mixed_keys",
+            description="Should match on known key, ignore unknown",
+            condition={"event_type": "shell_exec", "ignore_me": "x"},
+            action="block",
+            enabled=True,
+        )
+        db_session.add(rule)
+        await db_session.commit()
+
+        engine = RuleEngine(db_session)
+        # Matching event_type should still trigger the rule.
+        match_event = _make_event(event_type="shell_exec", target="echo hi")
+        match_result = await engine.evaluate(match_event)
+        assert match_result.allowed is False
+        assert match_result.rule_name == "mixed_keys"
+
+        # Non-matching event_type should NOT trigger.
+        miss_event = _make_event(event_type="api_call", target="echo hi")
+        miss_result = await engine.evaluate(miss_event)
+        assert miss_result.allowed is True
+
+    async def test_invalid_action_in_db_does_not_match(self, db_session: AsyncSession):
+        """A row with an action outside the whitelist must be skipped, not treated as block."""
+        rule = AuditRule(
+            name="bad_action",
+            description="Rule with non-whitelisted action",
+            condition={"event_type": "shell_exec"},
+            action="rm -rf /",  # not in {block, warn, log}
+            enabled=True,
+        )
+        db_session.add(rule)
+        await db_session.commit()
+
+        engine = RuleEngine(db_session)
+        event = _make_event(event_type="shell_exec", target="ls")
+        result = await engine.evaluate(event)
+        assert result.allowed is True
+        assert result.rule_name is None
+
+
+class TestRuleCreateConditionWhitelist:
+    """Audit §H8 — POST /api/rules must reject unknown condition keys at write time."""
+
+    async def test_create_rule_with_unknown_condition_key_rejected(self, client):
+        # The shipping schema sends `type/pattern/severity` which the rule engine
+        # ignores entirely; we still want at least one valid match key to be
+        # accepted, and obviously-unsafe keys to be refused.
+        # We do NOT support arbitrary expression languages — only the documented set.
+        payload = {
+            "name": "evil-rule",
+            "type": "pattern",
+            "pattern": "x",
+            "severity": "medium",
+            "action": "warn",
+            # Validation is on the resulting condition dict — we send the
+            # structured key explicitly to assert the schema rejects unknowns.
+            "match": {"__class__": "os.system"},
+        }
+        resp = await client.post("/api/rules", json=payload)
+        assert resp.status_code == 422
+
+    async def test_create_rule_with_unknown_severity_rejected(self, client):
+        payload = {
+            "name": "weird-severity",
+            "type": "pattern",
+            "pattern": "x",
+            "severity": "EVERYTHING_BURNS",  # not in allowed severities
+            "action": "warn",
+        }
+        resp = await client.post("/api/rules", json=payload)
+        assert resp.status_code == 422
+
+    async def test_create_rule_with_unknown_type_rejected(self, client):
+        payload = {
+            "name": "weird-type",
+            "type": "regex_with_eval",  # not a known type
+            "pattern": "x",
+            "severity": "medium",
+            "action": "warn",
+        }
+        resp = await client.post("/api/rules", json=payload)
+        assert resp.status_code == 422
+
+
 # --- Integration with event API ---
 
 

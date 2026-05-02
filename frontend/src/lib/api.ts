@@ -1,30 +1,42 @@
-import axios from "axios";
+/**
+ * BSupervisor API client — Phase A consumer of `@bsvibe/api`.
+ *
+ * The shared `createApiFetch` replaces the legacy axios instance + 401
+ * interceptor + bearer-token attachment with a single fetch-based client.
+ * `setOnAuthError` registers the global cascading-logout latch so multiple
+ * concurrent 401s only redirect once.
+ *
+ * Public types (`Event`, `Rule`, `CostData`, etc.) are unchanged so the
+ * existing component tree keeps compiling.
+ */
+
+import { createApiFetch, readDualEnv, setOnAuthError } from "@bsvibe/api";
 import { getAccessToken } from "../hooks/useAuth";
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api",
-  headers: { "Content-Type": "application/json" },
-});
+const AUTH_URL =
+  process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? "https://auth.bsvibe.dev";
 
-// Attach auth token to every request
-api.interceptors.request.use(async (config) => {
-  const token = await getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// `readDualEnv` honours both Next.js (`NEXT_PUBLIC_*`) and legacy Vite
+// (`VITE_*`) env vars so the same client compiles in either bundler.
+const BASE_URL = readDualEnv("API_URL", { fallback: "/api" }) ?? "/api";
 
-// Handle 401 by redirecting to login
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      window.location.href = "/";
+// Register the 401 cascading-logout latch exactly once per page load.
+// Subsequent 401s are absorbed by the shared guard until the latch is reset.
+if (typeof window !== "undefined") {
+  setOnAuthError(() => {
+    window.location.href = `${AUTH_URL}/login`;
+  });
+}
+
+const api = createApiFetch({
+  baseUrl: BASE_URL,
+  getToken: () => getAccessToken(),
+  onUnauthorized: () => {
+    if (typeof window !== "undefined") {
+      window.location.href = `${AUTH_URL}/login`;
     }
-    return Promise.reject(error);
   },
-);
+});
 
 // --- Types ---
 
@@ -192,31 +204,26 @@ export interface AnomalyEntry {
 // --- API calls ---
 
 export async function fetchStatus(): Promise<StatusMetrics> {
-  const { data } = await api.get("/status");
-  return data;
+  return api.get<StatusMetrics>("/status");
 }
 
 export async function fetchEvents(): Promise<Event[]> {
-  const { data } = await api.get("/events");
-  return data;
+  return api.get<Event[]>("/events");
 }
 
 export async function fetchRules(): Promise<Rule[]> {
-  const { data } = await api.get("/rules");
-  return data;
+  return api.get<Rule[]>("/rules");
 }
 
 export async function createRule(rule: RuleCreate): Promise<Rule> {
-  const { data } = await api.post("/rules", rule);
-  return data;
+  return api.post<Rule>("/rules", rule);
 }
 
 export async function updateRule(
   id: string,
   rule: Partial<RuleCreate> & { enabled?: boolean },
 ): Promise<Rule> {
-  const { data } = await api.put(`/rules/${id}`, rule);
-  return data;
+  return api.put<Rule>(`/rules/${id}`, rule);
 }
 
 export async function deleteRule(id: string): Promise<void> {
@@ -226,64 +233,53 @@ export async function deleteRule(id: string): Promise<void> {
 export async function fetchDailyReport(
   date: string,
 ): Promise<DailyReportData> {
-  const { data } = await api.get(`/reports/daily?date=${date}`);
-  return data;
+  return api.get<DailyReportData>(`/reports/daily?date=${date}`);
 }
 
 export async function fetchCosts(): Promise<CostData> {
-  const { data } = await api.get("/costs");
-  return data;
+  return api.get<CostData>("/costs");
 }
 
 export async function fetchSettings(): Promise<SettingsData> {
-  const { data } = await api.get("/settings");
-  return data;
+  return api.get<SettingsData>("/settings");
 }
 
 export async function updateSettings(
   connections: ConnectionSettings,
 ): Promise<SettingsData> {
-  const { data } = await api.put("/settings", connections);
-  return data;
+  return api.put<SettingsData>("/settings", connections);
 }
 
 // --- Incidents ---
 
 export async function fetchIncidents(): Promise<IncidentListItem[]> {
-  const { data } = await api.get("/incidents");
-  return data;
+  return api.get<IncidentListItem[]>("/incidents");
 }
 
 export async function fetchIncident(id: string): Promise<IncidentDetail> {
-  const { data } = await api.get(`/incidents/${id}`);
-  return data;
+  return api.get<IncidentDetail>(`/incidents/${id}`);
 }
 
 export async function resolveIncident(id: string): Promise<{ id: string; status: string }> {
-  const { data } = await api.post(`/incidents/${id}/resolve`);
-  return data;
+  return api.post<{ id: string; status: string }>(`/incidents/${id}/resolve`);
 }
 
 // --- Rule Packs ---
 
 export async function fetchRulePacks(): Promise<RulePackSummary[]> {
-  const { data } = await api.get("/rule-packs");
-  return data;
+  return api.get<RulePackSummary[]>("/rule-packs");
 }
 
 export async function fetchRulePack(id: string): Promise<RulePackDetail> {
-  const { data } = await api.get(`/rule-packs/${id}`);
-  return data;
+  return api.get<RulePackDetail>(`/rule-packs/${id}`);
 }
 
 export async function installRulePack(id: string): Promise<InstallResult> {
-  const { data } = await api.post(`/rule-packs/${id}/install`);
-  return data;
+  return api.post<InstallResult>(`/rule-packs/${id}/install`);
 }
 
 // --- Anomalies ---
 
 export async function fetchAnomalies(): Promise<AnomalyEntry[]> {
-  const { data } = await api.get("/anomalies");
-  return data;
+  return api.get<AnomalyEntry[]>("/anomalies");
 }

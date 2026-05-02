@@ -1,0 +1,28 @@
+{
+  "branding": {
+    "tagline": "AI 감시자",
+    "liveStatus": "실시간 감시"
+  },
+  "nav": {
+    "dashboard": "대시보드",
+    "incidents": "사건",
+    "rules": "규칙",
+    "reports": "보고서",
+    "costs": "비용",
+    "settings": "설정"
+  },
+  "pageTitles": {
+    "dashboard": "안전 대시보드",
+    "incidents": "사건 타임라인",
+    "rules": "규칙 관리자",
+    "reports": "일일 보고서",
+    "costs": "비용 모니터",
+    "settings": "설정"
+  },
+  "header": {
+    "searchPlaceholder": "이벤트 검색..."
+  },
+  "userMenu": {
+    "signOut": "로그아웃"
+  }
+}

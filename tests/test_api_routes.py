@@ -40,6 +40,7 @@ class TestStatusEndpoint:
                     target="/tmp/test",
                     allowed=True,
                     timestamp=now,
+                    tenant_id="tenant-test",
                 )
             )
         # Add a blocked event
@@ -52,6 +53,7 @@ class TestStatusEndpoint:
                 target="/etc/passwd",
                 allowed=False,
                 timestamp=now,
+                tenant_id="tenant-test",
             )
         )
         # Add cost records
@@ -63,6 +65,7 @@ class TestStatusEndpoint:
                 tokens_out=50,
                 cost_usd=Decimal("1.50"),
                 timestamp=now,
+                tenant_id="tenant-test",
             )
         )
         db_session.add(
@@ -73,6 +76,7 @@ class TestStatusEndpoint:
                 tokens_out=100,
                 cost_usd=Decimal("0.75"),
                 timestamp=now,
+                tenant_id="tenant-test",
             )
         )
         await db_session.commit()

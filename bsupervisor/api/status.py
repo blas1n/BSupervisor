@@ -1,15 +1,14 @@
 """Status API endpoint — today's summary."""
 
-from datetime import datetime, timezone
 from decimal import Decimal
 
-from bsvibe_auth import BSVibeUser
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import get_current_user
+from bsupervisor.api.deps import CurrentUser, require_permission
 from bsupervisor.api.schemas import StatusResponse
+from bsupervisor.core.dates import today_window
 from bsupervisor.models.audit_event import AuditEvent
 from bsupervisor.models.cost_record import CostRecord
 from bsupervisor.models.database import get_session
@@ -19,36 +18,30 @@ router = APIRouter(prefix="/api", tags=["status"])
 
 @router.get("/status", response_model=StatusResponse)
 async def get_status(
-    _user: BSVibeUser = Depends(get_current_user),
+    user: CurrentUser,
+    _allowed: None = Depends(require_permission("bsupervisor.status.read")),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    today = datetime.now(timezone.utc).date()
-    start = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
-    end = datetime(today.year, today.month, today.day, 23, 59, 59, 999999, tzinfo=timezone.utc)
+    start, end = today_window()
+
+    event_filter = [AuditEvent.timestamp >= start, AuditEvent.timestamp <= end]
+    cost_filter = [CostRecord.timestamp >= start, CostRecord.timestamp <= end]
+    if user.active_tenant_id:
+        event_filter.append(AuditEvent.tenant_id == user.active_tenant_id)
+        cost_filter.append(CostRecord.tenant_id == user.active_tenant_id)
 
     total_events = (
-        await session.execute(
-            select(func.count())
-            .select_from(AuditEvent)
-            .where(AuditEvent.timestamp >= start, AuditEvent.timestamp <= end)
-        )
+        await session.execute(select(func.count()).select_from(AuditEvent).where(*event_filter))
     ).scalar_one()
 
     blocked_count = (
         await session.execute(
-            select(func.count())
-            .select_from(AuditEvent)
-            .where(AuditEvent.timestamp >= start, AuditEvent.timestamp <= end)
-            .where(AuditEvent.allowed.is_(False))
+            select(func.count()).select_from(AuditEvent).where(*event_filter).where(AuditEvent.allowed.is_(False))
         )
     ).scalar_one()
 
     total_cost = (
-        await session.execute(
-            select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0"))).where(
-                CostRecord.timestamp >= start, CostRecord.timestamp <= end
-            )
-        )
+        await session.execute(select(func.coalesce(func.sum(CostRecord.cost_usd), Decimal("0"))).where(*cost_filter))
     ).scalar_one()
 
     return StatusResponse(

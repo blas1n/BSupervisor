@@ -4,16 +4,37 @@ import type { Page } from "@playwright/test";
 const FAKE_JWT =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMyIsImVtYWlsIjoidGVzdEBleGFtcGxlLmNvbSIsImFwcF9tZXRhZGF0YSI6eyJ0ZW5hbnRfaWQiOiJ0ZW5hbnQtMSIsInJvbGUiOiJtZW1iZXIifSwiZXhwIjo5OTk5OTk5OTk5fQ.fake-signature";
 
-/** Mock the auth.bsvibe.dev/api/session endpoint so useAuth resolves a user. */
+/** Mock the auth.bsvibe.dev/api/session endpoint so useAuth resolves a user.
+ *
+ * Phase B: returns the full `SessionEnvelope` shape that `@bsvibe/auth`
+ * `useAuth` expects (user + tenants + active_tenant_id + tokens). The
+ * legacy 3-field shape was missing `user`, which caused
+ * `<ProtectedRoute>` to redirect to `/login` and break protected-page e2e.
+ */
 export async function injectAuth(page: Page) {
-  await page.route("**/auth.bsvibe.dev/api/session", (route) =>
-    route.fulfill({
-      json: {
-        access_token: FAKE_JWT,
-        refresh_token: "fake-refresh",
-        expires_in: 3600,
+  const session = {
+    user: {
+      id: "user-123",
+      email: "test@example.com",
+      name: "Test User",
+    },
+    tenants: [
+      {
+        id: "tenant-1",
+        name: "Test Tenant",
+        slug: "test",
+        plan: "team",
+        type: "company",
+        role: "member",
       },
-    }),
+    ],
+    active_tenant_id: "tenant-1",
+    access_token: FAKE_JWT,
+    refresh_token: "fake-refresh",
+    expires_in: 3600,
+  };
+  await page.route("**/auth.bsvibe.dev/api/session", (route) =>
+    route.fulfill({ json: session }),
   );
 }
 

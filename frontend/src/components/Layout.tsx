@@ -1,164 +1,189 @@
-import { useState } from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { cn } from "../lib/utils";
+"use client";
+
+import { type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useT, useCurrentLocale } from "@bsvibe/i18n";
+import {
+  AppShell,
+  Header,
+  LanguageToggle,
+  ResponsiveSidebar,
+  SidebarBrand,
+  SidebarTenantSwitcher,
+  SidebarUserCard,
+  type SidebarItem,
+} from "@bsvibe/layout";
 import { useAuth } from "../hooks/useAuth";
 import { MaterialIcon } from "../components/MaterialIcon";
 
-const navItems = [
-  { to: "/", icon: "dashboard", label: "Dashboard" },
-  { to: "/incidents", icon: "timeline", label: "Incidents" },
-  { to: "/rules", icon: "gavel", label: "Rules" },
-  { to: "/reports", icon: "analytics", label: "Reports" },
-  { to: "/costs", icon: "payments", label: "Costs" },
-  { to: "/settings", icon: "settings", label: "Settings" },
-];
+/**
+ * BSupervisor application chrome — Phase A consumer of `@bsvibe/layout`.
+ *
+ * Phase C i18n: nav labels, page titles, header search placeholder,
+ * "Sign out" button, brand tagline, and live-status badge are loaded from
+ * the `supervisor` next-intl namespace via `useT()`. A header-mounted
+ * locale switcher toggles between `en` (default, no URL prefix) and `ko`
+ * (`/ko/...`).
+ */
 
-const pageTitles: Record<string, string> = {
-  "/": "Safety Dashboard",
-  "/incidents": "Incident Timeline",
-  "/rules": "Rules Manager",
-  "/reports": "Daily Report",
-  "/costs": "Cost Monitor",
-  "/settings": "Settings",
+const NAV_KEYS = [
+  { href: "/", labelKey: "dashboard", icon: "dashboard" },
+  { href: "/incidents", labelKey: "incidents", icon: "timeline" },
+  { href: "/rules", labelKey: "rules", icon: "gavel" },
+  { href: "/reports", labelKey: "reports", icon: "analytics" },
+  { href: "/costs", labelKey: "costs", icon: "payments" },
+  { href: "/settings", labelKey: "settings", icon: "settings" },
+] as const;
+
+const PAGE_TITLE_KEYS: Record<string, string> = {
+  "/": "dashboard",
+  "/incidents": "incidents",
+  "/rules": "rules",
+  "/reports": "reports",
+  "/costs": "costs",
+  "/settings": "settings",
 };
 
+function SidebarLocaleSwitcher() {
+  const router = useRouter();
+  const pathname = usePathname() ?? "/";
+  const current = useCurrentLocale();
 
-export function Layout() {
-  const location = useLocation();
-  const { user, logout } = useAuth();
-  const title = pageTitles[location.pathname] ?? "BSupervisor";
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Strip any leading `/ko` or `/en` segment, then re-prefix only when
+  // switching to the non-default locale (`ko`). Default `en` is bare-rooted
+  // because middleware uses `localePrefix: 'as-needed'` with default `en`.
+  const onChange = (next: string) => {
+    if (next === current) return;
+    const stripped = pathname.replace(/^\/(ko|en)(?=\/|$)/, "") || "/";
+    const nextPath = next === "ko" ? `/ko${stripped === "/" ? "" : stripped}` : stripped;
+    router.replace(nextPath);
+  };
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Backdrop - mobile only */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
+    <LanguageToggle
+      value={current}
+      options={[
+        { value: "en", label: "EN" },
+        { value: "ko", label: "KO" },
+      ]}
+      onChange={onChange}
+      ariaLabel="Language"
+      dataTestId="locale"
+    />
+  );
+}
+
+function HeaderRightSlot() {
+  const t = useT("supervisor.header");
+  return (
+    <div className="flex items-center gap-6">
+      <div className="relative items-center hidden sm:flex">
+        <MaterialIcon
+          icon="search"
+          className="absolute left-3 text-sm text-gray-500"
         />
-      )}
-
-      {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 h-screen w-64 flex-shrink-0 flex flex-col bg-gray-950 z-50 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:z-auto`}>
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900">
-            <MaterialIcon icon="security" className="text-2xl text-accent" filled />
-          </div>
-          <div>
-            <span className="text-xl font-black text-accent tracking-tighter">BSupervisor</span>
-            <span className="block text-[10px] font-bold tracking-[0.2em] text-gray-500 uppercase">
-              AI Sentinel
-            </span>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
-          {navItems.map(({ to, icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/"}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 px-4 py-3 text-sm uppercase font-bold tracking-tight transition-all duration-200",
-                  isActive
-                    ? "text-gray-50 bg-gray-900 rounded-lg border-l-4 border-accent"
-                    : "text-gray-500 hover:text-gray-200 hover:bg-gray-900",
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <MaterialIcon
-                    icon={icon}
-                    className="text-xl"
-                    filled={isActive}
-                  />
-                  <span>{label}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-
-        {/* User & Logout */}
-        <div className="border-t border-gray-800/10 px-4 py-4 mt-auto">
-          {user && (
-            <div className="mb-2 flex items-center gap-3 rounded-xl bg-gray-900 p-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">
-                {user.email.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1 overflow-hidden">
-                <p className="truncate text-xs font-bold text-gray-200">
-                  {user.email}
-                </p>
-                <p className="truncate text-[10px] text-gray-500">
-                  {user.role}
-                </p>
-              </div>
-            </div>
-          )}
-          <button
-            onClick={logout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-gray-500 transition-colors hover:bg-gray-900 hover:text-gray-300"
-          >
-            <MaterialIcon icon="logout" className="text-lg" />
-            Sign out
-          </button>
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-hidden bg-gray-950">
-        {/* Header */}
-        <header className="flex h-16 flex-shrink-0 items-center justify-between bg-gray-950/60 px-8 backdrop-blur-xl sticky top-0 z-40">
-          <div className="flex items-center gap-4">
-            {/* Hamburger - mobile only */}
-            <button
-              className="md:hidden p-2 -ml-2 rounded-lg text-gray-400"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <h2 className="text-sm text-gray-400 font-medium">
-              {title}
-            </h2>
-            <div className="h-4 w-px bg-gray-700/30" />
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
-              </span>
-              <span className="text-[10px] uppercase tracking-widest text-accent font-bold">Live Surveillance</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="relative flex items-center hidden sm:flex">
-              <MaterialIcon icon="search" className="absolute left-3 text-sm text-gray-500" />
-              <input
-                type="text"
-                placeholder="Search events..."
-                className="rounded-full bg-gray-900 border-none py-1.5 pl-10 pr-4 text-xs w-64 text-gray-100 placeholder-gray-500 outline-none focus:ring-1 focus:ring-accent/50"
-              />
-            </div>
-            <div className="flex items-center gap-4 text-gray-400">
-              <MaterialIcon icon="notifications" className="hover:text-accent cursor-pointer transition-colors duration-300" />
-              <MaterialIcon icon="settings" className="hover:text-accent cursor-pointer transition-colors duration-300" />
-            </div>
-          </div>
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
-        </main>
+        <input
+          type="text"
+          placeholder={t("searchPlaceholder")}
+          className="rounded-full bg-gray-900 border-none py-1.5 pl-10 pr-4 text-xs w-64 text-gray-100 placeholder-gray-500 outline-none focus:ring-1 focus:ring-accent/50"
+        />
+      </div>
+      <div className="flex items-center gap-4 text-gray-400">
+        <MaterialIcon
+          icon="notifications"
+          className="hover:text-accent cursor-pointer transition-colors duration-300"
+        />
+        <MaterialIcon
+          icon="settings"
+          className="hover:text-accent cursor-pointer transition-colors duration-300"
+        />
       </div>
     </div>
+  );
+}
+
+function HeaderTitle({ title }: { title: string }) {
+  const t = useT("supervisor.branding");
+  return (
+    <div className="flex items-center gap-4">
+      <h2 className="text-sm text-gray-400 font-medium">{title}</h2>
+      <div className="h-4 w-px bg-gray-700/30" />
+      <div className="flex items-center gap-2">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
+        </span>
+        <span className="text-[10px] uppercase tracking-widest text-accent font-bold">
+          {t("liveStatus")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function normalizePath(pathname: string): string {
+  // Strip locale prefix so route → title lookup ignores `/ko` etc.
+  const stripped = pathname.replace(/^\/(ko|en)(?=\/|$)/, "");
+  return stripped === "" ? "/" : stripped;
+}
+
+export function Layout({ children }: { children: ReactNode }) {
+  const tNav = useT("supervisor.nav");
+  const tTitles = useT("supervisor.pageTitles");
+  const tUserMenu = useT("supervisor.userMenu");
+  const { user, logout, tenants, switchTenant } = useAuth();
+  const pathname = usePathname() ?? "/";
+  const normalized = normalizePath(pathname);
+  const titleKey = PAGE_TITLE_KEYS[normalized] ?? null;
+  const title = titleKey ? tTitles(titleKey) : "BSupervisor";
+
+  const navItems: SidebarItem[] = NAV_KEYS.map((item) => ({
+    href: item.href,
+    label: tNav(item.labelKey),
+    icon: <MaterialIcon icon={item.icon} className="text-xl" />,
+  }));
+
+  return (
+    <AppShell
+      sidebar={
+        <ResponsiveSidebar
+          items={navItems}
+          logo={
+            <SidebarBrand
+              icon={<MaterialIcon icon="security" filled />}
+              name="BSupervisor"
+              // Surface the active workspace (tenant) name; collapse the
+              // tagline when not known. Matches the other 3 products.
+              tagline={user?.tenantName ?? undefined}
+            />
+          }
+          footer={
+            <div className="flex flex-col gap-2">
+              <SidebarTenantSwitcher
+                tenants={tenants ?? []}
+                activeTenantId={user?.tenantId ?? null}
+                onSwitchTenant={(id) => void switchTenant(id)}
+                dataTestId="sidebar-tenant-switcher"
+              />
+              <SidebarLocaleSwitcher />
+              {user ? (
+                <SidebarUserCard
+                  email={user.email}
+                  role={user.role}
+                  onSignOut={logout}
+                  signOutLabel={tUserMenu("signOut")}
+                />
+              ) : null}
+            </div>
+          }
+          ariaLabel="BSupervisor primary navigation"
+        />
+      }
+      header={
+        <Header title={<HeaderTitle title={title} />} rightSlot={<HeaderRightSlot />} />
+      }
+    >
+      {children}
+    </AppShell>
   );
 }

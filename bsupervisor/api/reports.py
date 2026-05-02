@@ -2,12 +2,11 @@
 
 from datetime import date
 
-from bsvibe_auth import BSVibeUser
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import get_current_user
+from bsupervisor.api.deps import CurrentUser, require_permission
 from bsupervisor.core.reporter import Reporter
 from bsupervisor.models.database import get_session
 
@@ -26,8 +25,9 @@ class DailyReportResponse(BaseModel):
 
 @router.get("/reports/daily", response_model=DailyReportResponse)
 async def get_daily_report(
+    _user: CurrentUser,
     date: date = Query(..., description="Report date in YYYY-MM-DD format"),
-    _user: BSVibeUser = Depends(get_current_user),
+    _allowed: None = Depends(require_permission("bsupervisor.reports.read")),
     session: AsyncSession = Depends(get_session),
 ) -> DailyReportResponse:
     reporter = Reporter(session)
