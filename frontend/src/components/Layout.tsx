@@ -129,7 +129,6 @@ function normalizePath(pathname: string): string {
 export function Layout({ children }: { children: ReactNode }) {
   const tNav = useT("supervisor.nav");
   const tTitles = useT("supervisor.pageTitles");
-  const tBranding = useT("supervisor.branding");
   const tUserMenu = useT("supervisor.userMenu");
   const { user, logout } = useAuth();
   const pathname = usePathname() ?? "/";
@@ -152,7 +151,9 @@ export function Layout({ children }: { children: ReactNode }) {
             <SidebarBrand
               icon={<MaterialIcon icon="security" filled />}
               name="BSupervisor"
-              tagline={tBranding("tagline")}
+              // Surface the active workspace (tenant) name; collapse the
+              // tagline when not known. Matches the other 3 products.
+              tagline={user?.tenantName ?? undefined}
             />
           }
           footer={

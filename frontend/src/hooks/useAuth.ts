@@ -139,13 +139,15 @@ export function useAuth() {
   }
 
   // Map the shared `User` shape (no role/tenantId) into the legacy local
-  // shape used by BSupervisor components. The `role` / `tenantId` fields
-  // come from `activeTenant` instead of the JWT app_metadata.
+  // shape used by BSupervisor components. The `role` / `tenantId` /
+  // `tenantName` fields come from `activeTenant` instead of the JWT
+  // app_metadata; `activeTenant.name` is fed by `/api/session.tenants`.
   const user = shared.user
     ? {
         id: shared.user.id,
         email: shared.user.email,
         tenantId: shared.activeTenant?.id ?? '',
+        tenantName: shared.activeTenant?.name ?? null,
         role: shared.activeTenant?.role ?? 'member',
       }
     : null;
