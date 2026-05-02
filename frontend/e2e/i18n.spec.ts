@@ -39,16 +39,23 @@ test.describe("Phase C: i18n", () => {
     await expect(page.getByText("로그아웃")).toBeVisible();
   });
 
-  test("locale switcher exposes EN and KO buttons", async ({ page }) => {
+  test("locale switcher exposes EN and KO options inside the dropdown", async ({ page }) => {
     await page.goto("/");
+    // v0.6.0: LanguageToggle renders a single trigger; options appear in
+    // the listbox after the trigger is clicked. The trigger lives in the
+    // sidebar footer and carries the same `data-testid="locale"` that the
+    // SidebarLocaleSwitcher passes through.
+    const trigger = page.getByTestId("locale");
+    await expect(trigger).toBeVisible();
+    await trigger.click();
     await expect(page.getByTestId("locale-en")).toBeVisible();
     await expect(page.getByTestId("locale-ko")).toBeVisible();
     await expect(page.getByTestId("locale-en")).toHaveAttribute(
-      "aria-pressed",
+      "aria-selected",
       "true",
     );
     await expect(page.getByTestId("locale-ko")).toHaveAttribute(
-      "aria-pressed",
+      "aria-selected",
       "false",
     );
   });
