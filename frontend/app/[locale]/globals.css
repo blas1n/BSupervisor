@@ -173,21 +173,14 @@ body {
 }
 
 .bsvibe-sidebar__hamburger {
-  position: fixed;
-  top: 0.75rem;
-  left: 0.75rem;
-  z-index: 60;
+  /* Position + tap target now ship from @bsvibe/layout v0.5.0
+     (`fixed top-3 left-3 z-50` + min-h-[44px] min-w-[44px] in lib).
+     Local rules retained only for visual polish (color/font-size/cursor). */
   background: transparent;
   border: 0;
   color: var(--color-gray-400);
   font-size: 1.5rem;
   cursor: pointer;
-  /* Phase B: 44px minimum touch target for iOS HIG / Material guidelines. */
-  min-width: 44px;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .bsvibe-sidebar__backdrop {
