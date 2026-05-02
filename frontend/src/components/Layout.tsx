@@ -9,6 +9,7 @@ import {
   LanguageToggle,
   ResponsiveSidebar,
   SidebarBrand,
+  SidebarTenantSwitcher,
   SidebarUserCard,
   type SidebarItem,
 } from "@bsvibe/layout";
@@ -130,7 +131,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const tNav = useT("supervisor.nav");
   const tTitles = useT("supervisor.pageTitles");
   const tUserMenu = useT("supervisor.userMenu");
-  const { user, logout } = useAuth();
+  const { user, logout, tenants, switchTenant } = useAuth();
   const pathname = usePathname() ?? "/";
   const normalized = normalizePath(pathname);
   const titleKey = PAGE_TITLE_KEYS[normalized] ?? null;
@@ -158,6 +159,12 @@ export function Layout({ children }: { children: ReactNode }) {
           }
           footer={
             <div className="flex flex-col gap-2">
+              <SidebarTenantSwitcher
+                tenants={tenants ?? []}
+                activeTenantId={user?.tenantId ?? null}
+                onSwitchTenant={(id) => void switchTenant(id)}
+                dataTestId="sidebar-tenant-switcher"
+              />
               <SidebarLocaleSwitcher />
               {user ? (
                 <SidebarUserCard
