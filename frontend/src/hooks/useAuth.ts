@@ -19,6 +19,7 @@
  * `switchTenant`) is also re-exported for new code.
  */
 
+import { useEffect, useState } from 'react';
 import { useAuth as useAuthShared } from '@bsvibe/auth';
 
 const AUTH_URL = process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? 'https://auth.bsvibe.dev';
@@ -124,6 +125,39 @@ export function clearTokenCache() {
  */
 export function useAuth() {
   const shared = useAuthShared();
+  // The shared offline stub hardcodes `tenants: [{ name: 'BSVibe' }]`
+  // when only a JWT is around. We fetch /api/session ourselves once a
+  // token is available so the sidebar tagline shows the actual tenant
+  // name (e.g. the seeded "BSVibe E2E"). Best-effort — null on failure.
+  const [tenantNameOverride, setTenantNameOverride] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!shared.user || !shared.activeTenant?.id) return;
+    let cancelled = false;
+    (async () => {
+      const token = await getAccessToken();
+      if (!token || cancelled) return;
+      try {
+        const res = await fetch(`${AUTH_URL}/api/session`, {
+          credentials: 'include',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as {
+          tenants?: Array<{ id: string; name: string }>;
+          active_tenant_id?: string;
+        };
+        const activeId = data.active_tenant_id ?? shared.activeTenant?.id;
+        const name = data.tenants?.find((t) => t.id === activeId)?.name ?? null;
+        if (!cancelled) setTenantNameOverride(name);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [shared.user, shared.activeTenant?.id]);
 
   function login() {
     window.location.href = `${AUTH_URL}/login`;
@@ -139,15 +173,15 @@ export function useAuth() {
   }
 
   // Map the shared `User` shape (no role/tenantId) into the legacy local
-  // shape used by BSupervisor components. The `role` / `tenantId` /
-  // `tenantName` fields come from `activeTenant` instead of the JWT
-  // app_metadata; `activeTenant.name` is fed by `/api/session.tenants`.
+  // shape used by BSupervisor components. `tenantName` prefers the live
+  // /api/session response so the sidebar shows the real workspace name
+  // instead of the offline 'BSVibe' stub.
   const user = shared.user
     ? {
         id: shared.user.id,
         email: shared.user.email,
         tenantId: shared.activeTenant?.id ?? '',
-        tenantName: shared.activeTenant?.name ?? null,
+        tenantName: tenantNameOverride ?? shared.activeTenant?.name ?? null,
         role: shared.activeTenant?.role ?? 'member',
       }
     : null;
