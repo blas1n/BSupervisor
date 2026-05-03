@@ -41,4 +41,7 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=15s \
 
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "bsupervisor.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --forwarded-allow-ips=* honours Caddy's X-Forwarded-Proto so trailing-slash
+# redirects emit https:// (not http://) Location headers, avoiding browser
+# CORS rejection on cross-origin requests from https://supervisor.bsvibe.dev.
+CMD ["python", "-m", "uvicorn", "bsupervisor.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
