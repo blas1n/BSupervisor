@@ -10,15 +10,22 @@
  * existing component tree keeps compiling.
  */
 
-import { createApiFetch, readDualEnv, setOnAuthError } from "@bsvibe/api";
+import { createApiFetch, setOnAuthError } from "@bsvibe/api";
 import { getAccessToken } from "../hooks/useAuth";
 
 const AUTH_URL =
   process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? "https://auth.bsvibe.dev";
 
-// `readDualEnv` honours both Next.js (`NEXT_PUBLIC_*`) and legacy Vite
-// (`VITE_*`) env vars so the same client compiles in either bundler.
-const BASE_URL = readDualEnv("API_URL", { fallback: "/api" }) ?? "/api";
+// Read NEXT_PUBLIC_API_URL via the static identifier so Next.js's webpack
+// plugin can inline it at build time. Phase Z (Vite → Next.js) replaced
+// the legacy ``readDualEnv("API_URL", ...)`` helper here — that helper
+// uses a dynamic key access (``process.env[`NEXT_PUBLIC_${name}`]``) which
+// the Next.js plugin doesn't substitute, so the value silently fell back
+// to ``/api`` (self-domain) even when Vercel had the env var configured.
+// See BSVibe_Production_Hardening_Handoff_2026-05-03.md §Task D.
+const BASE_URL =
+  (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ||
+  "/api";
 
 // Register the 401 cascading-logout latch exactly once per page load.
 // Subsequent 401s are absorbed by the shared guard until the latch is reset.
