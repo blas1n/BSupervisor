@@ -44,6 +44,12 @@ class Settings(FastApiSettings, DatabaseSettings, AlertSettings):
     auth_provider: str = "local"
     bsvibe_auth_url: str = "https://auth.bsvibe.dev"
 
+    # OAuth2 client_credentials grant — see BSVibe-Auth `/api/oauth/token`.
+    # Optional; needed only when BSupervisor initiates outbound service calls
+    # (currently receiver-only, but reserved for future cross-product flows).
+    bsvibe_client_id: str = ""
+    bsvibe_client_secret: str = ""
+
     # Cost alerts
     daily_cost_threshold_usd: Decimal = Decimal("50.00")
 
