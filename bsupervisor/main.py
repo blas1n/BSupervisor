@@ -85,6 +85,15 @@ app.include_router(settings_router)
 app.include_router(status_router)
 
 
+# ─── Demo mode (separate deployment, BSVIBE_DEMO_MODE=true) ──────────
+from bsvibe_demo import is_demo_mode  # noqa: E402
+
+if is_demo_mode():
+    from bsupervisor.demo.router import demo_router  # noqa: E402
+
+    app.include_router(demo_router)
+
+
 # Phase A health/readiness — uses ``bsvibe_fastapi.make_health_router``
 # under the BSupervisor ``/api`` prefix. The legacy ``/api/health/ready``
 # route is kept as a thin alias so existing probes / dashboards do not
