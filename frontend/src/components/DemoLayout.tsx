@@ -5,6 +5,7 @@ import { DemoBanner, useAutoDemoSession } from "@bsvibe/demo";
 import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Layout } from "@/src/components/Layout";
+import { injectDemoToken } from "@/src/hooks/useAuth";
 
 const DEMO_API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "https://api-demo-supervisor.bsvibe.dev";
@@ -49,7 +50,16 @@ const demoFetch: typeof fetch = async (input, init) => {
  * Selected at build time when ``NEXT_PUBLIC_BSVIBE_DEMO=1``.
  */
 export default function DemoLayout({ children }: { children: ReactNode }) {
-  const { loading, error } = useAutoDemoSession(DEMO_API_URL);
+  const { loading, error } = useAutoDemoSession(DEMO_API_URL, {
+    onSessionReady: ({ token, expiresIn }) => {
+      // Park the demo JWT in BSupervisor's local cachedToken so
+      // `getAccessToken()` (consumed by @bsvibe/api fetch wrappers)
+      // returns it. The demoFetch above answers the auth.bsvibe.dev
+      // probe, but the dashboard data fetches still go to the demo
+      // backend and need Authorization.
+      injectDemoToken(token, expiresIn);
+    },
+  });
 
   if (loading) {
     return (
