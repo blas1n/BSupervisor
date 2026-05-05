@@ -75,6 +75,19 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN || secrets.GITHUB_TOKEN }}
         run: pnpm install --frozen-lockfile
 
+      - name: Pin playwright webServer port to 3000
+        working-directory: frontend
+        run: |
+          # playwright.config hardcodes port 3010 for its `next dev`
+          # webServer. That dev server clobbers .next/ alongside our
+          # `next start -p 3000`, leaving the static-page chunk
+          # references stale (DemoBanner never appears). Point the
+          # webServer at our existing 3000 so reuseExistingServer kicks
+          # in and no parallel dev server runs.
+          sed -i 's|"pnpm exec next dev -p 3010"|"pnpm exec next dev -p 3000"|' playwright.config.ts
+          sed -i 's|port: 3010|port: 3000|' playwright.config.ts
+          sed -i 's|http://localhost:3010|http://localhost:3000|g' playwright.config.ts
+
       - name: Build frontend in demo mode
         working-directory: frontend
         env:
