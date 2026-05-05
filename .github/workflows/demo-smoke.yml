@@ -1,5 +1,9 @@
 name: Demo smoke
 
+# Boots demo backend (Docker, postgres-first → alembic → app) + builds &
+# serves demo frontend, runs the @bsvibe/demo Playwright suite against
+# the integrated stack.
+
 on:
   pull_request:
     branches: [main]
@@ -10,7 +14,12 @@ on:
 jobs:
   demo-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+
+    env:
+      COMPOSE_PROJECT: bsupervisor-demo-ci
+      BACKEND_PORT: '9000'
+      FRONTEND_PORT: '3000'
 
     steps:
       - uses: actions/checkout@v4
@@ -32,29 +41,29 @@ jobs:
             echo "LOG_LEVEL=INFO"
           } > deploy/.env.demo
 
-      - name: Boot demo stack
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Boot postgres
         run: |
-          docker compose -p bsupervisor-demo-ci \
+          docker compose -p "$COMPOSE_PROJECT" \
             -f deploy/docker-compose.demo.yml \
             --env-file deploy/.env.demo \
-            up -d --build --wait
+            up -d --build --wait postgres
 
       - name: Run alembic migrations
         run: |
-          docker compose -p bsupervisor-demo-ci \
+          docker compose -p "$COMPOSE_PROJECT" \
             -f deploy/docker-compose.demo.yml \
             --env-file deploy/.env.demo \
             run --rm app python -m alembic upgrade head
-          docker compose -p bsupervisor-demo-ci \
+
+      - name: Start app
+        run: |
+          docker compose -p "$COMPOSE_PROJECT" \
             -f deploy/docker-compose.demo.yml \
             --env-file deploy/.env.demo \
-            restart app
+            up -d --wait app
           for _ in $(seq 1 30); do
-            if curl -fsS -o /dev/null --max-time 2 http://localhost:9000/api/health; then
-              echo "backend healthy"
-              break
+            if curl -fsS -o /dev/null --max-time 2 "http://localhost:${BACKEND_PORT}/api/health"; then
+              echo "backend healthy"; break
             fi
             sleep 2
           done
@@ -65,6 +74,27 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN || secrets.GITHUB_TOKEN }}
         run: pnpm install --frozen-lockfile
 
+      - name: Build frontend in demo mode
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_BSVIBE_DEMO: '1'
+          NEXT_PUBLIC_API_URL: http://localhost:9000
+        run: pnpm run build
+
+      - name: Start frontend in background
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_BSVIBE_DEMO: '1'
+          NEXT_PUBLIC_API_URL: http://localhost:9000
+        run: |
+          nohup pnpm exec next start -p "$FRONTEND_PORT" > /tmp/frontend.log 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null --max-time 2 "http://localhost:${FRONTEND_PORT}/"; then
+              echo "frontend ready"; break
+            fi
+            sleep 2
+          done
+
       - name: Install Playwright browsers
         working-directory: frontend
         run: pnpm exec playwright install --with-deps chromium
@@ -72,17 +102,30 @@ jobs:
       - name: Run demo smoke suite
         working-directory: frontend
         env:
-          DEMO_E2E_BASE_URL: http://localhost:9000
+          DEMO_E2E_BASE_URL: http://localhost:3000
           DEMO_E2E_API_URL: http://localhost:9000
         run: pnpm exec playwright test --grep @demo --project=chromium
+
+      - name: Frontend log (on failure)
+        if: failure()
+        run: tail -200 /tmp/frontend.log || true
 
       - name: Demo backend logs (on failure)
         if: failure()
         run: |
-          docker compose -p bsupervisor-demo-ci -f deploy/docker-compose.demo.yml logs --tail=200 app
-          docker compose -p bsupervisor-demo-ci -f deploy/docker-compose.demo.yml logs --tail=50 postgres
+          docker compose -p "$COMPOSE_PROJECT" \
+            -f deploy/docker-compose.demo.yml \
+            --env-file deploy/.env.demo \
+            logs --tail=200 app
+          docker compose -p "$COMPOSE_PROJECT" \
+            -f deploy/docker-compose.demo.yml \
+            --env-file deploy/.env.demo \
+            logs --tail=50 postgres
 
       - name: Tear down
         if: always()
         run: |
-          docker compose -p bsupervisor-demo-ci -f deploy/docker-compose.demo.yml down -v
+          docker compose -p "$COMPOSE_PROJECT" \
+            -f deploy/docker-compose.demo.yml \
+            --env-file deploy/.env.demo \
+            down -v
