@@ -172,6 +172,11 @@ packages:
     peerDependencies:
       next: '>=15.0.0'
       react: '>=19.0.0'
+    peerDependenciesMeta:
+      next:
+        optional: true
+      react:
+        optional: true
 
   '@bsvibe/auth@1.0.0-alpha.0':
     resolution: {integrity: sha512-rgh9FxidMwy6bzBU7F5gWGJlERaG/GxGHDaYOIMyg7u2t//DYxjymnXq8xSLW3EnZyWgfVlHZShJal/ftIFdDA==, tarball: https://npm.pkg.github.com/download/@bsvibe/auth/1.0.0-alpha.0/7e9b95a86dce416a6b1011c2a0ec2b38c8749844}
@@ -189,11 +194,17 @@ packages:
     resolution: {integrity: sha512-vSpyuWIV/dfBoaLzPpVA+VORH0w9sx+7K1mDICRds1CaMsZ5dCpuDVNQProdyoy6UmDYyj74AufS5gucdXhYQg==, tarball: https://npm.pkg.github.com/download/@bsvibe/design-tokens/0.1.0/686fc3f050d96568d81150b5ce0e42bf09579d38}
     peerDependencies:
       tailwindcss: '>=4.0.0'
+    peerDependenciesMeta:
+      tailwindcss:
+        optional: true
 
   '@bsvibe/design-tokens@0.2.0':
     resolution: {integrity: sha512-R4166uzrtbIKqXVyFqc3lF759xb6lGLRmmfulswRMEI2lB1Pio1/pFaOU5RXtY4bxfap+A8PN0TQ7QsoCjXbvw==, tarball: https://npm.pkg.github.com/download/@bsvibe/design-tokens/0.2.0/711833c797b7f4202cde4d899b396512be0a6daf}
     peerDependencies:
       tailwindcss: '>=4.0.0'
+    peerDependenciesMeta:
+      tailwindcss:
+        optional: true
 
   '@bsvibe/i18n@0.1.0':
     resolution: {integrity: sha512-sh9i71sq5zX5eEnj3ugcBnn1g9SNWj9loKM2MHqlV3jr6JJ05EBDVhDMSZxYhW2OACCEGlIcv4t9vvNi48gvEQ==, tarball: https://npm.pkg.github.com/download/@bsvibe/i18n/0.1.0/0cbbc9648828746c72f1f5292d0dbf803afde983}
@@ -201,6 +212,9 @@ packages:
       next: '>=15.0.0'
       next-intl: '>=4.0.0'
       react: '>=19.0.0'
+    peerDependenciesMeta:
+      next:
+        optional: true
 
   '@bsvibe/layout@0.7.0':
     resolution: {integrity: sha512-6j8y8Juk71yzXajE46aTxhInyvEI0cFNKnmuAAy7XOa3/saRCdw4Wr7xsM7W1IbMhZbJ7krcbh6gu6kQ76l0Tw==, tarball: https://npm.pkg.github.com/download/@bsvibe/layout/0.7.0/da8b14e9b115349feb7f1bb6a70b8bab0ef24257}
@@ -1951,6 +1965,7 @@ snapshots:
     dependencies:
       '@bsvibe/auth': 1.0.0-alpha.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@bsvibe/types': 0.1.0
+    optionalDependencies:
       next: 15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
     transitivePeerDependencies:
@@ -1968,18 +1983,19 @@ snapshots:
       react-dom: 19.2.4(react@19.2.4)
 
   '@bsvibe/design-tokens@0.1.0(tailwindcss@4.2.2)':
-    dependencies:
+    optionalDependencies:
       tailwindcss: 4.2.2
 
   '@bsvibe/design-tokens@0.2.0(tailwindcss@4.2.2)':
-    dependencies:
+    optionalDependencies:
       tailwindcss: 4.2.2
 
   '@bsvibe/i18n@0.1.0(next-intl@4.11.0(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)':
     dependencies:
-      next: 15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       next-intl: 4.11.0(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
       react: 19.2.4
+    optionalDependencies:
+      next: 15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
 
   '@bsvibe/layout@0.7.0(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
