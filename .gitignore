@@ -23,3 +23,7 @@ htmlcov/
 .env.production
 .vercel
 .gitrepo
+
+# Demo env (per-product DEMO_JWT_SECRET, demo PG creds)
+.env.demo
+deploy/.env.demo
