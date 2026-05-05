@@ -18,16 +18,25 @@ const i18nMiddleware = createI18nMiddleware({
 
 const PUBLIC_PATHS = new Set(['/login', '/en/login', '/ko/login']);
 
+// Demo deployments (NEXT_PUBLIC_BSVIBE_DEMO=1) skip the auth gate entirely.
+// The demo backend issues its own JWT cookie via the client-side DemoLayout,
+// so middleware-level /login redirects would cut visitors off before React
+// mounts. Direct dotted process.env access so Next can statically inline at
+// build — dynamic lookup defeats the substitution.
+const IS_DEMO_BUILD = process.env.NEXT_PUBLIC_BSVIBE_DEMO === '1';
+
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasSessionCookie = request.cookies.has('bsvibe_session');
 
-  if (!hasSessionCookie && !PUBLIC_PATHS.has(pathname)) {
-    const localePrefix = pathname.startsWith('/ko') ? '/ko' : pathname.startsWith('/en') ? '/en' : '';
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = `${localePrefix}/login`;
-    loginUrl.search = '';
-    return NextResponse.redirect(loginUrl);
+  if (!IS_DEMO_BUILD) {
+    const hasSessionCookie = request.cookies.has('bsvibe_session');
+    if (!hasSessionCookie && !PUBLIC_PATHS.has(pathname)) {
+      const localePrefix = pathname.startsWith('/ko') ? '/ko' : pathname.startsWith('/en') ? '/en' : '';
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = `${localePrefix}/login`;
+      loginUrl.search = '';
+      return NextResponse.redirect(loginUrl);
+    }
   }
 
   return i18nMiddleware(request);
