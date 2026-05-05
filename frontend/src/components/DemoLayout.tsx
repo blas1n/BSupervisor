@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthProvider } from "@bsvibe/auth";
 import { DemoBanner, useAutoDemoSession } from "@bsvibe/demo";
 import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -7,6 +8,38 @@ import { Layout } from "@/src/components/Layout";
 
 const DEMO_API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "https://api-demo-supervisor.bsvibe.dev";
+
+const AUTH_URL = process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? "https://auth.bsvibe.dev";
+
+// Demo identity: <Layout> calls useAuth() (from @bsvibe/auth) to populate
+// the sidebar / tenant switcher / "sign out" button. In demo mode the
+// shared AuthProvider is not in the tree, so useAuth() throws and the
+// page bails out with "Application error". Provide a stub session via
+// fetchImpl so the shared provider resolves a demo user.
+const DEMO_SESSION = {
+  access_token: "demo",
+  refresh_token: "",
+  expires_in: 7200,
+  user: { id: "demo-user", email: "demo@bsvibe.dev" },
+  tenants: [{ id: "demo", name: "Demo sandbox", role: "viewer" }],
+  active_tenant_id: "demo",
+};
+
+const demoFetch: typeof fetch = async (input, init) => {
+  const url =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url;
+  if (url === `${AUTH_URL.replace(/\/+$/, "")}/api/session`) {
+    return new Response(JSON.stringify(DEMO_SESSION), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  return fetch(input, init);
+};
 
 /**
  * Demo mode equivalent of ``ProtectedLayout``. Auto-bootstraps a demo
@@ -39,9 +72,9 @@ export default function DemoLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <>
+    <AuthProvider authUrl={AUTH_URL} fetchImpl={demoFetch}>
       <DemoBanner productName="BSupervisor" locale="en" />
       <Layout>{children}</Layout>
-    </>
+    </AuthProvider>
   );
 }

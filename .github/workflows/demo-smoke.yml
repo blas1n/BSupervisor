@@ -1,0 +1,155 @@
+name: Demo smoke
+
+# Boots demo backend (Docker, postgres-first → alembic → app) + builds &
+# serves demo frontend, runs the @bsvibe/demo Playwright suite against
+# the integrated stack.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  demo-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      COMPOSE_PROJECT: bsupervisor-demo-ci
+      BACKEND_PORT: '9000'
+      FRONTEND_PORT: '3000'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10
+
+      - name: Generate ephemeral demo secrets
+        run: |
+          {
+            echo "DEMO_JWT_SECRET=$(openssl rand -hex 32)"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "CORS_ALLOWED_ORIGINS=http://localhost:3000"
+            echo "DEBUG=false"
+            echo "LOG_LEVEL=INFO"
+          } > deploy/.env.demo
+
+      - name: Boot postgres
+        run: |
+          docker compose -p "$COMPOSE_PROJECT" \
+            -f deploy/docker-compose.demo.yml \
+            --env-file deploy/.env.demo \
+            up -d --build --wait postgres
+
+      - name: Run alembic migrations
+        run: |
+          docker compose -p "$COMPOSE_PROJECT" \
+            -f deploy/docker-compose.demo.yml \
+            --env-file deploy/.env.demo \
+            run --rm app python -m alembic upgrade head
+
+      - name: Start app
+        run: |
+          docker compose -p "$COMPOSE_PROJECT" \
+            -f deploy/docker-compose.demo.yml \
+            --env-file deploy/.env.demo \
+            up -d --wait app
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null --max-time 2 "http://localhost:${BACKEND_PORT}/api/health"; then
+              echo "backend healthy"; break
+            fi
+            sleep 2
+          done
+
+      - name: Frontend deps
+        working-directory: frontend
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN || secrets.GITHUB_TOKEN }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Pin playwright webServer port to 3000
+        working-directory: frontend
+        run: |
+          # playwright.config hardcodes port 3010 for its `next dev`
+          # webServer. That dev server clobbers .next/ alongside our
+          # `next start -p 3000`, leaving the static-page chunk
+          # references stale (DemoBanner never appears). Point the
+          # webServer at our existing 3000 so reuseExistingServer kicks
+          # in and no parallel dev server runs.
+          sed -i 's|"pnpm exec next dev -p 3010"|"pnpm exec next dev -p 3000"|' playwright.config.ts
+          sed -i 's|port: 3010|port: 3000|' playwright.config.ts
+          sed -i 's|http://localhost:3010|http://localhost:3000|g' playwright.config.ts
+
+      - name: Build frontend in demo mode
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_BSVIBE_DEMO: '1'
+          NEXT_PUBLIC_API_URL: http://localhost:9000
+        run: pnpm run build
+
+      - name: Start frontend in background
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_BSVIBE_DEMO: '1'
+          NEXT_PUBLIC_API_URL: http://localhost:9000
+        run: |
+          nohup pnpm exec next start -p "$FRONTEND_PORT" > /tmp/frontend.log 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null --max-time 2 "http://localhost:${FRONTEND_PORT}/"; then
+              echo "frontend ready"; break
+            fi
+            sleep 2
+          done
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run demo smoke suite
+        working-directory: frontend
+        env:
+          DEMO_E2E_BASE_URL: http://localhost:3000
+          DEMO_E2E_API_URL: http://localhost:9000
+        run: pnpm exec playwright test --grep @demo --project=chromium
+
+      - name: Frontend log (on failure)
+        if: failure()
+        run: tail -200 /tmp/frontend.log || true
+
+      - name: Upload Playwright trace + screenshots (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 7
+
+      - name: Demo backend logs (on failure)
+        if: failure()
+        run: |
+          docker compose -p "$COMPOSE_PROJECT" \
+            -f deploy/docker-compose.demo.yml \
+            --env-file deploy/.env.demo \
+            logs --tail=200 app
+          docker compose -p "$COMPOSE_PROJECT" \
+            -f deploy/docker-compose.demo.yml \
+            --env-file deploy/.env.demo \
+            logs --tail=50 postgres
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker compose -p "$COMPOSE_PROJECT" \
+            -f deploy/docker-compose.demo.yml \
+            --env-file deploy/.env.demo \
+            down -v
