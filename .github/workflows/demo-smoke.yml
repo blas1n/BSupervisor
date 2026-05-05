@@ -37,6 +37,7 @@ jobs:
           {
             echo "DEMO_JWT_SECRET=$(openssl rand -hex 32)"
             echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "CORS_ALLOWED_ORIGINS=http://localhost:3000"
             echo "DEBUG=false"
             echo "LOG_LEVEL=INFO"
           } > deploy/.env.demo
