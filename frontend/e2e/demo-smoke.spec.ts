@@ -14,4 +14,7 @@ runDemoSmokeSuite({
   product: 'BSupervisor',
   baseUrl: process.env.DEMO_E2E_BASE_URL ?? 'http://localhost:19000',
   apiUrl: process.env.DEMO_E2E_API_URL ?? 'http://localhost:19000',
+  // BSupervisor is a read-mostly audit dashboard — all demo visitors land
+  // on a single shared demo tenant for the showcase data.
+  tenantModel: 'shared',
 });
