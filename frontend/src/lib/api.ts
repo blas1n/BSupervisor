@@ -23,9 +23,18 @@ const AUTH_URL =
 // the Next.js plugin doesn't substitute, so the value silently fell back
 // to ``/api`` (self-domain) even when Vercel had the env var configured.
 // See BSVibe_Production_Hardening_Handoff_2026-05-03.md §Task D.
-const BASE_URL =
+// Demo deployments set NEXT_PUBLIC_API_URL to the bare backend origin
+// (so `useAutoDemoSession` can append `/api/v1/demo/session` itself);
+// every other consumer of the BSupervisor API expects baseUrl to end at
+// `/api`. Append it when missing.
+const RAW_API_URL =
   (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ||
-  "/api";
+  "";
+const BASE_URL = !RAW_API_URL
+  ? "/api"
+  : RAW_API_URL.replace(/\/+$/, "").endsWith("/api")
+    ? RAW_API_URL.replace(/\/+$/, "")
+    : `${RAW_API_URL.replace(/\/+$/, "")}/api`;
 
 // Register the 401 cascading-logout latch exactly once per page load.
 // Subsequent 401s are absorbed by the shared guard until the latch is reset.
