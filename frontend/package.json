@@ -14,7 +14,7 @@
   "dependencies": {
     "@bsvibe/api": "0.1.0",
     "@bsvibe/auth": "1.0.0-alpha.0",
-    "@bsvibe/demo": "^0.3.1",
+    "@bsvibe/demo": "^0.3.2",
     "@bsvibe/design-tokens": "^0.2.0",
     "@bsvibe/i18n": "0.1.0",
     "@bsvibe/layout": "^0.7.0",
