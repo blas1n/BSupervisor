@@ -119,6 +119,22 @@ export function clearTokenCache() {
 }
 
 /**
+ * Inject a demo session JWT into the auth token cache so getAccessToken()
+ * returns the demo Bearer for every fetch — without this, the demo shell
+ * loads but every dashboard fetch goes out unauth'd.
+ *
+ * Wire from DemoLayout via @bsvibe/demo 0.3 onSessionReady.
+ */
+export function injectDemoToken(token: string, expiresIn: number): void {
+  const expiresAt = Date.now() + expiresIn * 1000;
+  cachedToken = { value: token, expiresAt };
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(LS_ACCESS_TOKEN, token);
+    localStorage.setItem(LS_EXPIRES_AT, String(expiresAt));
+  }
+}
+
+/**
  * BSupervisor-flavoured `useAuth` — re-exposes the shared hook plus
  * `login()` / `logout()` redirects so the existing component tree
  * (`Layout.tsx`, `Login.tsx`, etc.) keeps working unchanged.
