@@ -41,6 +41,16 @@ async def lifespan(app: FastAPI):
         if seeded:
             logger.info("default_rules_seeded", count=seeded)
 
+        # In demo mode, also pre-populate the shared demo tenant with
+        # audit events + incidents so the visitor's dashboard renders
+        # immediately. Idempotent via a sentinel-row check.
+        if is_demo_mode():
+            from bsupervisor.demo.seed import seed_demo_data  # noqa: PLC0415
+
+            seeded_demo = await seed_demo_data(session)
+            if seeded_demo:
+                logger.info("demo_data_seeded", events=seeded_demo)
+
     # Phase Audit Batch 2 — start the shared bsvibe-audit OutboxRelay so
     # supervisor.* events queued in the per-request transaction get
     # shipped to BSVibe-Auth. The relay is a no-op when
