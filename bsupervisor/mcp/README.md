@@ -123,14 +123,14 @@ of the process, and pins both onto `app.state`.
   before delegating to the session manager and resets it after, so
   each call gets a freshly resolved `ToolContext`.
 - `/mcp/health` — no-auth liveness probe. Returns
-  `{"status": "ok", "tools": <count>}`. Registered before the `/mcp`
-  ASGI mount so the route table picks the FastAPI handler.
+  `{"status": "ok", "tool_count": <count>}`. Registered before the
+  `/mcp` ASGI mount so the route table picks the FastAPI handler.
 
 Example (after `BSV_BOOTSTRAP_TOKEN` is set):
 
 ```bash
 curl -sS http://localhost:8000/mcp/health
-# {"status":"ok","tools":14}
+# {"status":"ok","tool_count":14}
 ```
 
 ## stdio launcher
