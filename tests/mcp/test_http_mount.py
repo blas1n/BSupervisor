@@ -60,12 +60,14 @@ def test_health_endpoint_reports_tool_count_under_lifespan() -> None:
 
 
 def test_main_app_mounts_mcp_routes() -> None:
-    """``/mcp/health`` and the ``/mcp`` ASGI mount are both wired."""
+    """``/mcp/health`` is wired. The streamable-HTTP ``/mcp`` mount is
+    temporarily disabled (starlette lifespan-merge cycle → RecursionError
+    under demo-smoke); re-introduction needs the ASGI callable wrapped in a
+    Starlette sub-app — follow-up."""
     from bsupervisor.main import app
 
     paths = {route.path for route in app.router.routes}
     assert "/mcp/health" in paths
-    assert "/mcp" in paths, "streamable-HTTP ASGI sub-app must be mounted at /mcp"
 
 
 @pytest.mark.asyncio
