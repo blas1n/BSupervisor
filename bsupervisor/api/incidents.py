@@ -1,9 +1,10 @@
 """Incident timeline API endpoints."""
 
+from datetime import datetime
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,9 +67,17 @@ async def list_incidents(
     user: CurrentUser,
     _allowed: None = Depends(require_scope("supervisor:incidents:read")),
     session: AsyncSession = Depends(get_session),
+    severity: str | None = Query(None, description="Filter incidents by severity (critical, high, medium, low)."),
+    since: datetime | None = Query(
+        None, description="Only return incidents updated at or after this ISO-8601 timestamp."
+    ),
 ) -> list[IncidentListItem]:
     stmt = select(Incident).order_by(Incident.updated_at.desc()).limit(50)
     stmt = _scope_to_tenant(stmt, user, Incident)
+    if severity is not None:
+        stmt = stmt.where(Incident.severity == severity)
+    if since is not None:
+        stmt = stmt.where(Incident.updated_at >= since)
     result = await session.execute(stmt)
     incidents = result.scalars().all()
     return [
@@ -125,6 +134,28 @@ async def get_incident(
         updated_at=incident.updated_at.isoformat(),
         timeline=timeline,
     )
+
+
+@router.post("/incidents/{incident_id}/ack", response_model=ResolveResponse)
+async def ack_incident(
+    incident_id: UUID,
+    user: CurrentUser,
+    _allowed: None = Depends(require_scope("supervisor:incidents:write")),
+    session: AsyncSession = Depends(get_session),
+) -> ResolveResponse:
+    stmt = select(Incident).where(Incident.id == incident_id)
+    stmt = _scope_to_tenant(stmt, user, Incident)
+    result = await session.execute(stmt)
+    incident = result.scalar_one_or_none()
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    incident.status = IncidentStatus.ACKNOWLEDGED
+    await session.commit()
+
+    logger.info("incident_acknowledged", incident_id=str(incident_id))
+
+    return ResolveResponse(id=str(incident.id), status=incident.status)
 
 
 @router.post("/incidents/{incident_id}/resolve", response_model=ResolveResponse)

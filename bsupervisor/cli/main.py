@@ -17,6 +17,9 @@ from __future__ import annotations
 
 from bsvibe_cli_base import cli_app
 
+from bsupervisor.cli.commands.agents import app as agents_app
+from bsupervisor.cli.commands.incidents import app as incidents_app
+
 app = cli_app(
     name="bsupervisor",
     help=(
@@ -24,6 +27,9 @@ app = cli_app(
         "audit trail, and tune runtime settings from the terminal."
     ),
 )
+
+app.add_typer(agents_app, name="agents")
+app.add_typer(incidents_app, name="incidents")
 
 
 __all__ = ["app"]

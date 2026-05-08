@@ -11,6 +11,7 @@ from bsupervisor.models.base import Base, UUIDPrimaryKeyMixin
 
 class IncidentStatus(str, enum.Enum):
     OPEN = "open"
+    ACKNOWLEDGED = "acknowledged"
     RESOLVED = "resolved"
 
 

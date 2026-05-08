@@ -305,6 +305,7 @@ SCOPE_CATALOG: dict[tuple[str, str], str | None] = {
     ("POST", "/api/events/{event_id}/feedback"): "supervisor:audit:read",
     ("GET", "/api/incidents"): "supervisor:incidents:read",
     ("GET", "/api/incidents/{incident_id}"): "supervisor:incidents:read",
+    ("POST", "/api/incidents/{incident_id}/ack"): "supervisor:incidents:write",
     ("POST", "/api/incidents/{incident_id}/resolve"): "supervisor:incidents:write",
     ("GET", "/api/anomalies"): "supervisor:agents:read",
     ("GET", "/api/costs"): "supervisor:audit:read",
