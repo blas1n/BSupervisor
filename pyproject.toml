@@ -23,8 +23,14 @@ dependencies = [
     "bsvibe-fastapi @ git+https://github.com/BSVibe/bsvibe-python.git@main#subdirectory=packages/bsvibe-fastapi",
     "bsvibe-sqlalchemy @ git+https://github.com/BSVibe/bsvibe-python.git@main#subdirectory=packages/bsvibe-sqlalchemy",
     "bsvibe-alerts @ git+https://github.com/BSVibe/bsvibe-python.git@main#subdirectory=packages/bsvibe-alerts",
-    # P0.5 — shared authz library (PR #1).
-    "bsvibe-authz @ git+https://github.com/BSVibe/bsvibe-python.git@84c393f6#subdirectory=packages/bsvibe-authz",
+    # P0.5 — shared authz library. Phase 5b bumps to ``main`` to pick up
+    # ``IntrospectionClient`` + ``verify_bootstrap_token`` + ``require_scope``
+    # for the 3-way dispatch wired in ``bsupervisor/api/deps.py``.
+    "bsvibe-authz @ git+https://github.com/BSVibe/bsvibe-python.git@main#subdirectory=packages/bsvibe-authz",
+    # Phase 5b — shared CLI foundation. Provides ``cli_app`` factory,
+    # ``ProfileStore``, ``OutputFormatter``, ``CliHttpClient`` (401-refresh
+    # retry), and ``DeviceFlowClient`` for the new ``bsupervisor`` Typer CLI.
+    "bsvibe-cli-base @ git+https://github.com/BSVibe/bsvibe-python.git@main#subdirectory=packages/bsvibe-cli-base",
     # Phase Audit Batch 2 — outbox-pattern audit emission. Producer-only:
     # BSupervisor inserts events into its own ``audit_outbox`` table inside
     # the request's transaction; ``OutboxRelay`` ships them to BSVibe-Auth.
