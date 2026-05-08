@@ -58,16 +58,30 @@ _current_authorization: ContextVar[str | None] = ContextVar(
 BOOTSTRAP_TOKEN_ENV = "BSV_BOOTSTRAP_TOKEN"
 
 
-def _build_introspection_inputs() -> tuple[AuthzSettings, IntrospectionClient | None, IntrospectionCache]:
+def _build_introspection_inputs() -> tuple[AuthzSettings | None, IntrospectionClient | None, IntrospectionCache]:
     """Resolve the cached :class:`AuthzSettings` plus introspection helpers.
 
     Mirrors the FastAPI dependency wiring so MCP and REST share one config
     surface. The introspection client is ``None`` whenever
     ``introspection_url`` is empty — opaque tokens then fall through and
     fail closed, matching the REST behaviour.
+
+    If the bsvibe-authz Settings cannot be constructed (e.g. demo / smoke
+    deployments that intentionally skip the auth env vars), return None for
+    settings + client so the bootstrap-token path still works. ``ValidationError``
+    is caught explicitly because pydantic-settings raises it when required
+    fields are missing — which is acceptable in demo envs.
     """
 
-    authz_settings = get_authz_settings()
+    from pydantic import ValidationError
+
+    try:
+        authz_settings: AuthzSettings | None = get_authz_settings()
+    except ValidationError as exc:
+        logger.info("mcp_authz_settings_unavailable", reason="missing_env", missing=str(exc))
+        # No introspection — bootstrap path remains the only auth mode.
+        return None, None, IntrospectionCache(ttl_s=60)
+
     introspection_client: IntrospectionClient | None = None
     if authz_settings.introspection_url:
         introspection_client = IntrospectionClient(
@@ -100,11 +114,16 @@ async def _mcp_audit_emit(event_type: str, payload: dict[str, Any]) -> None:
 
 def _build_http_context_provider(
     *,
-    authz_settings: AuthzSettings,
+    authz_settings: AuthzSettings | None,
     introspection_client: IntrospectionClient | None,
     introspection_cache: IntrospectionCache,
 ):
-    """Return a context provider that reads from the ContextVar set by the ASGI handler."""
+    """Return a context provider that reads from the ContextVar set by the ASGI handler.
+
+    ``authz_settings`` is None in demo deployments where the bsvibe-authz
+    env vars are intentionally absent — bootstrap-token-only mode. Auth
+    resolution still works because ``resolve_tool_context`` reads the
+    bootstrap hash from the local Settings, not bsvibe-authz."""
 
     async def _provider() -> ToolContext:
         authorization = _current_authorization.get()
@@ -141,13 +160,31 @@ async def mcp_lifespan(
     """
 
     bound_registry = registry if registry is not None else build_admin_registry()
-    authz_settings, introspection_client, introspection_cache = _build_introspection_inputs()
-    context_provider = _build_http_context_provider(
-        authz_settings=authz_settings,
-        introspection_client=introspection_client,
-        introspection_cache=introspection_cache,
-    )
-    server = build_server(bound_registry, context_provider=context_provider)
+
+    # Lazy context provider — resolves the bsvibe-authz Settings + introspection
+    # helpers on every call instead of at lifespan-startup. This keeps demo /
+    # smoke deployments (which intentionally skip the bsvibe-authz env vars)
+    # bootable; per-request auth still rejects (401) until the env is wired,
+    # but the rest of the app comes up.
+    async def _lazy_context_provider() -> ToolContext:
+        authorization = _current_authorization.get()
+        authz_settings, introspection_client, introspection_cache = _build_introspection_inputs()
+        if authz_settings is None:
+            # bsvibe-authz Settings unavailable — bootstrap path can't be
+            # verified either (no hash). Surface as auth failure.
+            raise ToolPermissionError("authz settings unavailable")
+        try:
+            return await resolve_tool_context(
+                authorization=authorization,
+                settings=authz_settings,
+                introspection_client=introspection_client,
+                introspection_cache=introspection_cache,
+                audit_emit=_mcp_audit_emit,
+            )
+        except MCPAuthError as exc:
+            raise ToolPermissionError(str(exc)) from exc
+
+    server = build_server(bound_registry, context_provider=_lazy_context_provider)
     manager = StreamableHTTPSessionManager(app=server, stateless=True, json_response=True)
 
     app.state.mcp_registry = bound_registry
@@ -156,7 +193,6 @@ async def mcp_lifespan(
     logger.info(
         "mcp_lifespan_starting",
         tool_count=len(bound_registry.names()),
-        introspection_enabled=introspection_client is not None,
     )
 
     async with manager.run():
