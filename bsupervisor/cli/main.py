@@ -18,7 +18,10 @@ from __future__ import annotations
 from bsvibe_cli_base import cli_app
 
 from bsupervisor.cli.commands.agents import app as agents_app
+from bsupervisor.cli.commands.audit import app as audit_app
+from bsupervisor.cli.commands.costs import app as costs_app
 from bsupervisor.cli.commands.incidents import app as incidents_app
+from bsupervisor.cli.commands.settings import app as settings_app
 
 app = cli_app(
     name="bsupervisor",
@@ -30,6 +33,9 @@ app = cli_app(
 
 app.add_typer(agents_app, name="agents")
 app.add_typer(incidents_app, name="incidents")
+app.add_typer(audit_app, name="audit")
+app.add_typer(costs_app, name="costs")
+app.add_typer(settings_app, name="settings")
 
 
 __all__ = ["app"]
