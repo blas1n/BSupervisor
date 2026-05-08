@@ -41,6 +41,19 @@ dependencies = [
     "httpx>=0.28.1",
 ]
 
+[project.scripts]
+bsupervisor = "bsupervisor.cli.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["bsupervisor"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
