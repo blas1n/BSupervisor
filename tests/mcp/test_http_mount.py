@@ -48,7 +48,7 @@ def test_health_endpoint_reports_tool_count_under_lifespan() -> None:
             "tool_count": len(registry.names()) if registry is not None else 0,
         }
 
-    app.mount("/mcp", mcp_transport.mcp_streamable_http_asgi)
+    app.mount("/mcp", mcp_transport.build_mcp_subapp(app))
 
     with TestClient(app) as client:
         r = client.get("/mcp/health")
@@ -60,14 +60,16 @@ def test_health_endpoint_reports_tool_count_under_lifespan() -> None:
 
 
 def test_main_app_mounts_mcp_routes() -> None:
-    """``/mcp/health`` is wired. The streamable-HTTP ``/mcp`` mount is
-    temporarily disabled (starlette lifespan-merge cycle → RecursionError
-    under demo-smoke); re-introduction needs the ASGI callable wrapped in a
-    Starlette sub-app — follow-up."""
+    """``/mcp/health`` and the ``/mcp`` ASGI mount are both wired.
+
+    The mount uses a Starlette sub-app (``build_mcp_subapp``) so the
+    sub-app's lifespan_context is independent — mounting a bare ASGI
+    callable directly triggers a starlette merged_lifespan recursion."""
     from bsupervisor.main import app
 
     paths = {route.path for route in app.router.routes}
     assert "/mcp/health" in paths
+    assert "/mcp" in paths, "streamable-HTTP ASGI sub-app must be mounted at /mcp"
 
 
 @pytest.mark.asyncio
@@ -130,7 +132,7 @@ async def test_streamable_http_asgi_503_when_manager_missing() -> None:
     yields a deterministic 503 instead of crashing — defensive guard so a
     misconfigured deployment is observable."""
     naked = FastAPI()
-    naked.mount("/mcp", mcp_transport.mcp_streamable_http_asgi)
+    naked.mount("/mcp", mcp_transport.build_mcp_subapp(naked))
 
     transport = ASGITransport(app=naked)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

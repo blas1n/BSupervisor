@@ -84,9 +84,14 @@ async def test_http_context_provider_translates_auth_failure(
 
 
 @pytest.mark.asyncio
-async def test_streamable_http_asgi_handles_lifespan_scope() -> None:
-    """The bare ASGI mount completes a lifespan startup/shutdown cycle even
-    when the parent app never bound a session manager."""
+async def test_mcp_subapp_handles_lifespan_scope() -> None:
+    """The Starlette sub-app returned by ``build_mcp_subapp`` completes a
+    lifespan startup/shutdown cycle without touching the parent — that
+    independence is what breaks the merged_lifespan recursion."""
+    from fastapi import FastAPI
+
+    parent = FastAPI()
+    subapp = mcp_transport.build_mcp_subapp(parent)
 
     received: list[dict] = []
 
@@ -103,39 +108,47 @@ async def test_streamable_http_asgi_handles_lifespan_scope() -> None:
     async def _receive() -> dict:
         return next(messages)
 
-    await mcp_transport.mcp_streamable_http_asgi({"type": "lifespan"}, _receive, _send)
+    await subapp({"type": "lifespan"}, _receive, _send)
 
     types = [m["type"] for m in received]
-    assert types == ["lifespan.startup.complete", "lifespan.shutdown.complete"]
+    assert "lifespan.startup.complete" in types
+    assert "lifespan.shutdown.complete" in types
 
 
 @pytest.mark.asyncio
-async def test_streamable_http_asgi_delegates_to_session_manager() -> None:
-    """When ``app.state.mcp_session_manager`` is bound, the ASGI handler
-    forwards directly. The Authorization header is captured into the
-    ContextVar for the duration of ``handle_request``."""
+async def test_mcp_subapp_delegates_to_session_manager() -> None:
+    """The sub-app reads ``parent_app.state.mcp_session_manager`` lazily and
+    captures the Authorization header into the ContextVar for the duration
+    of ``handle_request``."""
+    from fastapi import FastAPI
 
+    parent = FastAPI()
     captured_auth: dict[str, str | None] = {}
-    fake_app = MagicMock()
-    fake_app.state.mcp_session_manager = MagicMock()
 
     async def _fake_handle(scope, receive, send) -> None:  # type: ignore[no-untyped-def]
         captured_auth["seen"] = mcp_transport._current_authorization.get()
 
-    fake_app.state.mcp_session_manager.handle_request = _fake_handle
+    fake_manager = MagicMock()
+    fake_manager.handle_request = _fake_handle
+    parent.state.mcp_session_manager = fake_manager
+
+    subapp = mcp_transport.build_mcp_subapp(parent)
 
     async def _receive() -> dict:
-        return {}
+        return {"type": "http.request", "body": b"", "more_body": False}
 
     async def _send(message: dict) -> None:
         return None
 
     scope = {
         "type": "http",
-        "app": fake_app,
+        "method": "POST",
+        "path": "/",
         "headers": [(b"authorization", b"Bearer bsv_admin_token")],
+        "query_string": b"",
+        "raw_path": b"/",
     }
-    await mcp_transport.mcp_streamable_http_asgi(scope, _receive, _send)
+    await subapp(scope, _receive, _send)
     assert captured_auth["seen"] == "Bearer bsv_admin_token"
     # ContextVar must reset after the request to avoid bleeding across calls.
     assert mcp_transport._current_authorization.get() is None

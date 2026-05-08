@@ -24,7 +24,7 @@ from bsupervisor.api.status import router as status_router
 from bsupervisor.config import settings
 from bsupervisor.core.audit import build_relay
 from bsupervisor.core.seed_rules import seed_default_rules
-from bsupervisor.mcp.transport import mcp_lifespan
+from bsupervisor.mcp.transport import build_mcp_subapp, mcp_lifespan
 from bsupervisor.models.database import async_session_factory, engine
 
 # Phase A — structured JSON logging via shared bsvibe-core helper.
@@ -103,12 +103,13 @@ async def mcp_health() -> dict[str, object]:
     return {"status": "ok", "tool_count": tool_count}
 
 
-# Temporarily disabled — `app.mount("/mcp", <bare ASGI callable>)` triggers
-# a starlette lifespan-merge cycle (RecursionError under demo-smoke). The
-# stdio transport (`bsupervisor mcp serve --transport stdio`) and
-# `/mcp/health` route both keep working; restoring the streamable-HTTP
-# endpoint requires wrapping the ASGI callable in a Starlette sub-app so the
-# lifespan_context is independent — follow-up.
+# Streamable-HTTP MCP endpoint at /mcp.
+# Wrapped in a Starlette sub-app (build_mcp_subapp) so the sub-app's
+# lifespan_context is independent of the parent FastAPI app — mounting a
+# bare ASGI callable directly triggered a starlette merged_lifespan
+# recursion that crashed the demo-smoke container with RecursionError
+# before /api/health/deps could respond.
+app.mount("/mcp", build_mcp_subapp(app))
 
 
 app.include_router(events_router)

@@ -36,6 +36,8 @@ from bsvibe_authz.cache import IntrospectionCache
 from bsvibe_authz.deps import get_settings as get_authz_settings
 from fastapi import FastAPI
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+from starlette.applications import Starlette
+from starlette.routing import Mount
 
 from bsupervisor.mcp.admin_tools import build_admin_registry
 from bsupervisor.mcp.api import ToolContext, ToolPermissionError, ToolRegistry
@@ -164,45 +166,47 @@ async def mcp_lifespan(
             logger.info("mcp_lifespan_stopping")
 
 
-async def mcp_streamable_http_asgi(scope: dict, receive, send) -> None:
-    """ASGI handler mounted at ``/mcp``. Forwards to the lifespan-bound manager."""
+def build_mcp_subapp(parent_app: FastAPI) -> Starlette:
+    """Wrap the streamable-HTTP ASGI handler in a Starlette sub-app so the
+    lifespan_context is independent from the parent FastAPI app.
 
-    if scope["type"] != "http":
-        # Non-HTTP scopes (lifespan / websocket) get a no-op response — the
-        # parent FastAPI app is the lifespan owner; this mount is a leaf
-        # ASGI callable and must be safe to invoke in any phase.
-        if scope["type"] == "lifespan":
-            while True:
-                message = await receive()
-                if message["type"] == "lifespan.startup":
-                    await send({"type": "lifespan.startup.complete"})
-                elif message["type"] == "lifespan.shutdown":
-                    await send({"type": "lifespan.shutdown.complete"})
-                    return
-        return
+    Mounting a bare ASGI callable directly with ``app.mount("/mcp", fn)``
+    triggers starlette's ``merged_lifespan`` recursion (the mounted callable's
+    default lifespan_context resolves back through the parent's, and the
+    parent re-merges it on every iteration — RecursionError under
+    ``app.router.lifespan_context``). A Starlette sub-app owns its own
+    explicit no-op lifespan, breaking the cycle.
 
-    fastapi_app = scope.get("app")
-    manager = getattr(getattr(fastapi_app, "state", None), "mcp_session_manager", None)
-    if manager is None:
-        await send(
-            {
-                "type": "http.response.start",
-                "status": 503,
-                "headers": [(b"content-type", b"text/plain; charset=utf-8")],
-            }
-        )
-        await send({"type": "http.response.body", "body": b"MCP server not initialized"})
-        return
+    The endpoint reads the streamable-HTTP session manager from
+    ``parent_app.state`` lazily (set by :func:`mcp_lifespan` during parent
+    startup), so it doesn't matter that the sub-app is constructed before
+    the parent's lifespan has run.
+    """
 
-    headers = dict(scope.get("headers", []))
-    raw_authorization = headers.get(b"authorization")
-    authorization = raw_authorization.decode("latin-1") if raw_authorization else None
+    async def _http_handler(scope: dict, receive, send) -> None:
+        manager = getattr(parent_app.state, "mcp_session_manager", None)
+        if manager is None:
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 503,
+                    "headers": [(b"content-type", b"text/plain; charset=utf-8")],
+                }
+            )
+            await send({"type": "http.response.body", "body": b"MCP server not initialized"})
+            return
 
-    token_handle = _current_authorization.set(authorization)
-    try:
-        await manager.handle_request(scope, receive, send)
-    finally:
-        _current_authorization.reset(token_handle)
+        headers = dict(scope.get("headers", []))
+        raw_authorization = headers.get(b"authorization")
+        authorization = raw_authorization.decode("latin-1") if raw_authorization else None
+
+        token_handle = _current_authorization.set(authorization)
+        try:
+            await manager.handle_request(scope, receive, send)
+        finally:
+            _current_authorization.reset(token_handle)
+
+    return Starlette(routes=[Mount("/", app=_http_handler)])
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +273,7 @@ async def run_stdio_server(*, registry: ToolRegistry | None = None) -> None:
 
 __all__ = [
     "BOOTSTRAP_TOKEN_ENV",
+    "build_mcp_subapp",
     "mcp_lifespan",
-    "mcp_streamable_http_asgi",
     "run_stdio_server",
 ]
