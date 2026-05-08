@@ -24,6 +24,7 @@ from bsupervisor.api.status import router as status_router
 from bsupervisor.config import settings
 from bsupervisor.core.audit import build_relay
 from bsupervisor.core.seed_rules import seed_default_rules
+from bsupervisor.mcp.transport import mcp_lifespan, mcp_streamable_http_asgi
 from bsupervisor.models.database import async_session_factory, engine
 
 # Phase A — structured JSON logging via shared bsvibe-core helper.
@@ -59,12 +60,17 @@ async def lifespan(app: FastAPI):
     await audit_relay.start()
     logger.info("audit_relay_started", running=audit_relay.is_running())
 
-    try:
-        yield
-    finally:
-        await audit_relay.stop()
-        await engine.dispose()
-        logger.info("app_shutdown")
+    # Phase 7 — boot the MCP first-class API. ``mcp_lifespan`` builds the
+    # admin tool registry, owns the streamable-HTTP session manager's
+    # anyio task group, and pins both onto ``app.state`` so the ASGI mount
+    # at ``/mcp`` and the ``/mcp/health`` endpoint see one source of truth.
+    async with mcp_lifespan(app):
+        try:
+            yield
+        finally:
+            await audit_relay.stop()
+            await engine.dispose()
+            logger.info("app_shutdown")
 
 
 app = FastAPI(
@@ -83,6 +89,22 @@ app.add_middleware(RequestIdMiddleware)
 # ``os.environ.get`` directly, bypassing validation). Phase A: delegated
 # to the shared ``bsvibe_fastapi.add_cors_middleware`` helper.
 add_cors_middleware(app, settings)
+
+
+# Phase 7 — MCP first-class API. ``/mcp/health`` is a regular FastAPI
+# route registered BEFORE the ``/mcp`` ASGI mount so it wins the path
+# match; the registry is published onto ``app.state`` by ``mcp_lifespan``.
+# The mount at ``/mcp`` delegates to the streamable-HTTP session manager
+# bound during lifespan startup.
+@app.get("/mcp/health")
+async def mcp_health() -> dict[str, object]:
+    registry = getattr(app.state, "mcp_registry", None)
+    tool_count = len(registry.names()) if registry is not None else 0
+    return {"status": "ok", "tool_count": tool_count}
+
+
+app.mount("/mcp", mcp_streamable_http_asgi)
+
 
 app.include_router(events_router)
 app.include_router(incidents_router)

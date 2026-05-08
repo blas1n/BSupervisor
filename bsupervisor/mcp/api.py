@@ -141,6 +141,15 @@ class ToolRegistry:
     def names(self) -> list[str]:
         return list(self._tools.keys())
 
+    def keys(self) -> tuple[()]:
+        # Empty Mapping shim — when ``mcp_lifespan`` is wired straight as a
+        # FastAPI ``lifespan`` (test fixtures do this), Starlette runs
+        # ``scope["state"].update(yielded_value)``. Yielding the registry
+        # keeps the direct-cm test surface clean (``async with ... as registry``)
+        # while ``keys() == ()`` makes ``dict.update`` a no-op so we don't
+        # leak tool names into ASGI request state.
+        return ()
+
     # -- mcp.types surface ---------------------------------------------------
 
     def list_tools(self) -> list[mcp_types.Tool]:

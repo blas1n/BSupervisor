@@ -364,6 +364,10 @@ def test_catalog_covers_every_protected_route() -> None:
             continue
         if route.path == "/openapi.json":
             continue
+        # ``/mcp/health`` is the MCP-surface liveness probe — load
+        # balancers hit it without auth, same contract as ``/api/health``.
+        if route.path == "/mcp/health":
+            continue
         for method in route.methods:
             if method == "HEAD":
                 continue
