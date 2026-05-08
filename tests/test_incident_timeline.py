@@ -276,3 +276,92 @@ class TestIncidentAPI:
         # Verify it's resolved
         detail_resp = await client.get(f"/api/incidents/{incident_id}")
         assert detail_resp.json()["status"] == "resolved"
+
+    async def test_ack_incident(self, client):
+        # TASK-004 — `bsupervisor incidents ack` needs an idempotent
+        # acknowledged-state transition distinct from resolve so an
+        # operator can flag triage in progress without closing the row.
+        await self._create_blocked_event(client)
+
+        list_resp = await client.get("/api/incidents")
+        incident_id = list_resp.json()[0]["id"]
+
+        ack_resp = await client.post(f"/api/incidents/{incident_id}/ack")
+        assert ack_resp.status_code == 200
+        assert ack_resp.json()["status"] == "acknowledged"
+
+        detail_resp = await client.get(f"/api/incidents/{incident_id}")
+        assert detail_resp.json()["status"] == "acknowledged"
+
+    async def test_ack_nonexistent_incident(self, client):
+        from uuid import uuid4
+
+        resp = await client.post(f"/api/incidents/{uuid4()}/ack")
+        assert resp.status_code == 404
+
+    async def test_list_incidents_filter_by_severity(self, client, db_session: AsyncSession):
+        # Seed two incidents at different severities directly so the
+        # filter is exercised independently of the rule engine's
+        # severity inference.
+        now = datetime.now(timezone.utc)
+        critical = Incident(
+            agent_id="agent-c",
+            title="critical incident",
+            status=IncidentStatus.OPEN,
+            severity="critical",
+            event_count=1,
+            started_at=now,
+            updated_at=now,
+            tenant_id="tenant-test",
+        )
+        medium = Incident(
+            agent_id="agent-m",
+            title="medium incident",
+            status=IncidentStatus.OPEN,
+            severity="medium",
+            event_count=1,
+            started_at=now,
+            updated_at=now,
+            tenant_id="tenant-test",
+        )
+        db_session.add_all([critical, medium])
+        await db_session.commit()
+
+        resp = await client.get("/api/incidents", params={"severity": "critical"})
+        assert resp.status_code == 200
+        rows = resp.json()
+        assert all(r["severity"] == "critical" for r in rows)
+        assert any(r["agent_id"] == "agent-c" for r in rows)
+        assert not any(r["agent_id"] == "agent-m" for r in rows)
+
+    async def test_list_incidents_filter_by_since(self, client, db_session: AsyncSession):
+        now = datetime.now(timezone.utc)
+        old = Incident(
+            agent_id="agent-old",
+            title="old incident",
+            status=IncidentStatus.OPEN,
+            severity="medium",
+            event_count=1,
+            started_at=now - timedelta(days=10),
+            updated_at=now - timedelta(days=10),
+            tenant_id="tenant-test",
+        )
+        recent = Incident(
+            agent_id="agent-recent",
+            title="recent incident",
+            status=IncidentStatus.OPEN,
+            severity="medium",
+            event_count=1,
+            started_at=now,
+            updated_at=now,
+            tenant_id="tenant-test",
+        )
+        db_session.add_all([old, recent])
+        await db_session.commit()
+
+        cutoff = (now - timedelta(days=1)).isoformat()
+        resp = await client.get("/api/incidents", params={"since": cutoff})
+        assert resp.status_code == 200
+        ids = {r["agent_id"] for r in resp.json()}
+        assert "agent-recent" in ids
+        assert "agent-old" not in ids

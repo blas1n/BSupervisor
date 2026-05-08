@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import CurrentUser, require_permission
+from bsupervisor.api.deps import CurrentUser, require_scope
 from bsupervisor.core.rule_engine import invalidate_rules_cache
 from bsupervisor.core.rule_packs import get_pack, list_packs
 from bsupervisor.models.audit_rule import AuditRule
@@ -49,7 +49,7 @@ class InstallResponse(BaseModel):
 @router.get("/rule-packs", response_model=list[PackSummary])
 async def list_rule_packs(
     _user: CurrentUser,
-    _allowed: None = Depends(require_permission("bsupervisor.rules.read")),
+    _allowed: None = Depends(require_scope("supervisor:agents:read")),
 ) -> list[PackSummary]:
     return [PackSummary(**p) for p in list_packs()]
 
@@ -58,7 +58,7 @@ async def list_rule_packs(
 async def get_rule_pack(
     pack_id: str,
     _user: CurrentUser,
-    _allowed: None = Depends(require_permission("bsupervisor.rules.read")),
+    _allowed: None = Depends(require_scope("supervisor:agents:read")),
 ) -> PackDetail:
     pack = get_pack(pack_id)
     if pack is None:
@@ -78,7 +78,7 @@ async def get_rule_pack(
 async def install_rule_pack(
     pack_id: str,
     user: CurrentUser,
-    _allowed: None = Depends(require_permission("bsupervisor.rules.write")),
+    _allowed: None = Depends(require_scope("supervisor:agents:write")),
     session: AsyncSession = Depends(get_session),
 ) -> InstallResponse:
     pack = get_pack(pack_id)

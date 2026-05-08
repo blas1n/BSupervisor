@@ -12,7 +12,7 @@ from bsupervisor.api.deps import (
     CurrentUser,
     ServiceKey,
     bsupervisor_service_auth,
-    require_permission,
+    require_scope,
 )
 from bsupervisor.api.schemas import CostAgentEntry, CostDataResponse, CostRequest, CostResponse
 from bsupervisor.config import settings
@@ -33,7 +33,7 @@ TREND_DAYS = 30
 @router.get("/costs", response_model=CostDataResponse)
 async def list_costs(
     user: CurrentUser,
-    _allowed: None = Depends(require_permission("bsupervisor.costs.read")),
+    _allowed: None = Depends(require_scope("supervisor:audit:read")),
     session: AsyncSession = Depends(get_session),
 ) -> CostDataResponse:
     now = datetime.now(timezone.utc)
