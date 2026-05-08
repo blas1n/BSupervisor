@@ -1,14 +1,17 @@
-"""Phase 0 P0.5 — bsvibe-authz integration tests.
+"""Phase 0 P0.5 / Phase 5b — bsvibe-authz integration tests.
 
 Verifies that the BSupervisor auth layer:
 1. Re-exports `CurrentUser` and `ServiceKeyAuth("bsupervisor")` from
    ``bsupervisor.api.deps`` (replacing the legacy bsvibe-auth shim).
-2. Each route is guarded by ``require_permission(...)`` with the correct
-   ``bsupervisor.<resource>.<action>`` identifier.
-3. ``POST /api/events`` is service-only — accepts a service JWT scoped to
+2. ``POST /api/events`` is service-only — accepts a service JWT scoped to
    ``aud="bsupervisor"`` and rejects user JWTs with 401/403.
-4. ``verify_service_jwt`` from bsvibe-authz happy-path / unhappy-path works
+3. ``verify_service_jwt`` from bsvibe-authz happy-path / unhappy-path works
    end-to-end for the BSupervisor receiver.
+
+Phase 5b note: per-route admin gates moved from ``require_permission`` (OpenFGA
+tuples) to ``require_scope`` (Phase 1 token-cutover catalog). The scope
+matrix lives in ``tests/api/test_auth.py`` and is the single source of
+truth post-migration.
 
 Lockin §3 decision #16, Auth_Design §6.4.
 """
@@ -292,135 +295,8 @@ class TestEventsServiceOnly:
         assert resp.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# require_permission — denied path returns 403
-# ---------------------------------------------------------------------------
-
-
-class TestRequirePermissionDeny:
-    """When OpenFGA denies the user, the endpoint MUST return 403.
-
-    Wires up an authenticated *user* request to ``GET /api/rules`` and uses
-    ``fake_fga_deny`` to force a deny decision.
-    """
-
-    async def test_get_rules_denied_returns_403(self, db_session, authz_settings, fake_fga_deny) -> None:
-        async def _override_get_session():
-            yield db_session
-
-        app.dependency_overrides[get_session] = _override_get_session
-        app.dependency_overrides[get_settings_dep] = lambda: authz_settings
-        app.dependency_overrides[get_openfga_client] = lambda: fake_fga_deny
-        from bsvibe_authz.cache import PermissionCache
-
-        cache = PermissionCache(ttl_s=0)
-        app.dependency_overrides[get_permission_cache] = lambda: cache
-        try:
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                token = _make_user_jwt()
-                resp = await ac.get(
-                    "/api/rules",
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-                assert resp.status_code == 403
-                # OpenFGA was actually consulted (defense-in-depth check).
-                assert len(fake_fga_deny.checks) == 1
-        finally:
-            app.dependency_overrides.clear()
-
-
-# ---------------------------------------------------------------------------
-# require_permission — happy path
-# ---------------------------------------------------------------------------
-
-
-class TestRequirePermissionAllow:
-    async def test_get_rules_allowed(
-        self,
-        db_session,
-        authz_settings,
-        fake_fga,
-    ) -> None:
-        async def _override_get_session():
-            yield db_session
-
-        app.dependency_overrides[get_session] = _override_get_session
-        app.dependency_overrides[get_settings_dep] = lambda: authz_settings
-        app.dependency_overrides[get_openfga_client] = lambda: fake_fga
-        from bsvibe_authz.cache import PermissionCache
-
-        cache = PermissionCache(ttl_s=0)
-        app.dependency_overrides[get_permission_cache] = lambda: cache
-        try:
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                token = _make_user_jwt()
-                resp = await ac.get(
-                    "/api/rules",
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-                assert resp.status_code == 200
-                # OpenFGA was consulted exactly once for the rules.read check.
-                assert any(call[1] == "read" for call in fake_fga.checks)
-        finally:
-            app.dependency_overrides.clear()
-
-
-# ---------------------------------------------------------------------------
-# Route → permission matrix snapshot
-# ---------------------------------------------------------------------------
-
-
-class TestRoutePermissionMatrix:
-    """Each protected route MUST resolve to a known bsupervisor permission.
-
-    The matrix below is the single source of truth for P0.5 BSupervisor
-    (Phase 0 decision #7). When a route is added, this table must be
-    updated *and* the route decorator must reference the same identifier.
-    """
-
-    EXPECTED: dict[tuple[str, str], str | None] = {
-        # path, method → permission OR None for service-only / health
-        ("GET", "/api/events"): "bsupervisor.events.read",
-        ("POST", "/api/events"): None,  # service-only — no require_permission
-        ("POST", "/api/events/{event_id}/feedback"): "bsupervisor.events.write",
-        ("GET", "/api/incidents"): "bsupervisor.incidents.read",
-        ("GET", "/api/incidents/{incident_id}"): "bsupervisor.incidents.read",
-        ("POST", "/api/incidents/{incident_id}/resolve"): "bsupervisor.incidents.write",
-        ("GET", "/api/anomalies"): "bsupervisor.anomalies.read",
-        ("GET", "/api/costs"): "bsupervisor.costs.read",
-        ("POST", "/api/costs"): None,  # service-only — ingestion
-        ("GET", "/api/reports/daily"): "bsupervisor.reports.read",
-        ("GET", "/api/rules"): "bsupervisor.rules.read",
-        ("POST", "/api/rules"): "bsupervisor.rules.write",
-        ("PUT", "/api/rules/{rule_id}"): "bsupervisor.rules.write",
-        ("DELETE", "/api/rules/{rule_id}"): "bsupervisor.rules.write",
-        ("GET", "/api/rule-packs"): "bsupervisor.rules.read",
-        ("GET", "/api/rule-packs/{pack_id}"): "bsupervisor.rules.read",
-        ("POST", "/api/rule-packs/{pack_id}/install"): "bsupervisor.rules.write",
-        ("GET", "/api/settings"): "bsupervisor.config.read",
-        ("PUT", "/api/settings"): "bsupervisor.config.write",
-        ("GET", "/api/status"): "bsupervisor.status.read",
-    }
-
-    def test_matrix_keys_cover_every_protected_route(self) -> None:
-        """Every API route in the FastAPI app must appear in EXPECTED."""
-        from fastapi.routing import APIRoute
-
-        actual: set[tuple[str, str]] = set()
-        for route in app.router.routes:
-            if not isinstance(route, APIRoute):
-                continue
-            if route.path.startswith("/api/health"):
-                continue
-            if route.path == "/openapi.json":
-                continue
-            for method in route.methods:
-                if method == "HEAD":
-                    continue
-                actual.add((method, route.path))
-        missing = actual - set(self.EXPECTED.keys())
-        unexpected = set(self.EXPECTED.keys()) - actual
-        assert not missing, f"routes missing from matrix: {missing}"
-        assert not unexpected, f"matrix has stale entries: {unexpected}"
+# Phase 5b note — Route gate semantics moved from OpenFGA tuples
+# (``require_permission``) to scope strings (``require_scope``). The
+# scope catalog and per-route assertions now live in
+# ``tests/api/test_auth.py``; the matrix here was deleted to avoid
+# duplicating the source of truth.

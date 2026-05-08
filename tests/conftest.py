@@ -70,7 +70,12 @@ async def db_session(db_engine):
 # Test user identity used by the default ``client`` fixture. Tests that
 # need a different principal can override ``get_current_user`` directly
 # in their own scope.
-_fake_user = User(id="test-user-id", email="test@example.com", active_tenant_id="tenant-test")
+_fake_user = User(
+    id="test-user-id",
+    email="test@example.com",
+    active_tenant_id="tenant-test",
+    scope=["supervisor:*"],
+)
 
 
 class _AllowAllFGA:

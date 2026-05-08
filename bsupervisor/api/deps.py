@@ -1,19 +1,21 @@
 """Authentication dependencies for FastAPI endpoints.
 
-Phase 0 P0.5 — these now come from the shared ``bsvibe-authz`` package
-so all four BSVibe products converge on a single auth surface.
+Phase 5b — admin routes are gated by ``require_scope(...)`` (Phase 1
+token-cutover catalog) instead of legacy OpenFGA tuples. The 3-way
+dispatch (bootstrap → opaque → JWT) lives in ``bsvibe-authz``; this
+module is the BSupervisor-specific wrapper that:
 
-- :data:`CurrentUser` — Annotated type alias for an authenticated user.
-- :func:`get_current_user` — FastAPI dep that decodes a user JWT.
-- :class:`ServiceKeyAuth` — service-only verifier (audience-scoped JWTs).
-- :data:`bsupervisor_service_auth` — pre-built ``ServiceKeyAuth("bsupervisor")``.
-
-Routes use :func:`require_permission` (re-exported below) to plug into
-OpenFGA. The ``permission`` argument is always
-``bsupervisor.<resource>.<action>`` per Lockin §3 #16.
+- re-exports ``CurrentUser``, ``ServiceKeyAuth``, etc. from bsvibe-authz so
+  every router imports auth primitives from a single place.
+- wraps ``require_scope`` with a closure tag (``_bsvibe_scope``) so the
+  scope-matrix test (``tests/api/test_auth.py``) can introspect the gate.
+- keeps ``require_permission`` re-exported for the rare OpenFGA-tuple use
+  cases (currently none post-migration; retained as an escape hatch).
 """
 
 from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
 
 import structlog
 from bsvibe_authz import (
@@ -29,11 +31,28 @@ from bsvibe_authz.deps import (
     get_settings_dep,
     require_permission,
 )
+from bsvibe_authz.deps import (
+    require_scope as _authz_require_scope,
+)
 
 logger = structlog.get_logger(__name__)
 
 # Pre-built dependency — service JWTs MUST be scoped to ``aud="bsupervisor"``.
 bsupervisor_service_auth = ServiceKeyAuth(audience="bsupervisor")
+
+
+def require_scope(scope: str) -> Callable[..., Awaitable[None]]:
+    """Wrap ``bsvibe_authz.require_scope`` and tag the closure.
+
+    Phase 1 token cutover gates admin routes on scope strings carried by
+    bootstrap (``"*"``) and opaque (``supervisor:<resource>:<action>``)
+    tokens. The ``_bsvibe_scope`` tag lets the scope-matrix test pin the
+    catalog so future refactors cannot silently downgrade a gate.
+    """
+    dep = _authz_require_scope(scope)
+    dep._bsvibe_scope = scope  # type: ignore[attr-defined]
+    return dep
+
 
 __all__ = [
     "CurrentUser",
@@ -46,4 +65,5 @@ __all__ = [
     "get_permission_cache",
     "get_settings_dep",
     "require_permission",
+    "require_scope",
 ]
