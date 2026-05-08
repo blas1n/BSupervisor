@@ -1,0 +1,208 @@
+"""Tests for resolve_tool_context — MCP-transport 3-way auth dispatch.
+
+Mirrors ``bsvibe_authz.deps.get_current_user`` (bootstrap → opaque → JWT)
+but for MCP transports (HTTP /mcp + stdio). Used by both transports so the
+auth path is identical between them.
+
+Audit emission is wired by the caller via ``audit_emit_factory`` so the
+registry stays decoupled from any particular outbox session.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import time
+
+import jwt
+import pytest
+from bsvibe_authz import IntrospectionResponse, Settings, User
+from bsvibe_authz.cache import IntrospectionCache
+
+from bsupervisor.mcp.api import ToolContext
+from bsupervisor.mcp.auth import MCPAuthError, resolve_tool_context
+
+
+def _settings(**overrides) -> Settings:
+    base = {
+        "bsvibe_auth_url": "https://auth.bsvibe.dev",
+        "openfga_api_url": "http://openfga.test:8080",
+        "openfga_store_id": "store-test",
+        "openfga_auth_model_id": "model-test",
+        "service_token_signing_secret": "test-service-signing-secret-do-not-use",
+        "user_jwt_secret": "test-user-jwt-secret-do-not-use",
+        "user_jwt_algorithm": "HS256",
+        "user_jwt_audience": "bsvibe",
+        "user_jwt_issuer": "https://auth.bsvibe.dev",
+    }
+    base.update(overrides)
+    return Settings(**base)
+
+
+class _StubIntrospectionClient:
+    """Returns a pre-canned introspection response."""
+
+    def __init__(self, response: IntrospectionResponse) -> None:
+        self._response = response
+        self.calls: list[str] = []
+
+    async def introspect(self, token: str) -> IntrospectionResponse:
+        self.calls.append(token)
+        return self._response
+
+
+@pytest.mark.asyncio
+async def test_missing_authorization_raises() -> None:
+    with pytest.raises(MCPAuthError):
+        await resolve_tool_context(
+            authorization=None,
+            settings=_settings(),
+            introspection_client=None,
+            introspection_cache=IntrospectionCache(ttl_s=30),
+        )
+
+
+@pytest.mark.asyncio
+async def test_non_bearer_scheme_raises() -> None:
+    with pytest.raises(MCPAuthError):
+        await resolve_tool_context(
+            authorization="Basic abc",
+            settings=_settings(),
+            introspection_client=None,
+            introspection_cache=IntrospectionCache(ttl_s=30),
+        )
+
+
+@pytest.mark.asyncio
+async def test_bootstrap_token_returns_admin_user() -> None:
+    raw = "bsv_admin_letmein"
+    settings = _settings(bootstrap_token_hash=hashlib.sha256(raw.encode()).hexdigest())
+
+    ctx = await resolve_tool_context(
+        authorization=f"Bearer {raw}",
+        settings=settings,
+        introspection_client=None,
+        introspection_cache=IntrospectionCache(ttl_s=30),
+    )
+
+    assert isinstance(ctx, ToolContext)
+    assert ctx.user.id == "bootstrap"
+    assert ctx.user.scope == ["*"]
+
+
+@pytest.mark.asyncio
+async def test_bootstrap_token_mismatch_raises() -> None:
+    settings = _settings(bootstrap_token_hash="0" * 64)
+    with pytest.raises(MCPAuthError):
+        await resolve_tool_context(
+            authorization="Bearer bsv_admin_wrong",
+            settings=settings,
+            introspection_client=None,
+            introspection_cache=IntrospectionCache(ttl_s=30),
+        )
+
+
+@pytest.mark.asyncio
+async def test_opaque_token_dispatches_to_introspection() -> None:
+    response = IntrospectionResponse(
+        active=True,
+        sub="service:bsgateway",
+        tenant="tenant-test",
+        scope=["supervisor:audit:read"],
+    )
+    client = _StubIntrospectionClient(response)
+
+    ctx = await resolve_tool_context(
+        authorization="Bearer bsv_sk_xyz",
+        settings=_settings(),
+        introspection_client=client,  # type: ignore[arg-type]
+        introspection_cache=IntrospectionCache(ttl_s=30),
+    )
+
+    assert ctx.user.id == "service:bsgateway"
+    assert ctx.user.scope == ["supervisor:audit:read"]
+    assert client.calls == ["bsv_sk_xyz"]
+
+
+@pytest.mark.asyncio
+async def test_opaque_token_inactive_raises() -> None:
+    client = _StubIntrospectionClient(IntrospectionResponse(active=False))
+
+    with pytest.raises(MCPAuthError):
+        await resolve_tool_context(
+            authorization="Bearer bsv_sk_revoked",
+            settings=_settings(),
+            introspection_client=client,  # type: ignore[arg-type]
+            introspection_cache=IntrospectionCache(ttl_s=30),
+        )
+
+
+@pytest.mark.asyncio
+async def test_opaque_token_without_introspection_falls_through_to_jwt() -> None:
+    # bsv_sk_ prefix but introspection_client=None → fall through to JWT path,
+    # which should fail because the token is not a JWT.
+    with pytest.raises(MCPAuthError):
+        await resolve_tool_context(
+            authorization="Bearer bsv_sk_no_introspection",
+            settings=_settings(),
+            introspection_client=None,
+            introspection_cache=IntrospectionCache(ttl_s=30),
+        )
+
+
+@pytest.mark.asyncio
+async def test_user_jwt_returns_user() -> None:
+    settings = _settings()
+    payload = {
+        "sub": "user-123",
+        "email": "u@example.com",
+        "active_tenant_id": "tenant-test",
+        "aud": settings.user_jwt_audience,
+        "iss": settings.user_jwt_issuer,
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 60,
+    }
+    token = jwt.encode(payload, settings.user_jwt_secret, algorithm="HS256")
+
+    ctx = await resolve_tool_context(
+        authorization=f"Bearer {token}",
+        settings=settings,
+        introspection_client=None,
+        introspection_cache=IntrospectionCache(ttl_s=30),
+    )
+
+    assert isinstance(ctx.user, User)
+    assert ctx.user.id == "user-123"
+    assert ctx.user.email == "u@example.com"
+
+
+@pytest.mark.asyncio
+async def test_invalid_jwt_raises() -> None:
+    with pytest.raises(MCPAuthError):
+        await resolve_tool_context(
+            authorization="Bearer not-a-real-jwt",
+            settings=_settings(),
+            introspection_client=None,
+            introspection_cache=IntrospectionCache(ttl_s=30),
+        )
+
+
+@pytest.mark.asyncio
+async def test_audit_emit_factory_is_attached_to_context() -> None:
+    raw = "bsv_admin_letmein"
+    settings = _settings(bootstrap_token_hash=hashlib.sha256(raw.encode()).hexdigest())
+
+    captured: list[tuple[str, dict]] = []
+
+    async def emit(event: str, payload: dict) -> None:
+        captured.append((event, payload))
+
+    ctx = await resolve_tool_context(
+        authorization=f"Bearer {raw}",
+        settings=settings,
+        introspection_client=None,
+        introspection_cache=IntrospectionCache(ttl_s=30),
+        audit_emit=emit,
+    )
+
+    await ctx.audit_emit("e", {"k": "v"})
+    assert captured == [("e", {"k": "v"})]
