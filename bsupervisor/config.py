@@ -50,6 +50,16 @@ class Settings(FastApiSettings, DatabaseSettings, AlertSettings):
     bsvibe_client_id: str = ""
     bsvibe_client_secret: str = ""
 
+    # Phase 1 token-cutover hooks (Settings only — wiring happens in a
+    # follow-up PR). bootstrap_token_hash is sha256(bsv_admin_…) hex; raw
+    # bootstrap is never stored. introspection_url enables the RFC 7662
+    # opaque-token path; client_id/secret are the Basic-auth pair on the
+    # central auth.bsvibe.dev /api/tokens/introspect endpoint.
+    bootstrap_token_hash: str = ""
+    introspection_url: str = ""
+    introspection_client_id: str = ""
+    introspection_client_secret: str = ""
+
     # Cost alerts
     daily_cost_threshold_usd: Decimal = Decimal("50.00")
 
