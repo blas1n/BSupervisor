@@ -187,6 +187,88 @@ async def test_invalid_jwt_raises() -> None:
 
 
 @pytest.mark.asyncio
+async def test_pat_jwt_falls_back_to_introspection() -> None:
+    """Device-grant PATs are JWTs signed with SERVICE_TOKEN_SIGNING_SECRET,
+    not USER_JWT_SECRET — verify_user_jwt rejects them. Introspection picks
+    them up by jti. Mirrors bsvibe-authz get_current_user."""
+    response = IntrospectionResponse(
+        active=True,
+        sub="user-pat",
+        tenant="tenant-test",
+        scope=["gateway:models:read"],
+    )
+    client = _StubIntrospectionClient(response)
+
+    bogus_pat = jwt.encode(
+        {"sub": "user-pat", "exp": 9_999_999_999, "token_type": "pat"},
+        "different-signing-secret",
+        algorithm="HS256",
+    )
+
+    ctx = await resolve_tool_context(
+        authorization=f"Bearer {bogus_pat}",
+        settings=_settings(),
+        introspection_client=client,  # type: ignore[arg-type]
+        introspection_cache=IntrospectionCache(ttl_s=30),
+    )
+
+    assert ctx.user.id == "user-pat"
+    assert client.calls == [bogus_pat]
+
+
+@pytest.mark.asyncio
+async def test_pat_jwt_inactive_raises() -> None:
+    client = _StubIntrospectionClient(IntrospectionResponse(active=False))
+
+    bogus_pat = jwt.encode(
+        {"sub": "x", "exp": 9_999_999_999},
+        "different-signing-secret",
+        algorithm="HS256",
+    )
+
+    with pytest.raises(MCPAuthError):
+        await resolve_tool_context(
+            authorization=f"Bearer {bogus_pat}",
+            settings=_settings(),
+            introspection_client=client,  # type: ignore[arg-type]
+            introspection_cache=IntrospectionCache(ttl_s=30),
+        )
+
+
+@pytest.mark.asyncio
+async def test_pat_jwt_no_introspection_client_raises() -> None:
+    """JWT-shaped token + introspection unconfigured → 401 (no fallback)."""
+    bogus_pat = jwt.encode(
+        {"sub": "x", "exp": 9_999_999_999},
+        "different-signing-secret",
+        algorithm="HS256",
+    )
+
+    with pytest.raises(MCPAuthError):
+        await resolve_tool_context(
+            authorization=f"Bearer {bogus_pat}",
+            settings=_settings(),
+            introspection_client=None,
+            introspection_cache=IntrospectionCache(ttl_s=30),
+        )
+
+
+@pytest.mark.asyncio
+async def test_non_jwt_garbage_does_not_call_introspection() -> None:
+    """Random non-JWT strings should not waste an introspection call."""
+    client = _StubIntrospectionClient(IntrospectionResponse(active=False))
+
+    with pytest.raises(MCPAuthError):
+        await resolve_tool_context(
+            authorization="Bearer not-a-jwt",
+            settings=_settings(),
+            introspection_client=client,  # type: ignore[arg-type]
+            introspection_cache=IntrospectionCache(ttl_s=30),
+        )
+    assert client.calls == []
+
+
+@pytest.mark.asyncio
 async def test_audit_emit_factory_is_attached_to_context() -> None:
     raw = "bsv_admin_letmein"
     settings = _settings(bootstrap_token_hash=hashlib.sha256(raw.encode()).hexdigest())
