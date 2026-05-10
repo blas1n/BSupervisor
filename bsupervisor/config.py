@@ -19,7 +19,7 @@ from decimal import Decimal
 from bsvibe_alerts import AlertSettings
 from bsvibe_fastapi import FastApiSettings
 from bsvibe_sqlalchemy import DatabaseSettings
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import SettingsConfigDict
 
 
@@ -50,15 +50,42 @@ class Settings(FastApiSettings, DatabaseSettings, AlertSettings):
     bsvibe_client_id: str = ""
     bsvibe_client_secret: str = ""
 
-    # Phase 1 token-cutover hooks (Settings only — wiring happens in a
-    # follow-up PR). bootstrap_token_hash is sha256(bsv_admin_…) hex; raw
-    # bootstrap is never stored. introspection_url enables the RFC 7662
-    # opaque-token path; client_id/secret are the Basic-auth pair on the
-    # central auth.bsvibe.dev /api/tokens/introspect endpoint.
-    bootstrap_token_hash: str = ""
-    introspection_url: str = ""
-    introspection_client_id: str = ""
-    introspection_client_secret: str = ""
+    # Phase 1 token-cutover hooks. bootstrap_token_hash is sha256(bsv_admin_…)
+    # hex; raw bootstrap is never stored. introspection_url enables the
+    # RFC 7662 opaque-token path; client_id/secret are the Basic-auth pair
+    # on the central auth.bsvibe.dev /api/tokens/introspect endpoint.
+    #
+    # ``BSV_*``-prefixed aliases mirror the alias set on
+    # :class:`bsvibe_authz.Settings` (bsvibe-python PR #21) so a single
+    # ``.env`` configures the lib + product layers consistently. Note:
+    # BSupervisor currently consumes the *lib* AuthzSettings directly via
+    # ``bsvibe_authz.deps.get_settings`` (see ``bsupervisor/mcp/transport.py``
+    # ``_build_introspection_inputs``); these declarations on the product
+    # Settings keep the field surface aligned for any future wire that
+    # would forward them into a per-product builder.
+    bootstrap_token_hash: str = Field(
+        default="",
+        validation_alias=AliasChoices("bootstrap_token_hash", "bsv_bootstrap_token_hash"),
+    )
+    introspection_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("introspection_url", "bsv_introspection_url"),
+    )
+    introspection_client_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("introspection_client_id", "bsv_introspection_client_id"),
+    )
+    introspection_client_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("introspection_client_secret", "bsv_introspection_client_secret"),
+    )
+
+    # User-JWT verification — declared on the product Settings for
+    # consistency with the lib Settings (which reads it from env via its
+    # own AliasChoices). BSupervisor doesn't currently forward this into
+    # a per-product authz builder; the lib reads ``USER_JWT_JWKS_URL``
+    # directly. See handoff §사전 발견 #6.
+    user_jwt_jwks_url: str = ""
 
     # Cost alerts
     daily_cost_threshold_usd: Decimal = Decimal("50.00")
