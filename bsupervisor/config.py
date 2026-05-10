@@ -77,9 +77,7 @@ class Settings(FastApiSettings, DatabaseSettings, AlertSettings):
     )
     introspection_client_secret: str = Field(
         default="",
-        validation_alias=AliasChoices(
-            "introspection_client_secret", "bsv_introspection_client_secret"
-        ),
+        validation_alias=AliasChoices("introspection_client_secret", "bsv_introspection_client_secret"),
     )
 
     # User-JWT verification — declared on the product Settings for
