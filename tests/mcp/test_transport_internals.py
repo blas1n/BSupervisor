@@ -83,6 +83,30 @@ async def test_http_context_provider_translates_auth_failure(
         await provider()
 
 
+def test_build_introspection_inputs_constructs_client_with_introspection_url_kwarg(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression for F16 (Round 4): the IntrospectionClient constructor takes
+    ``introspection_url=``, not ``url=``. Passing the wrong kwarg crashes every
+    MCP tool call with a TypeError. We exercise the real construction path with
+    env vars set so the if-branch is taken."""
+    from bsvibe_authz import IntrospectionClient
+
+    monkeypatch.setenv("INTROSPECTION_URL", "https://auth.example.invalid/oauth/introspect")
+    monkeypatch.setenv("INTROSPECTION_CLIENT_ID", "supervisor")
+    monkeypatch.setenv("INTROSPECTION_CLIENT_SECRET", "test-secret")
+
+    from bsvibe_authz.settings import reset_settings_cache
+
+    reset_settings_cache()
+    try:
+        _, introspection_client, _ = mcp_transport._build_introspection_inputs()
+    finally:
+        reset_settings_cache()
+
+    assert isinstance(introspection_client, IntrospectionClient)
+
+
 @pytest.mark.asyncio
 async def test_mcp_subapp_handles_lifespan_scope() -> None:
     """The Starlette sub-app returned by ``build_mcp_subapp`` completes a
