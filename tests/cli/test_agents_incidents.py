@@ -686,9 +686,7 @@ def test_agents_run_audience_mismatch_surfaces_actionable_message(
     assert "Traceback" not in combined
 
 
-def test_agents_run_403_audience_also_caught(
-    runner: CliRunner, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_agents_run_403_audience_also_caught(runner: CliRunner, monkeypatch: pytest.MonkeyPatch) -> None:
     # Some deployments may emit 403 instead of 401 for the same
     # mismatch — keep the friendly path symmetric.
     from bsupervisor.cli.main import app
@@ -700,9 +698,7 @@ def test_agents_run_403_audience_also_caught(
     assert "service-to-service endpoint" in (result.stdout + result.stderr)
 
 
-def test_agents_run_other_401_uses_default_handler(
-    runner: CliRunner, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_agents_run_other_401_uses_default_handler(runner: CliRunner, monkeypatch: pytest.MonkeyPatch) -> None:
     # An unrelated 401 (e.g. expired PAT) should NOT be miscategorized
     # as the audience-mismatch path.
     from bsupervisor.cli.main import app
