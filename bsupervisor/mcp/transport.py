@@ -85,7 +85,7 @@ def _build_introspection_inputs() -> tuple[AuthzSettings | None, IntrospectionCl
     introspection_client: IntrospectionClient | None = None
     if authz_settings.introspection_url:
         introspection_client = IntrospectionClient(
-            url=authz_settings.introspection_url,
+            introspection_url=authz_settings.introspection_url,
             client_id=authz_settings.introspection_client_id or "",
             client_secret=authz_settings.introspection_client_secret or "",
         )
