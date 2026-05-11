@@ -43,6 +43,7 @@ from bsupervisor.mcp.admin_tools import build_admin_registry
 from bsupervisor.mcp.api import ToolContext, ToolPermissionError, ToolRegistry
 from bsupervisor.mcp.auth import MCPAuthError, resolve_tool_context
 from bsupervisor.mcp.server import build_server
+from bsupervisor.models.database import async_session_factory
 
 logger = structlog.get_logger(__name__)
 
@@ -184,7 +185,11 @@ async def mcp_lifespan(
         except MCPAuthError as exc:
             raise ToolPermissionError(str(exc)) from exc
 
-    server = build_server(bound_registry, context_provider=_lazy_context_provider)
+    server = build_server(
+        bound_registry,
+        context_provider=_lazy_context_provider,
+        session_factory=async_session_factory,
+    )
     manager = StreamableHTTPSessionManager(app=server, stateless=True, json_response=True)
 
     app.state.mcp_registry = bound_registry

@@ -241,3 +241,66 @@ async def test_mcp_audit_emit_logs_event_keys() -> None:
     # The payload must NEVER appear in the log line — only the keys do.
     assert "telegram_bot_token" not in str(relevant)
     assert relevant["payload_keys"] == ["key", "updated"]
+
+
+@pytest.mark.asyncio
+async def test_build_server_opens_session_for_admin_tool_when_factory_provided() -> None:
+    """Round 4 Finding 23: build_server must thread the session_factory
+    through so ctx.db is populated for admin tools that require AsyncSession.
+    Without this thread every admin tool 500'd with 'admin tool requires
+    ctx.db (AsyncSession)' even after F16 unblocked the auth path."""
+    from contextlib import asynccontextmanager
+    from mcp.types import CallToolRequest, CallToolRequestParams
+    from bsupervisor.mcp.api import Tool, ToolRegistry
+    from pydantic import BaseModel
+
+    class _Args(BaseModel):
+        pass
+
+    class _Out(BaseModel):
+        db_was_set: bool
+
+    captured: dict[str, object] = {}
+
+    async def _handler(_args: _Args, ctx) -> _Out:  # type: ignore[no-untyped-def]
+        captured["db"] = ctx.db
+        return _Out(db_was_set=ctx.db is not None)
+
+    reg = ToolRegistry()
+    reg.register(
+        Tool(
+            name="probe",
+            description="probe ctx.db",
+            input_schema=_Args,
+            output_schema=_Out,
+            handler=_handler,
+            required_scopes=[],
+        )
+    )
+
+    sentinel = object()
+
+    @asynccontextmanager
+    async def fake_factory():
+        yield sentinel
+
+    async def ctx_provider():
+        # Empty user / audit emit — we only care that session injection works.
+        return mcp_transport.ToolContext(
+            user=MagicMock(scope=["*"], id="u", email=None, is_service=False),
+            audit_emit=AsyncMock(),
+        )
+
+    server = mcp_transport.build_server(
+        reg,
+        context_provider=ctx_provider,
+        session_factory=fake_factory,
+    )
+    handler = server.request_handlers[CallToolRequest]
+    req = CallToolRequest(
+        method="tools/call",
+        params=CallToolRequestParams(name="probe", arguments={}),
+    )
+    result = await handler(req)
+    assert result.root.isError is False
+    assert captured["db"] is sentinel
