@@ -239,10 +239,53 @@ def run_cmd(
             await client.aclose()
 
     resp = run_async(_go)
+    if resp.status_code in (401, 403) and _smells_like_audience_mismatch(resp):
+        # Phase 8 dogfood (2026-05-11) caught operators running the
+        # synthetic trigger with a user PAT and getting a stiff JSON
+        # ``{"detail":"service JWT verification failed: Audience doesn't
+        # match"}`` with no hint on what to do. ``/api/events`` is a
+        # service-to-service ingress (audience=``bsupervisor``); it
+        # cannot be hit directly with a user PAT. Surface a friendly
+        # explanation + the correct path before bubbling exit 1.
+        typer.echo(
+            "Error: ``/api/events`` is a service-to-service endpoint and "
+            "rejects user PATs. ``bsupervisor agents run`` is a development "
+            "convenience that requires a service token.\n\n"
+            "Options:\n"
+            "  - Use ``--dry-run`` to inspect the request body without "
+            "submitting (no auth needed).\n"
+            "  - Trigger via the upstream system (BSNexus / BSGateway) "
+            "whose service token has audience=`bsupervisor`. The same "
+            "synthetic event will flow through the real ingress path.\n"
+            "  - For ad-hoc testing in dev, set ``BOOTSTRAP_TOKEN_HASH`` on "
+            "the BSupervisor container and pass the matching ``bsv_admin_*`` "
+            "token via ``--token``.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
     if resp.status_code >= 400:
         emit_http_error(resp)
         raise typer.Exit(code=1)
     obj.formatter.emit(resp.json())
+
+
+def _smells_like_audience_mismatch(resp: Any) -> bool:
+    """Return True if the response looks like a service-audience reject.
+
+    ``/api/events`` issues 401 when the bearer is a user PAT instead of
+    a service token, embedding ``Audience doesn't match`` in the
+    detail. We pattern-match that string rather than exact-match the
+    full message so a future error-text refresh on the auth side
+    doesn't silently regress this UX path.
+    """
+    try:
+        body = resp.json()
+    except Exception:
+        return False
+    detail = ""
+    if isinstance(body, dict):
+        detail = str(body.get("detail") or body.get("error") or "")
+    return "audience" in detail.lower()
 
 
 __all__ = ["app"]

@@ -640,3 +640,73 @@ def test_incidents_show_404_friendly(runner: CliRunner, monkeypatch: pytest.Monk
     combined = result.stdout + result.stderr
     assert "Incident not found" in combined
     assert "Traceback" not in combined
+
+
+# ---------------------------------------------------------------------------
+# agents run — service-token-required surface (Phase 8 dogfood follow-up)
+# ---------------------------------------------------------------------------
+
+
+def _agents_run_args() -> list[str]:
+    return _base(
+        "agents",
+        "run",
+        "--agent-id",
+        "synthetic-1",
+        "--source",
+        "cli",
+        "--event-type",
+        "prompt_send",
+        "--action",
+        "send",
+        "--target",
+        "BSV_BOOTSTRAP_TOKEN_HASH=fake",
+    )
+
+
+def test_agents_run_audience_mismatch_surfaces_actionable_message(
+    runner: CliRunner, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Phase 8 dogfood (2026-05-11) caught a stiff JSON 401 with no
+    indication that ``/api/events`` is service-only. The CLI now
+    surfaces an explanation + dry-run / upstream / bootstrap options.
+    """
+    from bsupervisor.cli.main import app
+
+    fake = _fake(monkeypatch, "agents")
+    fake.post.return_value = _resp(
+        401,
+        {"detail": "service JWT verification failed: Audience doesn't match"},
+    )
+    result = runner.invoke(app, _agents_run_args())
+    assert result.exit_code == 1
+    combined = result.stdout + result.stderr
+    assert "service-to-service endpoint" in combined
+    assert "--dry-run" in combined
+    assert "Traceback" not in combined
+
+
+def test_agents_run_403_audience_also_caught(runner: CliRunner, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Some deployments may emit 403 instead of 401 for the same
+    # mismatch — keep the friendly path symmetric.
+    from bsupervisor.cli.main import app
+
+    fake = _fake(monkeypatch, "agents")
+    fake.post.return_value = _resp(403, {"detail": "audience mismatch"})
+    result = runner.invoke(app, _agents_run_args())
+    assert result.exit_code == 1
+    assert "service-to-service endpoint" in (result.stdout + result.stderr)
+
+
+def test_agents_run_other_401_uses_default_handler(runner: CliRunner, monkeypatch: pytest.MonkeyPatch) -> None:
+    # An unrelated 401 (e.g. expired PAT) should NOT be miscategorized
+    # as the audience-mismatch path.
+    from bsupervisor.cli.main import app
+
+    fake = _fake(monkeypatch, "agents")
+    fake.post.return_value = _resp(401, {"detail": "opaque token is not active"})
+    result = runner.invoke(app, _agents_run_args())
+    assert result.exit_code == 1
+    combined = result.stdout + result.stderr
+    assert "opaque token is not active" in combined
+    assert "service-to-service endpoint" not in combined
