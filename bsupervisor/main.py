@@ -9,7 +9,8 @@ from bsvibe_fastapi import (
     add_cors_middleware,
     make_health_router,
 )
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from bsupervisor.api.anomalies import router as anomalies_router
@@ -24,6 +25,10 @@ from bsupervisor.api.status import router as status_router
 from bsupervisor.config import settings
 from bsupervisor.core.audit import build_relay
 from bsupervisor.core.seed_rules import seed_default_rules
+from bsupervisor.mcp.oauth_protected_resource import (
+    build_protected_resource_metadata,
+    wrap_mcp_with_oauth_401,
+)
 from bsupervisor.mcp.transport import build_mcp_subapp, mcp_lifespan
 from bsupervisor.models.database import async_session_factory, engine
 
@@ -103,13 +108,36 @@ async def mcp_health() -> dict[str, object]:
     return {"status": "ok", "tool_count": tool_count}
 
 
+# RFC 9728 protected-resource discovery: unauth requests to /mcp get a
+# 401 + WWW-Authenticate referencing /.well-known/oauth-protected-resource.
+# Round 5 Phase B — MCP clients (Claude Code) bootstrap OAuth via this
+# discovery header instead of relying on a literal Bearer in ~/.claude.json.
+@app.get("/.well-known/oauth-protected-resource", tags=["mcp"])
+async def oauth_protected_resource(request: Request) -> JSONResponse:
+    proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    resource_url = f"{proto}://{host}" if host else str(request.base_url).rstrip("/")
+    return JSONResponse(
+        content=build_protected_resource_metadata(
+            resource_url=resource_url,
+            authorization_server=settings.bsvibe_auth_url.rstrip("/"),
+            scopes_supported=["supervisor:*"],
+        ),
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
 # Streamable-HTTP MCP endpoint at /mcp.
 # Wrapped in a Starlette sub-app (build_mcp_subapp) so the sub-app's
 # lifespan_context is independent of the parent FastAPI app — mounting a
 # bare ASGI callable directly triggered a starlette merged_lifespan
 # recursion that crashed the demo-smoke container with RecursionError
 # before /api/health/deps could respond.
-app.mount("/mcp", build_mcp_subapp(app))
+#
+# The sub-app is then wrapped with ``wrap_mcp_with_oauth_401`` so
+# unauthenticated requests receive the RFC 9728 discovery 401 + header
+# before the inner MCP transport sees them.
+app.mount("/mcp", wrap_mcp_with_oauth_401(build_mcp_subapp(app)))
 
 
 app.include_router(events_router)
