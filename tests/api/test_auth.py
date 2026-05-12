@@ -368,6 +368,11 @@ def test_catalog_covers_every_protected_route() -> None:
         # balancers hit it without auth, same contract as ``/api/health``.
         if route.path == "/mcp/health":
             continue
+        # RFC 9728 OAuth protected-resource metadata — unauthenticated
+        # by design so MCP clients can discover the authorization
+        # server before they have any token.
+        if route.path == "/.well-known/oauth-protected-resource":
+            continue
         for method in route.methods:
             if method == "HEAD":
                 continue
