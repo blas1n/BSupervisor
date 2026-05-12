@@ -37,8 +37,12 @@ from bsvibe_authz.deps import (
 
 logger = structlog.get_logger(__name__)
 
-# Pre-built dependency — service JWTs MUST be scoped to ``aud="bsupervisor"``.
-bsupervisor_service_auth = ServiceKeyAuth(audience="bsupervisor")
+# Pre-built dependency — service JWTs MUST be scoped to ``aud="supervisor"``.
+# Round 5 Step 3: flipped from legacy ``bsupervisor`` to the MCP-aligned
+# bare-name audience ``supervisor``. Step 1 of the cutover (bsvibe-authz
+# 0.9.0) accepts both old + new audiences in pydantic validation; Step 5
+# tightens to MCP-only.
+bsupervisor_service_auth = ServiceKeyAuth(audience="supervisor")
 
 
 def require_scope(scope: str) -> Callable[..., Awaitable[None]]:
