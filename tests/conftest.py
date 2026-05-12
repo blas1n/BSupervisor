@@ -111,8 +111,8 @@ async def client(db_session) -> AsyncIterator[AsyncClient]:
         return ServiceTokenPayload(
             iss="https://auth.bsvibe.dev",
             sub="service:bsgateway",
-            aud="bsupervisor",
-            scope="bsupervisor.events",
+            aud="supervisor",
+            scope="supervisor:events",
             iat=0,
             exp=2_000_000_000,
             token_type="service",
