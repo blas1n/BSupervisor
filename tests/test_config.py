@@ -17,21 +17,18 @@ def test_settings_defaults() -> None:
     assert s.daily_cost_threshold_usd == Decimal("50.00")
 
 
-def test_token_cutover_hooks_default_empty() -> None:
+def test_introspection_hooks_default_empty() -> None:
     s = Settings()
-    assert s.bootstrap_token_hash == ""
     assert s.introspection_url == ""
     assert s.introspection_client_id == ""
     assert s.introspection_client_secret == ""
 
 
-def test_token_cutover_hooks_loaded_from_env(monkeypatch) -> None:
-    monkeypatch.setenv("BOOTSTRAP_TOKEN_HASH", "abc123")
-    monkeypatch.setenv("INTROSPECTION_URL", "https://auth.bsvibe.dev/api/tokens/introspect")
+def test_introspection_hooks_loaded_from_env(monkeypatch) -> None:
+    monkeypatch.setenv("INTROSPECTION_URL", "https://auth.bsvibe.dev/oauth/introspect")
     monkeypatch.setenv("INTROSPECTION_CLIENT_ID", "supervisor")
     monkeypatch.setenv("INTROSPECTION_CLIENT_SECRET", "secret")
     s = Settings()
-    assert s.bootstrap_token_hash == "abc123"
     assert s.introspection_url.endswith("/introspect")
     assert s.introspection_client_id == "supervisor"
     assert s.introspection_client_secret == "secret"

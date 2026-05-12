@@ -10,7 +10,7 @@ Subcommands:
 
 ``run`` posts to the ingestion endpoint, which is gated by service auth
 (``aud="bsupervisor"``). Use ``--token <service-jwt>`` to exercise it
-from an admin shell; the bootstrap token bypass works in dev/test.
+from an admin shell; admin scope on a PAT works in dev/test.
 """
 
 from __future__ import annotations
@@ -257,9 +257,8 @@ def run_cmd(
             "  - Trigger via the upstream system (BSNexus / BSGateway) "
             "whose service token has audience=`bsupervisor`. The same "
             "synthetic event will flow through the real ingress path.\n"
-            "  - For ad-hoc testing in dev, set ``BOOTSTRAP_TOKEN_HASH`` on "
-            "the BSupervisor container and pass the matching ``bsv_admin_*`` "
-            "token via ``--token``.",
+            "  - For ad-hoc testing in dev, mint a PAT via the BSVibe-Auth "
+            "device flow and pass it via ``--token``.",
             err=True,
         )
         raise typer.Exit(code=1)

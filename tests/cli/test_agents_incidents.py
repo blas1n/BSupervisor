@@ -669,7 +669,7 @@ def test_agents_run_audience_mismatch_surfaces_actionable_message(
 ) -> None:
     """Phase 8 dogfood (2026-05-11) caught a stiff JSON 401 with no
     indication that ``/api/events`` is service-only. The CLI now
-    surfaces an explanation + dry-run / upstream / bootstrap options.
+    surfaces an explanation + dry-run / upstream / PAT options.
     """
     from bsupervisor.cli.main import app
 

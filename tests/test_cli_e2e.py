@@ -6,7 +6,7 @@ real FastAPI app via :class:`httpx.ASGITransport` so the request actually
 hits the same routers / scope gates that production traffic sees, only
 with the database swapped for an in-memory SQLite and ``get_current_user``
 overridden to a superuser principal (the same surface the ``--token
-<bootstrap>`` path resolves to in production).
+<``supervisor:*`` scope-holder path resolves to in production).
 
 What this proves:
 
@@ -14,7 +14,7 @@ What this proves:
   through ``POST /api/rules`` + ``GET /api/rules`` and the rule appears.
 * ``bsupervisor audit list -o json`` emits valid JSON (the docstring's
   ``| jq`` smoke-test surrogate).
-* The bootstrap-equivalent superuser principal carries
+* The superuser principal carries
   ``supervisor:*`` scope and clears every scope gate (catalog drift on
   a write would 403 here).
 """
@@ -86,7 +86,7 @@ class _AllowAllFGA:
 
 @pytest.fixture
 async def asgi_client() -> AsyncIterator[AsyncClient]:
-    """FastAPI app bound to in-memory SQLite + bootstrap-equivalent superuser."""
+    """FastAPI app bound to in-memory SQLite + superuser scope."""
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -100,7 +100,7 @@ async def asgi_client() -> AsyncIterator[AsyncClient]:
         id="bootstrap-admin",
         email="bootstrap@bsvibe.dev",
         active_tenant_id="tenant-test",
-        # ``supervisor:*`` is the scope the bootstrap path resolves to —
+        # ``supervisor:*`` is the canonical admin-scope grant —
         # exercising every catalog gate without minting a real token.
         scope=["supervisor:*"],
     )

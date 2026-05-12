@@ -8,7 +8,6 @@ clears the 80% gate even when the streamable-HTTP transport is not driven.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -34,8 +33,7 @@ async def test_http_context_provider_resolves_token_from_contextvar(
     """The provider reads ``_current_authorization`` and feeds it to
     :func:`resolve_tool_context`."""
 
-    raw = "bsv_admin_xyz"
-    monkeypatch.setenv("BOOTSTRAP_TOKEN_HASH", hashlib.sha256(raw.encode()).hexdigest())
+    raw = "bsv_sk_xyz"
 
     captured: dict[str, str | None] = {}
 
@@ -168,12 +166,12 @@ async def test_mcp_subapp_delegates_to_session_manager() -> None:
         "type": "http",
         "method": "POST",
         "path": "/",
-        "headers": [(b"authorization", b"Bearer bsv_admin_token")],
+        "headers": [(b"authorization", b"Bearer bsv_sk_token")],
         "query_string": b"",
         "raw_path": b"/",
     }
     await subapp(scope, _receive, _send)
-    assert captured_auth["seen"] == "Bearer bsv_admin_token"
+    assert captured_auth["seen"] == "Bearer bsv_sk_token"
     # ContextVar must reset after the request to avoid bleeding across calls.
     assert mcp_transport._current_authorization.get() is None
 
@@ -186,11 +184,11 @@ async def test_run_stdio_server_drives_sdk_stdio_loop(
     off to the SDK's ``stdio_server`` context manager. We patch every
     external dep so the test never touches real stdio or the env."""
 
-    monkeypatch.setenv("BSV_BOOTSTRAP_TOKEN", "bsv_admin_xyz")
+    monkeypatch.setenv("BSUPERVISOR_PAT", "bsv_sk_xyz")
 
     async def _fake_resolve(*, authorization, **_):  # type: ignore[no-untyped-def]
-        assert authorization == "Bearer bsv_admin_xyz"
-        return MagicMock(scope=["*"])
+        assert authorization == "Bearer bsv_sk_xyz"
+        return MagicMock(scope=["supervisor:*"])
 
     monkeypatch.setattr(mcp_transport, "resolve_tool_context", _fake_resolve)
 

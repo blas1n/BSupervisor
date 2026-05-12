@@ -1,13 +1,12 @@
-"""bsvibe-authz 3-way dispatch + require_scope migration tests.
+"""bsvibe-authz dispatch + require_scope migration tests.
 
 Phase 5b — replaces the legacy ``require_permission`` (OpenFGA tuple) gate
 with scope-based authorization. ``get_current_user`` from bsvibe-authz is a
-3-way dispatch:
+2-way dispatch:
 
-    1. ``bsv_admin_<...>`` bootstrap token → User(scope=["*"])
-    2. ``bsv_sk_<...>`` opaque token       → User(scope=<introspection.scope>)
-    3. anything else                       → User(scope=[]) via JWT verification
-    4. invalid / missing Authorization     → 401
+    1. ``bsv_sk_<...>`` opaque token   → User(scope=<introspection.scope>)
+    2. anything else                   → User(scope=[]) via JWT verification
+    3. invalid / missing Authorization → 401
 
 Each branch is exercised against ``GET /api/rules`` (admin: scope-protected)
 so a regression in the dispatch layer surfaces here.
@@ -15,7 +14,6 @@ so a regression in the dispatch layer surfaces here.
 
 from __future__ import annotations
 
-import hashlib
 import time
 from typing import Any
 
@@ -41,12 +39,10 @@ from bsupervisor.models.database import get_session
 ISSUER = "https://auth.bsvibe.dev"
 USER_JWT_SECRET = "test-user-jwt-secret-do-not-use-in-prod"
 SERVICE_SIGNING_SECRET = "test-service-signing-secret-do-not-use-in-prod"
-BOOTSTRAP_TOKEN = "bsv_admin_dispatch_test_value"  # noqa: S105 - fixture
-BOOTSTRAP_HASH = hashlib.sha256(BOOTSTRAP_TOKEN.encode()).hexdigest()
 OPAQUE_TOKEN = "bsv_sk_dispatch_test_value"  # noqa: S105 - fixture
 
 
-def _make_authz_settings(*, with_bootstrap: bool = False, with_introspection: bool = False) -> AuthzSettings:
+def _make_authz_settings(*, with_introspection: bool = False) -> AuthzSettings:
     return AuthzSettings(
         bsvibe_auth_url=ISSUER,
         openfga_api_url="http://openfga.test:8080",
@@ -58,8 +54,7 @@ def _make_authz_settings(*, with_bootstrap: bool = False, with_introspection: bo
         user_jwt_algorithm="HS256",
         user_jwt_audience="bsvibe",
         user_jwt_issuer=ISSUER,
-        bootstrap_token_hash=BOOTSTRAP_HASH if with_bootstrap else "",
-        introspection_url="https://auth.bsvibe.dev/api/tokens/introspect" if with_introspection else "",
+        introspection_url="https://auth.bsvibe.dev/oauth/introspect" if with_introspection else "",
         introspection_client_id="bsupervisor",
         introspection_client_secret="dispatch-test-secret",
     )
@@ -122,39 +117,6 @@ def _wire_app(
         app.dependency_overrides[get_introspection_client] = lambda: introspection_client
     else:
         app.dependency_overrides[get_introspection_client] = lambda: None
-
-
-# ---------------------------------------------------------------------------
-# Branch 1: bootstrap token (bsv_admin_*) → scope=["*"] → 200
-# ---------------------------------------------------------------------------
-class TestBootstrapDispatch:
-    async def test_valid_bootstrap_token_grants_admin_scope(self, db_session) -> None:
-        _wire_app(db_session=db_session, settings=_make_authz_settings(with_bootstrap=True))
-        try:
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                resp = await ac.get(
-                    "/api/rules",
-                    headers={"Authorization": f"Bearer {BOOTSTRAP_TOKEN}"},
-                )
-                assert resp.status_code == 200, resp.text
-        finally:
-            app.dependency_overrides.clear()
-
-    async def test_bootstrap_token_with_wrong_hash_rejected(self, db_session) -> None:
-        # Settings configured with the *correct* hash, but client sends a
-        # different bsv_admin_ token — must 401, not silently accept.
-        _wire_app(db_session=db_session, settings=_make_authz_settings(with_bootstrap=True))
-        try:
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                resp = await ac.get(
-                    "/api/rules",
-                    headers={"Authorization": "Bearer bsv_admin_some_other_token"},
-                )
-                assert resp.status_code == 401
-        finally:
-            app.dependency_overrides.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -278,16 +240,16 @@ class TestInvalidDispatch:
         finally:
             app.dependency_overrides.clear()
 
-    async def test_bsv_admin_token_rejected_when_path_disabled(self, db_session) -> None:
-        # bootstrap_token_hash unset → bsv_admin_ tokens MUST 401 even with
-        # the right prefix (defense-in-depth: never accept the prefix alone).
-        _wire_app(db_session=db_session, settings=_make_authz_settings(with_bootstrap=False))
+    async def test_bsv_admin_prefix_rejected(self, db_session) -> None:
+        # The legacy ``bsv_admin_*`` prefix is gone — any such token is now
+        # an unrecognised garbage bearer and must be rejected with 401.
+        _wire_app(db_session=db_session, settings=_make_authz_settings())
         try:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 resp = await ac.get(
                     "/api/rules",
-                    headers={"Authorization": f"Bearer {BOOTSTRAP_TOKEN}"},
+                    headers={"Authorization": "Bearer bsv_admin_anything"},
                 )
                 assert resp.status_code == 401
         finally:
