@@ -86,8 +86,8 @@ def _make_user_jwt(
 def _make_service_jwt(
     *,
     sub: str = "service:bsgateway",
-    aud: str = "bsupervisor",
-    scope: str = "bsupervisor.events",
+    aud: str = "supervisor",
+    scope: str = "supervisor:events",
     tenant_id: str | None = "tenant-alpha",
     exp_offset: int = 600,
 ) -> str:
@@ -201,30 +201,28 @@ class TestServiceJwtVerifierE2E:
     BSGateway / BSNexus will issue for ``aud="bsupervisor"``.
     """
 
-    def test_valid_bsupervisor_audience_accepted(self, authz_settings) -> None:
-        token = _make_service_jwt(aud="bsupervisor", scope="bsupervisor.events")
-        payload = verify_service_jwt(token, authz_settings, "bsupervisor")
-        assert payload.aud == "bsupervisor"
-        assert payload.has_scope("bsupervisor.events")
+    def test_valid_supervisor_audience_accepted(self, authz_settings) -> None:
+        token = _make_service_jwt(aud="supervisor", scope="supervisor:events")
+        payload = verify_service_jwt(token, authz_settings, "supervisor")
+        assert payload.aud == "supervisor"
+        assert payload.has_scope("supervisor:events")
         assert payload.sub == "service:bsgateway"
 
     def test_wrong_audience_rejected(self, authz_settings) -> None:
-        token = _make_service_jwt(aud="bsage", scope="bsage.read")
+        token = _make_service_jwt(aud="sage", scope="sage:read")
         with pytest.raises((AuthError, jwt.InvalidAudienceError)):
-            verify_service_jwt(token, authz_settings, "bsupervisor")
+            verify_service_jwt(token, authz_settings, "supervisor")
 
     def test_scope_audience_mismatch_rejected(self, authz_settings) -> None:
-        """A token claiming aud=bsupervisor but with a foreign-prefix scope must fail."""
-        # Manually mint an "evil" token whose scope is for bsage even though
-        # the audience claim says bsupervisor.
-        token = _make_service_jwt(aud="bsupervisor", scope="bsage.read")
+        """A token claiming aud=supervisor but with a foreign-prefix scope must fail."""
+        token = _make_service_jwt(aud="supervisor", scope="sage:read")
         with pytest.raises(AuthError):
-            verify_service_jwt(token, authz_settings, "bsupervisor")
+            verify_service_jwt(token, authz_settings, "supervisor")
 
     def test_expired_rejected(self, authz_settings) -> None:
         token = _make_service_jwt(exp_offset=-60)
         with pytest.raises(AuthError):
-            verify_service_jwt(token, authz_settings, "bsupervisor")
+            verify_service_jwt(token, authz_settings, "supervisor")
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +234,7 @@ class TestEventsServiceOnly:
     """``POST /api/events`` MUST accept service JWTs and reject users."""
 
     async def test_post_events_service_jwt_accepted(self, authz_client: AsyncClient, fake_fga: FakeFGAClient) -> None:
-        token = _make_service_jwt(scope="bsupervisor.events")
+        token = _make_service_jwt(scope="supervisor:events")
         resp = await authz_client.post(
             "/api/events",
             headers={"Authorization": f"Bearer {token}"},
@@ -280,7 +278,7 @@ class TestEventsServiceOnly:
         assert resp.status_code in (401, 403)
 
     async def test_post_events_service_jwt_without_tenant_rejected(self, authz_client: AsyncClient) -> None:
-        token = _make_service_jwt(scope="bsupervisor.events", tenant_id=None)
+        token = _make_service_jwt(scope="supervisor:events", tenant_id=None)
         resp = await authz_client.post(
             "/api/events",
             headers={"Authorization": f"Bearer {token}"},
