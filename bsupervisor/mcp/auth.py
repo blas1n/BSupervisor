@@ -1,7 +1,7 @@
 """MCP-transport auth dispatcher.
 
 Thin delegate over :func:`bsvibe_authz.deps.get_current_user`. The
-library helper performs the full bootstrap → opaque → JWT → PAT-JWT
+library helper performs the full opaque → JWT → PAT-JWT
 introspection-fallback dispatch, so the only thing this module owns is
 the :class:`ToolContext` shape both transports (HTTP `/mcp` and stdio)
 return + translating ``HTTPException`` to :class:`MCPAuthError`.
@@ -42,7 +42,7 @@ async def resolve_tool_context(
     """Resolve ``Authorization`` header → :class:`ToolContext`.
 
     Delegates to :func:`bsvibe_authz.deps.get_current_user` for the full
-    3-way dispatch (bootstrap → opaque → JWT) plus the PAT-JWT
+    2-way dispatch (opaque → JWT) plus the PAT-JWT
     introspection fallback. Library-level changes propagate
     automatically — no mirror fixes here.
     """

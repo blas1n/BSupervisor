@@ -2,7 +2,7 @@
 
 Phase 5b — admin routes are gated by ``require_scope(...)`` (Phase 1
 token-cutover catalog) instead of legacy OpenFGA tuples. The 3-way
-dispatch (bootstrap → opaque → JWT) lives in ``bsvibe-authz``; this
+dispatch (opaque → JWT) lives in ``bsvibe-authz``; this
 module is the BSupervisor-specific wrapper that:
 
 - re-exports ``CurrentUser``, ``ServiceKeyAuth``, etc. from bsvibe-authz so
@@ -49,7 +49,7 @@ def require_scope(scope: str) -> Callable[..., Awaitable[None]]:
     """Wrap ``bsvibe_authz.require_scope`` and tag the closure.
 
     Phase 1 token cutover gates admin routes on scope strings carried by
-    bootstrap (``"*"``) and opaque (``supervisor:<resource>:<action>``)
+    opaque (``supervisor:<resource>:<action>``)
     tokens. The ``_bsvibe_scope`` tag lets the scope-matrix test pin the
     catalog so future refactors cannot silently downgrade a gate.
     """

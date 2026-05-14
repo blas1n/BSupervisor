@@ -50,23 +50,17 @@ class Settings(FastApiSettings, DatabaseSettings, AlertSettings):
     bsvibe_client_id: str = ""
     bsvibe_client_secret: str = ""
 
-    # Phase 1 token-cutover hooks. bootstrap_token_hash is sha256(bsv_admin_…)
-    # hex; raw bootstrap is never stored. introspection_url enables the
     # RFC 7662 opaque-token path; client_id/secret are the Basic-auth pair
-    # on the central auth.bsvibe.dev /api/tokens/introspect endpoint.
+    # on the central /oauth/introspect endpoint.
     #
     # ``BSV_*``-prefixed aliases mirror the alias set on
-    # :class:`bsvibe_authz.Settings` (bsvibe-python PR #21) so a single
-    # ``.env`` configures the lib + product layers consistently. Note:
-    # BSupervisor currently consumes the *lib* AuthzSettings directly via
+    # :class:`bsvibe_authz.Settings` so a single ``.env`` configures the
+    # lib + product layers consistently. Note: BSupervisor currently
+    # consumes the *lib* AuthzSettings directly via
     # ``bsvibe_authz.deps.get_settings`` (see ``bsupervisor/mcp/transport.py``
     # ``_build_introspection_inputs``); these declarations on the product
     # Settings keep the field surface aligned for any future wire that
     # would forward them into a per-product builder.
-    bootstrap_token_hash: str = Field(
-        default="",
-        validation_alias=AliasChoices("bootstrap_token_hash", "bsv_bootstrap_token_hash"),
-    )
     introspection_url: str = Field(
         default="",
         validation_alias=AliasChoices("introspection_url", "bsv_introspection_url"),

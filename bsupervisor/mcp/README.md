@@ -15,7 +15,7 @@ functions the CLI and REST router call.
 ```
 bsupervisor/mcp/
   api.py           # Tool primitive, ToolContext, ToolRegistry dispatcher
-  auth.py          # 3-way auth dispatch (bootstrap / opaque / JWT) → ToolContext
+  auth.py          # auth dispatch (opaque / JWT) → ToolContext
   admin_tools.py   # 14 admin tools + ADMIN_TOOLS / build_admin_registry
   server.py        # build_server(registry, context_provider) factory
   transport.py     # mcp_lifespan + /mcp ASGI mount + run_stdio_server
@@ -126,7 +126,7 @@ of the process, and pins both onto `app.state`.
   `{"status": "ok", "tool_count": <count>}`. Registered before the
   `/mcp` ASGI mount so the route table picks the FastAPI handler.
 
-Example (after `BSV_BOOTSTRAP_TOKEN` is set):
+Example (after `BSUPERVISOR_PAT` is set):
 
 ```bash
 curl -sS http://localhost:8000/mcp/health
@@ -150,20 +150,19 @@ bsupervisor mcp list-tools
 FastAPI app is the source of truth for the HTTP transport, so run
 `uvicorn bsupervisor.main:app` instead.
 
-stdio reads `BSV_BOOTSTRAP_TOKEN` from env once at startup; the
-context provider returns the same `ToolContext` for every call.
-The token is never logged — auth-failure logs only the token prefix
-discriminant (`bsv_admin_` / `bsv_sk_` / `?`).
+stdio reads `BSUPERVISOR_PAT` from env once at startup; the context
+provider returns the same `ToolContext` for every call. The token is
+never logged — auth-failure logs only the token prefix discriminant
+(`bsv_sk_` / `?`).
 
 ## Auth resolution
 
 `resolve_tool_context` in `auth.py` mirrors
 `bsvibe_authz.deps.get_current_user`:
 
-1. `bsv_admin_*` → `verify_bootstrap_token` (bootstrap admin).
-2. `bsv_sk_*` → opaque-token introspection (when introspection client
+1. `bsv_sk_*` → opaque-token introspection (when introspection client
    is configured).
-3. otherwise → user JWT (`parse_user_token`).
+2. otherwise → user JWT (`parse_user_token`).
 
 Failure raises `MCPAuthError`; the HTTP transport translates it to a
 `ToolPermissionError` response, and stdio surfaces it as an MCP error.

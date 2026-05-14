@@ -16,7 +16,7 @@ to the FastAPI app and the ``bsupervisor mcp`` CLI:
   dispatch reflects the caller's auth.
 * :func:`run_stdio_server` — launches the same registry over stdin/stdout
   for Claude Desktop / ``bsupervisor mcp serve --transport stdio``. Reads
-  the bootstrap token from the environment exactly once.
+  the PAT from the environment exactly once.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ _current_authorization: ContextVar[str | None] = ContextVar(
     default=None,
 )
 
-BOOTSTRAP_TOKEN_ENV = "BSV_BOOTSTRAP_TOKEN"
+STDIO_TOKEN_ENV = "BSUPERVISOR_PAT"
 
 
 def _build_introspection_inputs() -> tuple[AuthzSettings | None, IntrospectionClient | None, IntrospectionCache]:
@@ -69,7 +69,7 @@ def _build_introspection_inputs() -> tuple[AuthzSettings | None, IntrospectionCl
 
     If the bsvibe-authz Settings cannot be constructed (e.g. demo / smoke
     deployments that intentionally skip the auth env vars), return None for
-    settings + client so the bootstrap-token path still works. ``ValidationError``
+    settings + client so the opaque-token path still works. ``ValidationError``
     is caught explicitly because pydantic-settings raises it when required
     fields are missing — which is acceptable in demo envs.
     """
@@ -80,7 +80,7 @@ def _build_introspection_inputs() -> tuple[AuthzSettings | None, IntrospectionCl
         authz_settings: AuthzSettings | None = get_authz_settings()
     except ValidationError as exc:
         logger.info("mcp_authz_settings_unavailable", reason="missing_env", missing=str(exc))
-        # No introspection — bootstrap path remains the only auth mode.
+        # No introspection — JWT path remains the only auth mode.
         return None, None, IntrospectionCache(ttl_s=60)
 
     introspection_client: IntrospectionClient | None = None
@@ -122,9 +122,9 @@ def _build_http_context_provider(
     """Return a context provider that reads from the ContextVar set by the ASGI handler.
 
     ``authz_settings`` is None in demo deployments where the bsvibe-authz
-    env vars are intentionally absent — bootstrap-token-only mode. Auth
+    env vars are intentionally absent — no-introspection mode. Auth
     resolution still works because ``resolve_tool_context`` reads the
-    bootstrap hash from the local Settings, not bsvibe-authz."""
+    local Settings only (no introspection wire)."""
 
     async def _provider() -> ToolContext:
         authorization = _current_authorization.get()
@@ -171,7 +171,7 @@ async def mcp_lifespan(
         authorization = _current_authorization.get()
         authz_settings, introspection_client, introspection_cache = _build_introspection_inputs()
         if authz_settings is None:
-            # bsvibe-authz Settings unavailable — bootstrap path can't be
+            # bsvibe-authz Settings unavailable — introspection path can't be
             # verified either (no hash). Surface as auth failure.
             raise ToolPermissionError("authz settings unavailable")
         try:
@@ -279,9 +279,9 @@ def _configure_stdio_logging() -> None:
 async def run_stdio_server(*, registry: ToolRegistry | None = None) -> None:
     """Boot the same registry on stdin/stdout for Claude Desktop.
 
-    Auth context is read once from ``BSV_BOOTSTRAP_TOKEN`` — stdio callers
-    are local processes, so a single bootstrap token bound for the lifetime
-    of the connection is the simplest correct posture.
+    Auth context is read once from ``BSUPERVISOR_PAT`` — stdio callers
+    are local processes, so a single PAT bound for the lifetime of the
+    connection is the simplest correct posture.
     """
 
     from mcp.server.stdio import stdio_server
@@ -291,8 +291,8 @@ async def run_stdio_server(*, registry: ToolRegistry | None = None) -> None:
     bound_registry = registry if registry is not None else build_admin_registry()
     authz_settings, introspection_client, introspection_cache = _build_introspection_inputs()
 
-    bootstrap_token = os.environ.get(BOOTSTRAP_TOKEN_ENV, "").strip()
-    fixed_authorization = f"Bearer {bootstrap_token}" if bootstrap_token else None
+    pat = os.environ.get(STDIO_TOKEN_ENV, "").strip()
+    fixed_authorization = f"Bearer {pat}" if pat else None
 
     async def _stdio_context_provider() -> ToolContext:
         try:
@@ -313,7 +313,7 @@ async def run_stdio_server(*, registry: ToolRegistry | None = None) -> None:
 
 
 __all__ = [
-    "BOOTSTRAP_TOKEN_ENV",
+    "STDIO_TOKEN_ENV",
     "build_mcp_subapp",
     "mcp_lifespan",
     "run_stdio_server",

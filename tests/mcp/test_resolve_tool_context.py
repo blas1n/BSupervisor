@@ -1,7 +1,7 @@
-"""Tests for resolve_tool_context — MCP-transport 3-way auth dispatch.
+"""Tests for resolve_tool_context — MCP-transport auth dispatch.
 
-Mirrors ``bsvibe_authz.deps.get_current_user`` (bootstrap → opaque → JWT)
-but for MCP transports (HTTP /mcp + stdio). Used by both transports so the
+Mirrors ``bsvibe_authz.deps.get_current_user`` (opaque → JWT) but for
+MCP transports (HTTP /mcp + stdio). Used by both transports so the
 auth path is identical between them.
 
 Audit emission is wired by the caller via ``audit_emit_factory`` so the
@@ -10,7 +10,6 @@ registry stays decoupled from any particular outbox session.
 
 from __future__ import annotations
 
-import hashlib
 import time
 
 import jwt
@@ -18,7 +17,6 @@ import pytest
 from bsvibe_authz import IntrospectionResponse, Settings, User
 from bsvibe_authz.cache import IntrospectionCache
 
-from bsupervisor.mcp.api import ToolContext
 from bsupervisor.mcp.auth import MCPAuthError, resolve_tool_context
 
 
@@ -67,35 +65,6 @@ async def test_non_bearer_scheme_raises() -> None:
         await resolve_tool_context(
             authorization="Basic abc",
             settings=_settings(),
-            introspection_client=None,
-            introspection_cache=IntrospectionCache(ttl_s=30),
-        )
-
-
-@pytest.mark.asyncio
-async def test_bootstrap_token_returns_admin_user() -> None:
-    raw = "bsv_admin_letmein"
-    settings = _settings(bootstrap_token_hash=hashlib.sha256(raw.encode()).hexdigest())
-
-    ctx = await resolve_tool_context(
-        authorization=f"Bearer {raw}",
-        settings=settings,
-        introspection_client=None,
-        introspection_cache=IntrospectionCache(ttl_s=30),
-    )
-
-    assert isinstance(ctx, ToolContext)
-    assert ctx.user.id == "bootstrap"
-    assert ctx.user.scope == ["*"]
-
-
-@pytest.mark.asyncio
-async def test_bootstrap_token_mismatch_raises() -> None:
-    settings = _settings(bootstrap_token_hash="0" * 64)
-    with pytest.raises(MCPAuthError):
-        await resolve_tool_context(
-            authorization="Bearer bsv_admin_wrong",
-            settings=settings,
             introspection_client=None,
             introspection_cache=IntrospectionCache(ttl_s=30),
         )
@@ -270,8 +239,15 @@ async def test_non_jwt_garbage_does_not_call_introspection() -> None:
 
 @pytest.mark.asyncio
 async def test_audit_emit_factory_is_attached_to_context() -> None:
-    raw = "bsv_admin_letmein"
-    settings = _settings(bootstrap_token_hash=hashlib.sha256(raw.encode()).hexdigest())
+    settings = _settings()
+    client = _StubIntrospectionClient(
+        IntrospectionResponse(
+            active=True,
+            sub="audit-emit-test",
+            tenant="t",
+            scope=["supervisor:audit:read"],
+        ),
+    )
 
     captured: list[tuple[str, dict]] = []
 
@@ -279,9 +255,9 @@ async def test_audit_emit_factory_is_attached_to_context() -> None:
         captured.append((event, payload))
 
     ctx = await resolve_tool_context(
-        authorization=f"Bearer {raw}",
+        authorization="Bearer bsv_sk_emit",
         settings=settings,
-        introspection_client=None,
+        introspection_client=client,  # type: ignore[arg-type]
         introspection_cache=IntrospectionCache(ttl_s=30),
         audit_emit=emit,
     )

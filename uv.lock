@@ -194,7 +194,7 @@ dev = [
 [[package]]
 name = "bsvibe-alerts"
 version = "0.1.0"
-source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-alerts&rev=main#f752278ed38f65573748836e7451e1f61378a877" }
+source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-alerts&rev=main#0c69d95383b6bee2ebca9e3af780c6470fe70905" }
 dependencies = [
     { name = "bsvibe-core" },
     { name = "httpx" },
@@ -206,7 +206,7 @@ dependencies = [
 [[package]]
 name = "bsvibe-audit"
 version = "0.1.0"
-source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-audit&rev=main#f752278ed38f65573748836e7451e1f61378a877" }
+source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-audit&rev=main#0c69d95383b6bee2ebca9e3af780c6470fe70905" }
 dependencies = [
     { name = "bsvibe-alerts" },
     { name = "bsvibe-core" },
@@ -235,8 +235,8 @@ fastapi = [
 
 [[package]]
 name = "bsvibe-authz"
-version = "1.0.0"
-source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-authz&rev=main#f752278ed38f65573748836e7451e1f61378a877" }
+version = "1.1.0"
+source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-authz&rev=main#0c69d95383b6bee2ebca9e3af780c6470fe70905" }
 dependencies = [
     { name = "bsvibe-core" },
     { name = "fastapi" },
@@ -250,7 +250,7 @@ dependencies = [
 [[package]]
 name = "bsvibe-cli-base"
 version = "0.1.0"
-source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-cli-base&rev=main#f752278ed38f65573748836e7451e1f61378a877" }
+source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-cli-base&rev=main#0c69d95383b6bee2ebca9e3af780c6470fe70905" }
 dependencies = [
     { name = "bsvibe-authz" },
     { name = "bsvibe-core" },
@@ -266,7 +266,7 @@ dependencies = [
 [[package]]
 name = "bsvibe-core"
 version = "0.1.0"
-source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-core&rev=main#f752278ed38f65573748836e7451e1f61378a877" }
+source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-core&rev=main#0c69d95383b6bee2ebca9e3af780c6470fe70905" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
@@ -277,7 +277,7 @@ dependencies = [
 [[package]]
 name = "bsvibe-demo"
 version = "0.1.0"
-source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-demo&rev=main#f752278ed38f65573748836e7451e1f61378a877" }
+source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-demo&rev=main#0c69d95383b6bee2ebca9e3af780c6470fe70905" }
 dependencies = [
     { name = "asyncpg" },
     { name = "pyjwt" },
@@ -287,7 +287,7 @@ dependencies = [
 [[package]]
 name = "bsvibe-fastapi"
 version = "0.1.0"
-source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-fastapi&rev=main#f752278ed38f65573748836e7451e1f61378a877" }
+source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-fastapi&rev=main#0c69d95383b6bee2ebca9e3af780c6470fe70905" }
 dependencies = [
     { name = "bsvibe-core" },
     { name = "fastapi" },
@@ -299,7 +299,7 @@ dependencies = [
 [[package]]
 name = "bsvibe-sqlalchemy"
 version = "0.1.0"
-source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-sqlalchemy&rev=main#f752278ed38f65573748836e7451e1f61378a877" }
+source = { git = "https://github.com/BSVibe/bsvibe-python.git?subdirectory=packages%2Fbsvibe-sqlalchemy&rev=main#0c69d95383b6bee2ebca9e3af780c6470fe70905" }
 dependencies = [
     { name = "aiosqlite" },
     { name = "alembic" },
@@ -730,11 +730,11 @@ wheels = [
 
 [[package]]
 name = "idna"
-version = "3.14"
+version = "3.15"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/05/b1/efac073e0c297ecf2fb33c346989a529d4e19164f1759102dee5953ee17e/idna-3.14.tar.gz", hash = "sha256:466d810d7a2cc1022bea9b037c39728d51ae7dad40d480fc9b7d7ecf98ba8ee3", size = 198272, upload-time = "2026-05-10T20:32:15.935Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/82/77/7b3966d0b9d1d31a36ddf1746926a11dface89a83409bf1483f0237aa758/idna-3.15.tar.gz", hash = "sha256:ca962446ea538f7092a95e057da437618e886f4d349216d2b1e294abfdb65fdc", size = 199245, upload-time = "2026-05-12T22:45:57.011Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6c/3c/3f62dee257eb3d6b2c1ef2a09d36d9793c7111156a73b5654d2c2305e5ce/idna-3.14-py3-none-any.whl", hash = "sha256:e677eaf072e290f7b725f9acf0b3a2bd55f9fd6f7c70abe5f0e34823d0accf69", size = 72184, upload-time = "2026-05-10T20:32:14.295Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/23/408243171aa9aaba178d3e2559159c24c1171a641aa83b67bdd3394ead8e/idna-3.15-py3-none-any.whl", hash = "sha256:048adeaf8c2d788c40fee287673ccaa74c24ffd8dcf09ffa555a2fbb59f10ac8", size = 72340, upload-time = "2026-05-12T22:45:55.733Z" },
 ]
 
 [[package]]
@@ -1556,15 +1556,15 @@ asyncio = [
 
 [[package]]
 name = "sse-starlette"
-version = "3.4.3"
+version = "3.4.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "starlette" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/64/13/3cafb96bceb02949f265bbdf1cbcea2810271ae709e4aa35e980f90c07fd/sse_starlette-3.4.3.tar.gz", hash = "sha256:a7f6d87cf482cf38b911c31075811c7f8b4efbada8ac9d5199a8e239fed513c9", size = 35247, upload-time = "2026-05-11T17:23:41.987Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f7/2b/58abc2d1fd397e7dde08e947e05c884d8ef2f78d5e2588c17a12d42d6994/sse_starlette-3.4.4.tar.gz", hash = "sha256:07e0fa0460138baf25cdd5fb28683472c3995dc1642225191b3832d62526bcb0", size = 31819, upload-time = "2026-05-12T17:37:17.019Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/a4/c888212b19dd432110d4a78dbc5e6c1bc7476e5fff2f2df2ea9f298b0003/sse_starlette-3.4.3-py3-none-any.whl", hash = "sha256:bf8a90d76192062f01b55095593606bfc7edd0e3ad481339a6e16e7890bc9367", size = 16514, upload-time = "2026-05-11T17:23:40.352Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/67/805710444ea8cc75fbf70b920ed431a560c4bf9c57f7d5a3117213189399/sse_starlette-3.4.4-py3-none-any.whl", hash = "sha256:3f4dd50d8aed2771a091f3a83000323fc3844541c16b4fe585ae2420cc6df973", size = 16514, upload-time = "2026-05-12T17:37:15.601Z" },
 ]
 
 [[package]]
