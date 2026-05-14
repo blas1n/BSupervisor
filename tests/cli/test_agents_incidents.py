@@ -190,7 +190,7 @@ def test_agents_add_403_friendly_no_traceback(runner: CliRunner, monkeypatch: py
     from bsupervisor.cli.main import app
 
     fake = _fake(monkeypatch, "agents")
-    fake.post.return_value = _resp(403, {"detail": "scope missing: supervisor:agents:write"})
+    fake.post.return_value = _resp(403, {"detail": "scope missing: bsupervisor:agents:write"})
     result = runner.invoke(
         app,
         _base("agents", "add", "--name", "r1", "--action", "block"),
@@ -287,7 +287,7 @@ def test_agents_list_403_friendly(runner: CliRunner, monkeypatch: pytest.MonkeyP
     from bsupervisor.cli.main import app
 
     fake = _fake(monkeypatch, "agents")
-    fake.get.return_value = _resp(403, {"detail": "scope missing: supervisor:agents:read"})
+    fake.get.return_value = _resp(403, {"detail": "scope missing: bsupervisor:agents:read"})
     result = runner.invoke(app, _base("agents", "list"))
     assert result.exit_code != 0
     assert "scope missing" in (result.stdout + result.stderr)
@@ -363,7 +363,7 @@ def test_agents_delete_403_friendly(runner: CliRunner, monkeypatch: pytest.Monke
     from bsupervisor.cli.main import app
 
     fake = _fake(monkeypatch, "agents")
-    fake.delete.return_value = _resp(403, {"detail": "scope missing: supervisor:agents:write"})
+    fake.delete.return_value = _resp(403, {"detail": "scope missing: bsupervisor:agents:write"})
     result = runner.invoke(app, _base("agents", "delete", RULE_ID))
     assert result.exit_code != 0
     assert "scope missing" in (result.stdout + result.stderr)
@@ -599,7 +599,7 @@ def test_incidents_list_403_friendly(runner: CliRunner, monkeypatch: pytest.Monk
     from bsupervisor.cli.main import app
 
     fake = _fake(monkeypatch, "incidents")
-    fake.get.return_value = _resp(403, {"detail": "scope missing: supervisor:incidents:read"})
+    fake.get.return_value = _resp(403, {"detail": "scope missing: bsupervisor:incidents:read"})
     result = runner.invoke(app, _base("incidents", "list"))
     assert result.exit_code != 0
     assert "scope missing" in (result.stdout + result.stderr)

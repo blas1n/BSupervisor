@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import CurrentUser, require_scope
+from bsupervisor.api.deps import CurrentUser, require_admin, require_permission
 from bsupervisor.api.schemas import RuleCreateRequest, RuleResponse, RuleUpdateRequest
 from bsupervisor.core.rule_engine import invalidate_rules_cache
 from bsupervisor.models.audit_rule import AuditRule
@@ -38,7 +38,7 @@ def _rule_to_response(rule: AuditRule) -> RuleResponse:
 @router.get("/rules", response_model=list[RuleResponse])
 async def list_rules(
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:agents:read")),
+    _allowed: None = Depends(require_permission("bsupervisor.agents.read")),
     session: AsyncSession = Depends(get_session),
 ) -> list[RuleResponse]:
     stmt = select(AuditRule).order_by(AuditRule.name)
@@ -54,7 +54,7 @@ async def list_rules(
 async def create_rule(
     payload: RuleCreateRequest,
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:agents:write")),
+    _allowed: None = Depends(require_admin()),
     session: AsyncSession = Depends(get_session),
 ) -> RuleResponse:
     rule = AuditRule(
@@ -83,7 +83,7 @@ async def update_rule(
     rule_id: UUID,
     payload: RuleUpdateRequest,
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:agents:write")),
+    _allowed: None = Depends(require_admin()),
     session: AsyncSession = Depends(get_session),
 ) -> RuleResponse:
     rule = await session.get(AuditRule, rule_id)
@@ -116,7 +116,7 @@ async def update_rule(
 async def delete_rule(
     rule_id: UUID,
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:agents:write")),
+    _allowed: None = Depends(require_admin()),
     session: AsyncSession = Depends(get_session),
 ) -> None:
     rule = await session.get(AuditRule, rule_id)

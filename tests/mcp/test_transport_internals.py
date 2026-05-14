@@ -188,7 +188,7 @@ async def test_run_stdio_server_drives_sdk_stdio_loop(
 
     async def _fake_resolve(*, authorization, **_):  # type: ignore[no-untyped-def]
         assert authorization == "Bearer bsv_sk_xyz"
-        return MagicMock(scope=["supervisor:*"])
+        return MagicMock(scope=["bsupervisor:*"])
 
     monkeypatch.setattr(mcp_transport, "resolve_tool_context", _fake_resolve)
 

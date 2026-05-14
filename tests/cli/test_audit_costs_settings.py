@@ -163,7 +163,7 @@ def test_audit_list_403_friendly(runner: CliRunner, monkeypatch: pytest.MonkeyPa
     from bsupervisor.cli.main import app
 
     fake = _fake(monkeypatch, "audit")
-    fake.get.return_value = _resp(403, {"detail": "scope missing: supervisor:audit:read"})
+    fake.get.return_value = _resp(403, {"detail": "scope missing: bsupervisor:audit:read"})
     result = runner.invoke(app, _base("audit", "list"))
     assert result.exit_code != 0
     combined = result.stdout + result.stderr
@@ -283,7 +283,7 @@ def test_costs_report_403_friendly(runner: CliRunner, monkeypatch: pytest.Monkey
     from bsupervisor.cli.main import app
 
     fake = _fake(monkeypatch, "costs")
-    fake.get.return_value = _resp(403, {"detail": "scope missing: supervisor:audit:read"})
+    fake.get.return_value = _resp(403, {"detail": "scope missing: bsupervisor:audit:read"})
     result = runner.invoke(app, _base("costs", "report"))
     assert result.exit_code != 0
     assert "scope missing" in (result.stdout + result.stderr)
@@ -449,7 +449,7 @@ def test_settings_get_403_friendly(runner: CliRunner, monkeypatch: pytest.Monkey
     from bsupervisor.cli.main import app
 
     fake = _fake(monkeypatch, "settings")
-    fake.get.return_value = _resp(403, {"detail": "scope missing: supervisor:*"})
+    fake.get.return_value = _resp(403, {"detail": "scope missing: bsupervisor:*"})
     result = runner.invoke(app, _base("settings", "get"))
     assert result.exit_code != 0
     assert "scope missing" in (result.stdout + result.stderr)

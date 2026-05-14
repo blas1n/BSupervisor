@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import CurrentUser, require_scope
+from bsupervisor.api.deps import CurrentUser, require_admin
 from bsupervisor.api.schemas import ConnectionSettings, SettingsResponse
 from bsupervisor.config import settings as app_settings
 from bsupervisor.core.encryption import EncryptionManager
@@ -43,7 +43,7 @@ async def _get_connections(session: AsyncSession) -> ConnectionSettings:
 @router.get("/settings", response_model=SettingsResponse)
 async def get_settings(
     _user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:*")),
+    _allowed: None = Depends(require_admin()),
     session: AsyncSession = Depends(get_session),
 ) -> SettingsResponse:
     connections = await _get_connections(session)
@@ -54,7 +54,7 @@ async def get_settings(
 async def update_settings(
     payload: ConnectionSettings,
     _user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:*")),
+    _allowed: None = Depends(require_admin()),
     session: AsyncSession = Depends(get_session),
 ) -> SettingsResponse:
     stmt = select(Settings).where(Settings.key == CONNECTIONS_KEY)

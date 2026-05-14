@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import CurrentUser, require_scope
+from bsupervisor.api.deps import CurrentUser, require_admin, require_permission
 from bsupervisor.core.incident_tracker import IncidentTracker
 from bsupervisor.models.database import get_session
 from bsupervisor.models.incident import Incident, IncidentStatus
@@ -65,7 +65,7 @@ def _scope_to_tenant(stmt, user, model):
 @router.get("/incidents", response_model=list[IncidentListItem])
 async def list_incidents(
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:incidents:read")),
+    _allowed: None = Depends(require_permission("bsupervisor.incidents.read")),
     session: AsyncSession = Depends(get_session),
     severity: str | None = Query(None, description="Filter incidents by severity (critical, high, medium, low)."),
     since: datetime | None = Query(
@@ -99,7 +99,7 @@ async def list_incidents(
 async def get_incident(
     incident_id: UUID,
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:incidents:read")),
+    _allowed: None = Depends(require_permission("bsupervisor.incidents.read")),
     session: AsyncSession = Depends(get_session),
 ) -> IncidentDetail:
     stmt = select(Incident).where(Incident.id == incident_id)
@@ -140,7 +140,7 @@ async def get_incident(
 async def ack_incident(
     incident_id: UUID,
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:incidents:write")),
+    _allowed: None = Depends(require_admin()),
     session: AsyncSession = Depends(get_session),
 ) -> ResolveResponse:
     stmt = select(Incident).where(Incident.id == incident_id)
@@ -162,7 +162,7 @@ async def ack_incident(
 async def resolve_incident(
     incident_id: UUID,
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:incidents:write")),
+    _allowed: None = Depends(require_admin()),
     session: AsyncSession = Depends(get_session),
 ) -> ResolveResponse:
     stmt = select(Incident).where(Incident.id == incident_id)

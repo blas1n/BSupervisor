@@ -121,7 +121,7 @@ async def oauth_protected_resource(request: Request) -> JSONResponse:
         content=build_protected_resource_metadata(
             resource_url=resource_url,
             authorization_server=settings.bsvibe_auth_url.rstrip("/"),
-            scopes_supported=["supervisor:*"],
+            scopes_supported=["bsupervisor:*"],
         ),
         headers={"Cache-Control": "public, max-age=300"},
     )

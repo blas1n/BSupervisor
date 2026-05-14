@@ -8,10 +8,10 @@ Verifies that the BSupervisor auth layer:
 3. ``verify_service_jwt`` from bsvibe-authz happy-path / unhappy-path works
    end-to-end for the BSupervisor receiver.
 
-Phase 5b note: per-route admin gates moved from ``require_permission`` (OpenFGA
-tuples) to ``require_scope`` (Phase 1 token-cutover catalog). The scope
-matrix lives in ``tests/api/test_auth.py`` and is the single source of
-truth post-migration.
+Phase 2a note: user-facing read routes are gated by ``require_permission``
+(permissive in prod) and mutation / admin-config routes by ``require_admin``.
+The auth matrix lives in ``tests/api/test_auth.py`` and is the single source
+of truth post-migration.
 
 Lockin §3 decision #16, Auth_Design §6.4.
 """
@@ -86,8 +86,8 @@ def _make_user_jwt(
 def _make_service_jwt(
     *,
     sub: str = "service:bsgateway",
-    aud: str = "supervisor",
-    scope: str = "supervisor:events",
+    aud: str = "bsupervisor",
+    scope: str = "bsupervisor:events",
     tenant_id: str | None = "tenant-alpha",
     exp_offset: int = 600,
 ) -> str:
@@ -202,27 +202,27 @@ class TestServiceJwtVerifierE2E:
     """
 
     def test_valid_supervisor_audience_accepted(self, authz_settings) -> None:
-        token = _make_service_jwt(aud="supervisor", scope="supervisor:events")
-        payload = verify_service_jwt(token, authz_settings, "supervisor")
-        assert payload.aud == "supervisor"
-        assert payload.has_scope("supervisor:events")
+        token = _make_service_jwt(aud="bsupervisor", scope="bsupervisor:events")
+        payload = verify_service_jwt(token, authz_settings, "bsupervisor")
+        assert payload.aud == "bsupervisor"
+        assert payload.has_scope("bsupervisor:events")
         assert payload.sub == "service:bsgateway"
 
     def test_wrong_audience_rejected(self, authz_settings) -> None:
-        token = _make_service_jwt(aud="sage", scope="sage:read")
+        token = _make_service_jwt(aud="bsage", scope="bsage:read")
         with pytest.raises((AuthError, jwt.InvalidAudienceError)):
-            verify_service_jwt(token, authz_settings, "supervisor")
+            verify_service_jwt(token, authz_settings, "bsupervisor")
 
     def test_scope_audience_mismatch_rejected(self, authz_settings) -> None:
-        """A token claiming aud=supervisor but with a foreign-prefix scope must fail."""
-        token = _make_service_jwt(aud="supervisor", scope="sage:read")
+        """A token claiming aud=bsupervisor but with a foreign-prefix scope must fail."""
+        token = _make_service_jwt(aud="bsupervisor", scope="bsage:read")
         with pytest.raises(AuthError):
-            verify_service_jwt(token, authz_settings, "supervisor")
+            verify_service_jwt(token, authz_settings, "bsupervisor")
 
     def test_expired_rejected(self, authz_settings) -> None:
         token = _make_service_jwt(exp_offset=-60)
         with pytest.raises(AuthError):
-            verify_service_jwt(token, authz_settings, "supervisor")
+            verify_service_jwt(token, authz_settings, "bsupervisor")
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +234,7 @@ class TestEventsServiceOnly:
     """``POST /api/events`` MUST accept service JWTs and reject users."""
 
     async def test_post_events_service_jwt_accepted(self, authz_client: AsyncClient, fake_fga: FakeFGAClient) -> None:
-        token = _make_service_jwt(scope="supervisor:events")
+        token = _make_service_jwt(scope="bsupervisor:events")
         resp = await authz_client.post(
             "/api/events",
             headers={"Authorization": f"Bearer {token}"},
@@ -278,7 +278,7 @@ class TestEventsServiceOnly:
         assert resp.status_code in (401, 403)
 
     async def test_post_events_service_jwt_without_tenant_rejected(self, authz_client: AsyncClient) -> None:
-        token = _make_service_jwt(scope="supervisor:events", tenant_id=None)
+        token = _make_service_jwt(scope="bsupervisor:events", tenant_id=None)
         resp = await authz_client.post(
             "/api/events",
             headers={"Authorization": f"Bearer {token}"},
@@ -293,8 +293,8 @@ class TestEventsServiceOnly:
         assert resp.status_code == 403
 
 
-# Phase 5b note — Route gate semantics moved from OpenFGA tuples
-# (``require_permission``) to scope strings (``require_scope``). The
-# scope catalog and per-route assertions now live in
-# ``tests/api/test_auth.py``; the matrix here was deleted to avoid
-# duplicating the source of truth.
+# Phase 2a note — Route gate semantics: user-facing read routes use
+# ``require_permission`` (permissive in prod), mutation / admin-config
+# routes use ``require_admin``. The auth catalog and per-route
+# assertions live in ``tests/api/test_auth.py``; the matrix here was
+# deleted to avoid duplicating the source of truth.

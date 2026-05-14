@@ -3,10 +3,9 @@
 The other CLI tests stub ``build_client`` with a ``MagicMock`` to pin the
 request shape. This file does the opposite: it wires the CLI through a
 real FastAPI app via :class:`httpx.ASGITransport` so the request actually
-hits the same routers / scope gates that production traffic sees, only
+hits the same routers / auth gates that production traffic sees, only
 with the database swapped for an in-memory SQLite and ``get_current_user``
-overridden to a superuser principal (the same surface the ``--token
-<``supervisor:*`` scope-holder path resolves to in production).
+overridden to an admin-role principal.
 
 What this proves:
 
@@ -14,9 +13,9 @@ What this proves:
   through ``POST /api/rules`` + ``GET /api/rules`` and the rule appears.
 * ``bsupervisor audit list -o json`` emits valid JSON (the docstring's
   ``| jq`` smoke-test surrogate).
-* The superuser principal carries
-  ``supervisor:*`` scope and clears every scope gate (catalog drift on
-  a write would 403 here).
+* The admin-role principal clears every Phase 2a auth gate —
+  ``require_permission`` on reads, ``require_admin`` on writes / config
+  (catalog drift on a write would 403 here).
 """
 
 from __future__ import annotations
@@ -100,9 +99,11 @@ async def asgi_client() -> AsyncIterator[AsyncClient]:
         id="bootstrap-admin",
         email="bootstrap@bsvibe.dev",
         active_tenant_id="tenant-test",
-        # ``supervisor:*`` is the canonical admin-scope grant —
-        # exercising every catalog gate without minting a real token.
-        scope=["supervisor:*"],
+        # Phase 2a: read routes gate on ``require_permission`` (allowed by
+        # the allow-all OpenFGA stub below); mutation / admin-config routes
+        # gate on ``require_admin`` — so the principal carries an admin role.
+        scope=["bsupervisor:*"],
+        app_metadata={"role": "owner"},
     )
 
     async def _override_user() -> User:
@@ -248,14 +249,16 @@ def test_audit_list_emits_valid_json(
     assert isinstance(payload, list)
 
 
-def test_bootstrap_principal_clears_scope_gates(
+def test_bootstrap_principal_clears_auth_gates(
     runner: CliRunner, monkeypatch: pytest.MonkeyPatch, asgi_client: AsyncClient
 ) -> None:
-    """The ``supervisor:*`` superuser principal clears every CLI's scope gate.
+    """The admin-role superuser principal clears every CLI's auth gate.
 
-    If a router silently swaps to a stricter gate (or the conftest user
-    loses the wildcard), one of these calls will 403 — making catalog
-    drift loud at the CLI surface, not just the unit-test surface.
+    Phase 2a: read routes gate on ``require_permission`` (permissive /
+    OpenFGA-allowed here), admin-config routes on ``require_admin``. If a
+    router silently swaps to a stricter gate (or the principal loses its
+    admin role), one of these calls will 403 — making catalog drift loud
+    at the CLI surface, not just the unit-test surface.
     """
     from bsupervisor.cli.main import app
 

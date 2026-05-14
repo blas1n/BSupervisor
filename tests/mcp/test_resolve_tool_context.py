@@ -76,7 +76,7 @@ async def test_opaque_token_dispatches_to_introspection() -> None:
         active=True,
         sub="service:bsgateway",
         tenant="tenant-test",
-        scope=["supervisor:audit:read"],
+        scope=["bsupervisor:audit:read"],
     )
     client = _StubIntrospectionClient(response)
 
@@ -88,7 +88,7 @@ async def test_opaque_token_dispatches_to_introspection() -> None:
     )
 
     assert ctx.user.id == "service:bsgateway"
-    assert ctx.user.scope == ["supervisor:audit:read"]
+    assert ctx.user.scope == ["bsupervisor:audit:read"]
     assert client.calls == ["bsv_sk_xyz"]
 
 
@@ -164,7 +164,7 @@ async def test_pat_jwt_falls_back_to_introspection() -> None:
         active=True,
         sub="user-pat",
         tenant="tenant-test",
-        scope=["gateway:models:read"],
+        scope=["bsgateway:models:read"],
     )
     client = _StubIntrospectionClient(response)
 
@@ -245,7 +245,7 @@ async def test_audit_emit_factory_is_attached_to_context() -> None:
             active=True,
             sub="audit-emit-test",
             tenant="t",
-            scope=["supervisor:audit:read"],
+            scope=["bsupervisor:audit:read"],
         ),
     )
 
