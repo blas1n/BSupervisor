@@ -68,7 +68,7 @@ def registry() -> ToolRegistry:
             input_schema=_PingIn,
             output_schema=_PingOut,
             handler=_ping_handler,
-            required_scopes=["supervisor:ping"],
+            required_scopes=["bsupervisor:ping"],
         )
     )
     reg.register(
@@ -78,7 +78,7 @@ def registry() -> ToolRegistry:
             input_schema=_MutateIn,
             output_schema=_MutateOut,
             handler=_mutate_handler,
-            required_scopes=["supervisor:write"],
+            required_scopes=["bsupervisor:write"],
             audit_event="supervisor.mutated",
         )
     )
@@ -164,7 +164,7 @@ async def test_list_tools_delegates_to_registry(registry: ToolRegistry) -> None:
 
 @pytest.mark.asyncio
 async def test_call_tool_returns_json_text_content(registry: ToolRegistry) -> None:
-    provider = _provider_factory(["supervisor:ping"])
+    provider = _provider_factory(["bsupervisor:ping"])
     server = build_server(registry, context_provider=provider)
     handler = server.request_handlers[mcp_types.CallToolRequest]
 
@@ -181,7 +181,7 @@ async def test_call_tool_returns_json_text_content(registry: ToolRegistry) -> No
 @pytest.mark.asyncio
 async def test_call_tool_invokes_provider_per_call(registry: ToolRegistry) -> None:
     counter: list[int] = []
-    provider = _provider_factory(["supervisor:ping"], counter=counter)
+    provider = _provider_factory(["bsupervisor:ping"], counter=counter)
     server = build_server(registry, context_provider=provider)
     handler = server.request_handlers[mcp_types.CallToolRequest]
 
@@ -195,7 +195,7 @@ async def test_call_tool_invokes_provider_per_call(registry: ToolRegistry) -> No
 async def test_call_tool_treats_missing_arguments_as_empty_dict(registry: ToolRegistry) -> None:
     """``arguments`` may be ``None`` per the MCP protocol — registry sees ``{}``."""
 
-    provider = _provider_factory(["supervisor:ping"])
+    provider = _provider_factory(["bsupervisor:ping"])
     server = build_server(registry, context_provider=provider)
     handler = server.request_handlers[mcp_types.CallToolRequest]
 
@@ -211,7 +211,7 @@ async def test_call_tool_treats_missing_arguments_as_empty_dict(registry: ToolRe
 async def test_call_tool_permission_denied_surfaces_as_iserror(
     registry: ToolRegistry,
 ) -> None:
-    provider = _provider_factory(["supervisor:read"])  # no :ping
+    provider = _provider_factory(["bsupervisor:read"])  # no :ping
     server = build_server(registry, context_provider=provider)
     handler = server.request_handlers[mcp_types.CallToolRequest]
 
@@ -219,7 +219,7 @@ async def test_call_tool_permission_denied_surfaces_as_iserror(
     call_result = result.root
 
     assert call_result.isError is True
-    assert "supervisor:ping" in call_result.content[0].text
+    assert "bsupervisor:ping" in call_result.content[0].text
 
 
 @pytest.mark.asyncio
@@ -242,7 +242,7 @@ async def test_call_tool_audit_emit_fires_on_mutating_tool(
     registry: ToolRegistry,
 ) -> None:
     audit_calls: list[tuple[str, dict]] = []
-    provider = _provider_factory(["supervisor:write"], audit_calls=audit_calls)
+    provider = _provider_factory(["bsupervisor:write"], audit_calls=audit_calls)
     server = build_server(registry, context_provider=provider)
     handler = server.request_handlers[mcp_types.CallToolRequest]
 
@@ -255,7 +255,7 @@ async def test_call_tool_audit_emit_fires_on_mutating_tool(
 @pytest.mark.asyncio
 async def test_call_tool_no_audit_when_denied(registry: ToolRegistry) -> None:
     audit_calls: list[tuple[str, dict]] = []
-    provider = _provider_factory(["supervisor:read"], audit_calls=audit_calls)  # denied
+    provider = _provider_factory(["bsupervisor:read"], audit_calls=audit_calls)  # denied
     server = build_server(registry, context_provider=provider)
     handler = server.request_handlers[mcp_types.CallToolRequest]
 

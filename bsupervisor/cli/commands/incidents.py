@@ -9,7 +9,7 @@ Subcommands:
 
 ``ack`` puts the incident in the ``acknowledged`` state — distinct from
 ``resolve`` so an operator can flag triage in progress without closing
-the row. Both transitions are gated by ``supervisor:incidents:write``.
+the row. Both transitions are gated by ``bsupervisor:incidents:write``.
 """
 
 from __future__ import annotations

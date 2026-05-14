@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import CurrentUser, require_scope
+from bsupervisor.api.deps import CurrentUser, require_permission
 from bsupervisor.core.anomaly_detector import AnomalyDetector
 from bsupervisor.core.audit import make_actor, safe_emit
 from bsupervisor.models.database import get_session
@@ -27,7 +27,7 @@ class AnomalyEntry(BaseModel):
 @router.get("/anomalies", response_model=list[AnomalyEntry])
 async def list_anomalies(
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:agents:read")),
+    _allowed: None = Depends(require_permission("bsupervisor.agents.read")),
     session: AsyncSession = Depends(get_session),
 ) -> list[AnomalyEntry]:
     detector = AnomalyDetector(session)

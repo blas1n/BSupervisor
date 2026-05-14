@@ -45,7 +45,7 @@ Tool(
     input_schema=MyInput,
     output_schema=MyOutput,
     handler=_handler,
-    required_scopes=["supervisor:my:write"],
+    required_scopes=["bsupervisor:my:write"],
     audit_event="supervisor.my.executed",  # mutating tools only
 )
 ```
@@ -55,7 +55,7 @@ Dispatcher contract (`ToolRegistry.call_tool`):
 1. Validate args against `input_schema` (ValidationError → `ToolInputError`).
 2. Enforce `required_scopes` against `ctx.user.scopes` using the same
    wildcard semantics as `bsvibe_authz.require_scope`
-   (`"*"`, `"supervisor:*"`, exact match).
+   (`"*"`, `"bsupervisor:*"`, exact match).
 3. Run handler.
 4. Validate handler return against `output_schema`.
 5. If `audit_event` is set, emit on success only via `ctx.audit_emit`.
@@ -91,20 +91,20 @@ Admin tools (14, all `bsupervisor_<subapp>_<action>`):
 
 | Tool | Scope | Audit event |
 | --- | --- | --- |
-| `bsupervisor_agents_list` | `supervisor:agents:read` | — |
-| `bsupervisor_agents_add` | `supervisor:agents:write` | `supervisor.rule.created` |
-| `bsupervisor_agents_update` | `supervisor:agents:write` | `supervisor.rule.updated` |
-| `bsupervisor_agents_delete` | `supervisor:agents:write` | `supervisor.rule.deleted` |
-| `bsupervisor_agents_run` | `supervisor:agents:write` | `supervisor.event.evaluated` |
-| `bsupervisor_incidents_list` | `supervisor:incidents:read` | — |
-| `bsupervisor_incidents_show` | `supervisor:incidents:read` | — |
-| `bsupervisor_incidents_ack` | `supervisor:incidents:write` | `supervisor.incident.acknowledged` |
-| `bsupervisor_incidents_resolve` | `supervisor:incidents:write` | `supervisor.incident.resolved` |
-| `bsupervisor_audit_list` | `supervisor:audit:read` | — |
-| `bsupervisor_audit_show` | `supervisor:audit:read` | — |
-| `bsupervisor_costs_report` | `supervisor:audit:read` | — |
-| `bsupervisor_settings_get` | `supervisor:*` | — |
-| `bsupervisor_settings_set` | `supervisor:*` | `supervisor.settings.updated` |
+| `bsupervisor_agents_list` | `bsupervisor:agents:read` | — |
+| `bsupervisor_agents_add` | `bsupervisor:agents:write` | `supervisor.rule.created` |
+| `bsupervisor_agents_update` | `bsupervisor:agents:write` | `supervisor.rule.updated` |
+| `bsupervisor_agents_delete` | `bsupervisor:agents:write` | `supervisor.rule.deleted` |
+| `bsupervisor_agents_run` | `bsupervisor:agents:write` | `supervisor.event.evaluated` |
+| `bsupervisor_incidents_list` | `bsupervisor:incidents:read` | — |
+| `bsupervisor_incidents_show` | `bsupervisor:incidents:read` | — |
+| `bsupervisor_incidents_ack` | `bsupervisor:incidents:write` | `supervisor.incident.acknowledged` |
+| `bsupervisor_incidents_resolve` | `bsupervisor:incidents:write` | `supervisor.incident.resolved` |
+| `bsupervisor_audit_list` | `bsupervisor:audit:read` | — |
+| `bsupervisor_audit_show` | `bsupervisor:audit:read` | — |
+| `bsupervisor_costs_report` | `bsupervisor:audit:read` | — |
+| `bsupervisor_settings_get` | `bsupervisor:*` | — |
+| `bsupervisor_settings_set` | `bsupervisor:*` | `supervisor.settings.updated` |
 
 Source of truth: `ADMIN_TOOLS` / `ADMIN_TOOL_NAMES` in
 `bsupervisor/mcp/admin_tools.py`. The exact event names emitted are

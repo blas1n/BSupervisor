@@ -746,7 +746,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AgentsListInput,
         output_schema=AgentsListOutput,
         handler=_agents_list,
-        required_scopes=["supervisor:agents:read"],
+        required_scopes=["bsupervisor:agents:read"],
     ),
     Tool(
         name="bsupervisor_agents_add",
@@ -754,7 +754,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=RuleCreateRequest,
         output_schema=AgentsAddOutput,
         handler=_agents_add,
-        required_scopes=["supervisor:agents:write"],
+        required_scopes=["bsupervisor:agents:write"],
         audit_event="supervisor.rule.created",
     ),
     Tool(
@@ -763,7 +763,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AgentsUpdateInput,
         output_schema=AgentsUpdateOutput,
         handler=_agents_update,
-        required_scopes=["supervisor:agents:write"],
+        required_scopes=["bsupervisor:agents:write"],
         audit_event="supervisor.rule.updated",
     ),
     Tool(
@@ -772,7 +772,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AgentsDeleteInput,
         output_schema=AgentsDeleteOutput,
         handler=_agents_delete,
-        required_scopes=["supervisor:agents:write"],
+        required_scopes=["bsupervisor:agents:write"],
         audit_event="supervisor.rule.deleted",
     ),
     Tool(
@@ -781,7 +781,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AgentsRunInput,
         output_schema=AgentsRunOutput,
         handler=_agents_run,
-        required_scopes=["supervisor:agents:write"],
+        required_scopes=["bsupervisor:agents:write"],
         audit_event="supervisor.event.evaluated",
     ),
     Tool(
@@ -790,7 +790,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=IncidentsListInput,
         output_schema=IncidentsListOutput,
         handler=_incidents_list,
-        required_scopes=["supervisor:incidents:read"],
+        required_scopes=["bsupervisor:incidents:read"],
     ),
     Tool(
         name="bsupervisor_incidents_show",
@@ -798,7 +798,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=IncidentsShowInput,
         output_schema=IncidentsShowOutput,
         handler=_incidents_show,
-        required_scopes=["supervisor:incidents:read"],
+        required_scopes=["bsupervisor:incidents:read"],
     ),
     Tool(
         name="bsupervisor_incidents_ack",
@@ -806,7 +806,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=IncidentTransitionInput,
         output_schema=IncidentTransitionOutput,
         handler=_incidents_ack,
-        required_scopes=["supervisor:incidents:write"],
+        required_scopes=["bsupervisor:incidents:write"],
         audit_event="supervisor.incident.acknowledged",
     ),
     Tool(
@@ -815,7 +815,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=IncidentTransitionInput,
         output_schema=IncidentTransitionOutput,
         handler=_incidents_resolve,
-        required_scopes=["supervisor:incidents:write"],
+        required_scopes=["bsupervisor:incidents:write"],
         audit_event="supervisor.incident.resolved",
     ),
     Tool(
@@ -824,7 +824,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AuditListInput,
         output_schema=AuditListOutput,
         handler=_audit_list,
-        required_scopes=["supervisor:audit:read"],
+        required_scopes=["bsupervisor:audit:read"],
     ),
     Tool(
         name="bsupervisor_audit_show",
@@ -832,7 +832,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AuditShowInput,
         output_schema=AuditShowOutput,
         handler=_audit_show,
-        required_scopes=["supervisor:audit:read"],
+        required_scopes=["bsupervisor:audit:read"],
     ),
     Tool(
         name="bsupervisor_costs_report",
@@ -840,7 +840,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=CostsReportInput,
         output_schema=CostDataResponse,
         handler=_costs_report,
-        required_scopes=["supervisor:audit:read"],
+        required_scopes=["bsupervisor:audit:read"],
     ),
     Tool(
         name="bsupervisor_settings_get",
@@ -848,7 +848,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=SettingsGetInput,
         output_schema=SettingsGetOutput,
         handler=_settings_get,
-        required_scopes=["supervisor:*"],
+        required_scopes=["bsupervisor:*"],
     ),
     Tool(
         name="bsupervisor_settings_set",
@@ -856,7 +856,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=SettingsSetInput,
         output_schema=SettingsSetOutput,
         handler=_settings_set,
-        required_scopes=["supervisor:*"],
+        required_scopes=["bsupervisor:*"],
         audit_event="supervisor.settings.updated",
     ),
 ]

@@ -70,11 +70,16 @@ async def db_session(db_engine):
 # Test user identity used by the default ``client`` fixture. Tests that
 # need a different principal can override ``get_current_user`` directly
 # in their own scope.
+#
+# Phase 2a: carries ``app_metadata.role = "owner"`` so the default client
+# also passes ``require_admin()`` on mutation / admin-config routes. The
+# allow-all OpenFGA stub below covers ``require_permission`` routes.
 _fake_user = User(
     id="test-user-id",
     email="test@example.com",
     active_tenant_id="tenant-test",
-    scope=["supervisor:*"],
+    scope=["bsupervisor:*"],
+    app_metadata={"role": "owner"},
 )
 
 
@@ -111,8 +116,8 @@ async def client(db_session) -> AsyncIterator[AsyncClient]:
         return ServiceTokenPayload(
             iss="https://auth.bsvibe.dev",
             sub="service:bsgateway",
-            aud="supervisor",
-            scope="supervisor:events",
+            aud="bsupervisor",
+            scope="bsupervisor:events",
             iat=0,
             exp=2_000_000_000,
             token_type="service",

@@ -104,13 +104,13 @@ def test_mutating_tools_have_audit_event_and_writes_scope() -> None:
     registry = build_admin_registry()
 
     mutating = {
-        "bsupervisor_agents_add": "supervisor:agents:write",
-        "bsupervisor_agents_update": "supervisor:agents:write",
-        "bsupervisor_agents_delete": "supervisor:agents:write",
-        "bsupervisor_agents_run": "supervisor:agents:write",
-        "bsupervisor_incidents_ack": "supervisor:incidents:write",
-        "bsupervisor_incidents_resolve": "supervisor:incidents:write",
-        "bsupervisor_settings_set": "supervisor:*",
+        "bsupervisor_agents_add": "bsupervisor:agents:write",
+        "bsupervisor_agents_update": "bsupervisor:agents:write",
+        "bsupervisor_agents_delete": "bsupervisor:agents:write",
+        "bsupervisor_agents_run": "bsupervisor:agents:write",
+        "bsupervisor_incidents_ack": "bsupervisor:incidents:write",
+        "bsupervisor_incidents_resolve": "bsupervisor:incidents:write",
+        "bsupervisor_settings_set": "bsupervisor:*",
     }
     for name, expected_scope in mutating.items():
         tool = registry.get(name)
@@ -260,7 +260,7 @@ async def test_settings_set_updates_value_and_emits_audit(db_session) -> None:
 @pytest.mark.asyncio
 async def test_agents_add_denied_without_write_scope(db_session) -> None:
     registry = build_admin_registry()
-    user = _admin_user(scopes=["supervisor:agents:read"])
+    user = _admin_user(scopes=["bsupervisor:agents:read"])
 
     with pytest.raises(ToolPermissionError):
         await registry.call_tool(

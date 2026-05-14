@@ -98,7 +98,7 @@ def test_list_tools_returns_mcp_tool_objects_with_input_schema() -> None:
             input_schema=_EchoIn,
             output_schema=_EchoOut,
             handler=_echo_handler,
-            required_scopes=["supervisor:audit:read"],
+            required_scopes=["bsupervisor:audit:read"],
         )
     )
 
@@ -213,7 +213,7 @@ async def test_scope_wildcard_grants_any_required_scope() -> None:
             input_schema=_EchoIn,
             output_schema=_EchoOut,
             handler=_echo_handler,
-            required_scopes=["supervisor:audit:read"],
+            required_scopes=["bsupervisor:audit:read"],
         )
     )
 
@@ -232,11 +232,11 @@ async def test_scope_prefix_wildcard_grants_required_scope() -> None:
             input_schema=_EchoIn,
             output_schema=_EchoOut,
             handler=_echo_handler,
-            required_scopes=["supervisor:agents:write"],
+            required_scopes=["bsupervisor:agents:write"],
         )
     )
 
-    out = await registry.call_tool("echo", {"message": "x"}, _mk_ctx(scopes=["supervisor:*"]))
+    out = await registry.call_tool("echo", {"message": "x"}, _mk_ctx(scopes=["bsupervisor:*"]))
 
     assert out == {"echoed": "x"}
 
@@ -257,12 +257,12 @@ async def test_scope_denied_raises_permission_error_and_skips_handler() -> None:
             input_schema=_EchoIn,
             output_schema=_EchoOut,
             handler=handler,
-            required_scopes=["supervisor:agents:write"],
+            required_scopes=["bsupervisor:agents:write"],
         )
     )
 
     with pytest.raises(ToolPermissionError):
-        await registry.call_tool("echo", {"message": "x"}, _mk_ctx(scopes=["supervisor:audit:read"]))
+        await registry.call_tool("echo", {"message": "x"}, _mk_ctx(scopes=["bsupervisor:audit:read"]))
 
     assert called == []
 
@@ -277,7 +277,7 @@ async def test_multiple_required_scopes_all_must_be_granted() -> None:
             input_schema=_EchoIn,
             output_schema=_EchoOut,
             handler=_echo_handler,
-            required_scopes=["supervisor:agents:write", "supervisor:audit:read"],
+            required_scopes=["bsupervisor:agents:write", "bsupervisor:audit:read"],
         )
     )
 
@@ -285,7 +285,7 @@ async def test_multiple_required_scopes_all_must_be_granted() -> None:
         await registry.call_tool(
             "echo",
             {"message": "x"},
-            _mk_ctx(scopes=["supervisor:agents:write"]),  # missing audit:read
+            _mk_ctx(scopes=["bsupervisor:agents:write"]),  # missing audit:read
         )
 
 
@@ -360,13 +360,13 @@ async def test_audit_emit_does_not_fire_on_permission_denial() -> None:
             input_schema=_AddIn,
             output_schema=_AddOut,
             handler=_add_handler,
-            required_scopes=["supervisor:agents:write"],
+            required_scopes=["bsupervisor:agents:write"],
             audit_event="supervisor.add.invoked",
         )
     )
 
     with pytest.raises(ToolPermissionError):
-        await registry.call_tool("add", {"a": 1, "b": 2}, _mk_ctx(scopes=["supervisor:audit:read"], audit_emit=emit))
+        await registry.call_tool("add", {"a": 1, "b": 2}, _mk_ctx(scopes=["bsupervisor:audit:read"], audit_emit=emit))
 
     assert captured == []
 

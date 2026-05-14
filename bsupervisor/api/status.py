@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import CurrentUser, require_scope
+from bsupervisor.api.deps import CurrentUser, require_permission
 from bsupervisor.api.schemas import StatusResponse
 from bsupervisor.core.dates import today_window
 from bsupervisor.models.audit_event import AuditEvent
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api", tags=["status"])
 @router.get("/status", response_model=StatusResponse)
 async def get_status(
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:audit:read")),
+    _allowed: None = Depends(require_permission("bsupervisor.audit.read")),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     start, end = today_window()

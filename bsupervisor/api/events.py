@@ -17,7 +17,7 @@ from bsupervisor.api.deps import (
     CurrentUser,
     ServiceKey,
     bsupervisor_service_auth,
-    require_scope,
+    require_permission,
 )
 from bsupervisor.api.schemas import (
     EventListItem,
@@ -75,7 +75,7 @@ def _rate_limit_key(payload: EventRequest) -> str:
 @router.get("/events", response_model=list[EventListItem])
 async def list_events(
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:audit:read")),
+    _allowed: None = Depends(require_permission("bsupervisor.audit.read")),
     session: AsyncSession = Depends(get_session),
 ) -> list[EventListItem]:
     stmt = select(AuditEvent).order_by(AuditEvent.timestamp.desc()).limit(100)
@@ -278,7 +278,7 @@ async def submit_feedback(
     event_id: uuid.UUID,
     payload: FeedbackRequest,
     user: CurrentUser,
-    _allowed: None = Depends(require_scope("supervisor:audit:read")),
+    _allowed: None = Depends(require_permission("bsupervisor.audit.read")),
     session: AsyncSession = Depends(get_session),
 ) -> FeedbackResponse:
     stmt = select(AuditEvent).where(AuditEvent.id == event_id)

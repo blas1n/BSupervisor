@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bsupervisor.api.deps import CurrentUser, require_scope
+from bsupervisor.api.deps import CurrentUser, require_permission
 from bsupervisor.core.reporter import Reporter
 from bsupervisor.models.database import get_session
 
@@ -27,7 +27,7 @@ class DailyReportResponse(BaseModel):
 async def get_daily_report(
     _user: CurrentUser,
     date: date = Query(..., description="Report date in YYYY-MM-DD format"),
-    _allowed: None = Depends(require_scope("supervisor:audit:read")),
+    _allowed: None = Depends(require_permission("bsupervisor.audit.read")),
     session: AsyncSession = Depends(get_session),
 ) -> DailyReportResponse:
     reporter = Reporter(session)

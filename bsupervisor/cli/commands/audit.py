@@ -5,7 +5,7 @@ Subcommands:
 * ``list`` → ``GET /api/events`` (most-recent-first event listing)
 * ``show`` → ``GET /api/reports/daily?date=<YYYY-MM-DD>`` (daily report)
 
-Both endpoints gate on ``supervisor:audit:read``. ``audit show`` deliberately
+Both endpoints gate on ``bsupervisor:audit:read``. ``audit show`` deliberately
 maps to the daily-report endpoint rather than a per-event detail route — the
 reports surface is the canonical "what happened on day X" view, while the
 events list is the streaming firehose. A future ``audit show <event-id>``
