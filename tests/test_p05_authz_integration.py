@@ -107,11 +107,17 @@ def _make_service_jwt(
 
 
 class FakeFGAClient:
-    """In-memory OpenFGA stub. Records every check and returns ``allow``."""
+    """In-memory OpenFGA stub. Records every check and returns ``allow``.
+
+    ``write_tuple`` is the forward-readiness lazy tuple-write hook added in
+    bsvibe-authz 1.3.0 — ``require_permission`` calls it to seed missing
+    user→role tuples. The stub records the writes for inspection.
+    """
 
     def __init__(self, allow: bool = True) -> None:
         self.allow = allow
         self.checks: list[tuple[str, str, str]] = []
+        self.writes: list[tuple[str, str, str]] = []
 
     async def check(self, user: str, relation: str, object_: str) -> bool:
         self.checks.append((user, relation, object_))
@@ -119,6 +125,10 @@ class FakeFGAClient:
 
     async def list_objects(self, user: str, relation: str, type_: str) -> list[str]:
         return []
+
+    async def write_tuple(self, user: str, relation: str, object_: str) -> None:
+        self.writes.append((user, relation, object_))
+        return None
 
 
 @pytest.fixture

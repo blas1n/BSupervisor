@@ -3,8 +3,10 @@
 Phase 2a — user-facing routes are gated by ``require_permission(...)``
 (permissive no-op when ``openfga_api_url`` is empty, true on prod product
 backends today) and mutation/admin-config routes by ``require_admin()``
-(real role-claim check). The 3-way dispatch (opaque → JWT) lives in
-``bsvibe-authz``; this module is the BSupervisor-specific wrapper that:
+(real role-claim check). The 2-way dispatch (JWT verify → PAT-JWT
+introspection fallback; the legacy ``bsv_sk_*`` opaque branch was
+retired in bsvibe-authz 1.3.0) lives in ``bsvibe-authz``; this module
+is the BSupervisor-specific wrapper that:
 
 - re-exports ``CurrentUser``, ``ServiceKeyAuth``, etc. from bsvibe-authz so
   every router imports auth primitives from a single place.
@@ -82,7 +84,7 @@ def require_scope(scope: str) -> Callable[..., Awaitable[None]]:
     """Wrap ``bsvibe_authz.require_scope`` and tag the closure.
 
     Retained for service-token / legacy use cases — gates on scope strings
-    carried by opaque (``bsupervisor:<resource>:<action>``) tokens. The
+    carried by service JWTs (``bsupervisor:<resource>:<action>``). The
     ``_bsvibe_scope`` tag lets the auth-matrix test pin the catalog so
     future refactors cannot silently downgrade a gate.
     """

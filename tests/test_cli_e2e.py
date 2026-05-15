@@ -82,6 +82,10 @@ class _AllowAllFGA:
     async def list_objects(self, user: str, relation: str, type_: str) -> list[str]:
         return []
 
+    async def write_tuple(self, user: str, relation: str, object_: str) -> None:
+        # Forward-readiness lazy tuple-write hook (bsvibe-authz 1.3.0).
+        return None
+
 
 @pytest.fixture
 async def asgi_client() -> AsyncIterator[AsyncClient]:

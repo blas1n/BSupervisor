@@ -11,11 +11,23 @@ from __future__ import annotations
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import jwt
 import pytest
 import structlog
 
 from bsupervisor.mcp import transport as mcp_transport
 from bsupervisor.mcp.api import ToolPermissionError
+
+# JWT-shaped PAT token used as authorization-header fixtures throughout
+# this file. The bsv_sk_* opaque-token branch was retired in
+# bsvibe-authz 1.3.0; PATs are now JWT-shaped and reach introspection
+# via the PAT-JWT fallback only. These tests mock the resolver so the
+# token value is only ever shape-checked, never actually dispatched.
+_PAT_FIXTURE = jwt.encode(
+    {"sub": "transport-fixture", "exp": 9_999_999_999, "token_type": "pat"},
+    "transport-fixture-signing-secret",
+    algorithm="HS256",
+)
 
 
 def test_configure_stdio_logging_redirects_to_stderr() -> None:
@@ -33,7 +45,7 @@ async def test_http_context_provider_resolves_token_from_contextvar(
     """The provider reads ``_current_authorization`` and feeds it to
     :func:`resolve_tool_context`."""
 
-    raw = "bsv_sk_xyz"
+    raw = _PAT_FIXTURE
 
     captured: dict[str, str | None] = {}
 
@@ -162,16 +174,17 @@ async def test_mcp_subapp_delegates_to_session_manager() -> None:
     async def _send(message: dict) -> None:
         return None
 
+    auth_header = f"Bearer {_PAT_FIXTURE}"
     scope = {
         "type": "http",
         "method": "POST",
         "path": "/",
-        "headers": [(b"authorization", b"Bearer bsv_sk_token")],
+        "headers": [(b"authorization", auth_header.encode())],
         "query_string": b"",
         "raw_path": b"/",
     }
     await subapp(scope, _receive, _send)
-    assert captured_auth["seen"] == "Bearer bsv_sk_token"
+    assert captured_auth["seen"] == auth_header
     # ContextVar must reset after the request to avoid bleeding across calls.
     assert mcp_transport._current_authorization.get() is None
 
@@ -184,10 +197,10 @@ async def test_run_stdio_server_drives_sdk_stdio_loop(
     off to the SDK's ``stdio_server`` context manager. We patch every
     external dep so the test never touches real stdio or the env."""
 
-    monkeypatch.setenv("BSUPERVISOR_PAT", "bsv_sk_xyz")
+    monkeypatch.setenv("BSUPERVISOR_PAT", _PAT_FIXTURE)
 
     async def _fake_resolve(*, authorization, **_):  # type: ignore[no-untyped-def]
-        assert authorization == "Bearer bsv_sk_xyz"
+        assert authorization == f"Bearer {_PAT_FIXTURE}"
         return MagicMock(scope=["bsupervisor:*"])
 
     monkeypatch.setattr(mcp_transport, "resolve_tool_context", _fake_resolve)
