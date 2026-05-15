@@ -3,11 +3,17 @@
 Phase 2a — user-facing read/list routes are gated by ``require_permission``
 (permissive no-op when ``openfga_api_url`` is empty) and mutation /
 admin-config routes by ``require_admin()`` (real JWT-role check).
-``get_current_user`` from bsvibe-authz is a 2-way dispatch:
+``get_current_user`` from bsvibe-authz 1.3.0 dispatches by token shape:
 
-    1. ``bsv_sk_<...>`` opaque token   → User(scope=<introspection.scope>)
-    2. anything else                   → User(...) via JWT verification
-    3. invalid / missing Authorization → 401
+    1. JWT-shaped, signed with ``user_jwt_secret``  → User via JWT verify
+    2. JWT-shaped, fails JWT verify + introspection → PAT-JWT via
+       ``/oauth/introspect`` (device-grant PAT path; signed with
+       ``service_token_signing_secret``)
+    3. non-JWT or invalid / missing Authorization   → 401
+
+The legacy ``bsv_sk_*`` opaque-token branch was removed in Tier 2 of
+the 2026-05 auth cleanup; such tokens are now treated as garbage
+non-JWT bearers and rejected.
 
 Dispatch branches are exercised against ``GET /api/rules``
 (``require_permission("bsupervisor.agents.read")``) so a regression in the
@@ -42,7 +48,29 @@ from bsupervisor.models.database import get_session
 ISSUER = "https://auth.bsvibe.dev"
 USER_JWT_SECRET = "test-user-jwt-secret-do-not-use-in-prod"
 SERVICE_SIGNING_SECRET = "test-service-signing-secret-do-not-use-in-prod"
-OPAQUE_TOKEN = "bsv_sk_dispatch_test_value"  # noqa: S105 - fixture
+
+
+def _make_pat_jwt(*, sub: str = "pat-sub-1") -> str:
+    """Build a JWT-shaped PAT signed with a non-user secret.
+
+    Matches the device-authorization grant shape: the PAT JWT is signed
+    with ``service_token_signing_secret`` (not ``user_jwt_secret``), so
+    ``verify_user_jwt`` fails and ``get_current_user`` falls through to
+    the introspection client by jti. Bare strings like ``bsv_sk_...``
+    no longer reach introspection — only JWT-shaped tokens do (Tier 2,
+    bsvibe-authz 1.3.0).
+    """
+    now = int(time.time())
+    return jwt.encode(
+        {
+            "sub": sub,
+            "iat": now,
+            "exp": now + 600,
+            "token_type": "pat",
+        },
+        SERVICE_SIGNING_SECRET,
+        algorithm="HS256",
+    )
 
 
 def _make_authz_settings(*, with_introspection: bool = False) -> AuthzSettings:
@@ -102,6 +130,12 @@ class _AllowAllFGA:
     async def list_objects(self, user: str, relation: str, type_: str) -> list[str]:
         return []
 
+    async def write_tuple(self, user: str, relation: str, object_: str) -> None:
+        # Forward-readiness lazy tuple-write hook (bsvibe-authz 1.3.0) —
+        # no-op when ``openfga_api_url`` is empty in prod; the stub
+        # accepts the call here so the require_permission path completes.
+        return None
+
 
 class _DenyAllFGA:
     async def check(self, user: str, relation: str, object_: str) -> bool:
@@ -109,6 +143,9 @@ class _DenyAllFGA:
 
     async def list_objects(self, user: str, relation: str, type_: str) -> list[str]:
         return []
+
+    async def write_tuple(self, user: str, relation: str, object_: str) -> None:
+        return None
 
 
 def _wire_app(
@@ -140,11 +177,16 @@ def _wire_app(
 
 
 # ---------------------------------------------------------------------------
-# Branch 2: opaque token (bsv_sk_*) → introspection → require_permission
-#           authorizes via OpenFGA check (allow → 200, deny → 403)
+# Branch 2: PAT JWT (device-grant, signed with service_token_signing_secret)
+#           → verify_user_jwt fails → introspection picks it up by jti →
+#           require_permission authorizes via OpenFGA check
+#           (allow → 200, deny → 403). The legacy ``bsv_sk_*`` opaque branch
+#           was removed in bsvibe-authz 1.3.0 — only JWT-shaped tokens
+#           reach introspection now.
 # ---------------------------------------------------------------------------
-class TestOpaqueDispatch:
-    async def test_opaque_token_allowed_by_openfga_grants_access(self, db_session) -> None:
+class TestPatJwtDispatch:
+    async def test_pat_jwt_allowed_by_openfga_grants_access(self, db_session) -> None:
+        pat = _make_pat_jwt(sub="api-key-1")
         stub = _StubIntrospectionClient(
             IntrospectionResponse(
                 active=True,
@@ -164,15 +206,16 @@ class TestOpaqueDispatch:
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 resp = await ac.get(
                     "/api/rules",
-                    headers={"Authorization": f"Bearer {OPAQUE_TOKEN}"},
+                    headers={"Authorization": f"Bearer {pat}"},
                 )
                 assert resp.status_code == 200, resp.text
-                assert stub.calls == [OPAQUE_TOKEN]
+                assert stub.calls == [pat]
         finally:
             app.dependency_overrides.clear()
 
-    async def test_opaque_token_denied_by_openfga_returns_403(self, db_session) -> None:
+    async def test_pat_jwt_denied_by_openfga_returns_403(self, db_session) -> None:
         """When OpenFGA is deployed and the tuple check denies, require_permission 403s."""
+        pat = _make_pat_jwt(sub="api-key-1")
         stub = _StubIntrospectionClient(
             IntrospectionResponse(
                 active=True,
@@ -192,13 +235,14 @@ class TestOpaqueDispatch:
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 resp = await ac.get(
                     "/api/rules",
-                    headers={"Authorization": f"Bearer {OPAQUE_TOKEN}"},
+                    headers={"Authorization": f"Bearer {pat}"},
                 )
                 assert resp.status_code == 403, resp.text
         finally:
             app.dependency_overrides.clear()
 
-    async def test_inactive_opaque_token_rejected(self, db_session) -> None:
+    async def test_inactive_pat_jwt_rejected(self, db_session) -> None:
+        pat = _make_pat_jwt(sub="api-key-1")
         stub = _StubIntrospectionClient(IntrospectionResponse(active=False))
         _wire_app(
             db_session=db_session,
@@ -210,9 +254,40 @@ class TestOpaqueDispatch:
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 resp = await ac.get(
                     "/api/rules",
-                    headers={"Authorization": f"Bearer {OPAQUE_TOKEN}"},
+                    headers={"Authorization": f"Bearer {pat}"},
                 )
                 assert resp.status_code == 401
+        finally:
+            app.dependency_overrides.clear()
+
+    async def test_legacy_bsv_sk_opaque_token_rejected(self, db_session) -> None:
+        """Tier 2 regression: bare ``bsv_sk_*`` tokens are no longer
+        opaque-dispatched to introspection. They fail JWT shape-check and
+        are rejected as 401 — introspection is never called even when
+        configured."""
+        stub = _StubIntrospectionClient(
+            IntrospectionResponse(
+                active=True,
+                sub="api-key-1",
+                tenant="tenant-alpha",
+                scope=["bsupervisor:agents:read"],
+            )
+        )
+        _wire_app(
+            db_session=db_session,
+            settings=_make_authz_settings(with_introspection=True),
+            introspection_client=stub,
+            fga=_AllowAllFGA(),
+        )
+        try:
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                resp = await ac.get(
+                    "/api/rules",
+                    headers={"Authorization": "Bearer bsv_sk_legacy_value"},
+                )
+                assert resp.status_code == 401, resp.text
+                assert stub.calls == []
         finally:
             app.dependency_overrides.clear()
 

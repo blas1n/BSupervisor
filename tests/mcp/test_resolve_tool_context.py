@@ -1,8 +1,12 @@
 """Tests for resolve_tool_context — MCP-transport auth dispatch.
 
-Mirrors ``bsvibe_authz.deps.get_current_user`` (opaque → JWT) but for
-MCP transports (HTTP /mcp + stdio). Used by both transports so the
-auth path is identical between them.
+Mirrors ``bsvibe_authz.deps.get_current_user`` (JWT → PAT-JWT
+introspection fallback) but for MCP transports (HTTP /mcp + stdio).
+Used by both transports so the auth path is identical between them.
+
+The legacy ``bsv_sk_*`` opaque-token branch was removed in Tier 2 of
+the 2026-05 auth cleanup (bsvibe-authz 1.3.0). Introspection now serves
+only the PAT-JWT fallback path.
 
 Audit emission is wired by the caller via ``audit_emit_factory`` so the
 registry stays decoupled from any particular outbox session.
@@ -71,51 +75,27 @@ async def test_non_bearer_scheme_raises() -> None:
 
 
 @pytest.mark.asyncio
-async def test_opaque_token_dispatches_to_introspection() -> None:
-    response = IntrospectionResponse(
-        active=True,
-        sub="service:bsgateway",
-        tenant="tenant-test",
-        scope=["bsupervisor:audit:read"],
+async def test_bsv_sk_opaque_token_no_longer_dispatches_to_introspection() -> None:
+    """Regression: the legacy ``bsv_sk_*`` opaque-token branch was removed
+    in bsvibe-authz 1.3.0. Such tokens are now treated as non-JWT garbage
+    bearers — introspection is never called and the request 401s."""
+    client = _StubIntrospectionClient(
+        IntrospectionResponse(
+            active=True,
+            sub="service:bsgateway",
+            tenant="tenant-test",
+            scope=["bsupervisor:audit:read"],
+        )
     )
-    client = _StubIntrospectionClient(response)
-
-    ctx = await resolve_tool_context(
-        authorization="Bearer bsv_sk_xyz",
-        settings=_settings(),
-        introspection_client=client,  # type: ignore[arg-type]
-        introspection_cache=IntrospectionCache(ttl_s=30),
-    )
-
-    assert ctx.user.id == "service:bsgateway"
-    assert ctx.user.scope == ["bsupervisor:audit:read"]
-    assert client.calls == ["bsv_sk_xyz"]
-
-
-@pytest.mark.asyncio
-async def test_opaque_token_inactive_raises() -> None:
-    client = _StubIntrospectionClient(IntrospectionResponse(active=False))
 
     with pytest.raises(MCPAuthError):
         await resolve_tool_context(
-            authorization="Bearer bsv_sk_revoked",
+            authorization="Bearer bsv_sk_xyz",
             settings=_settings(),
             introspection_client=client,  # type: ignore[arg-type]
             introspection_cache=IntrospectionCache(ttl_s=30),
         )
-
-
-@pytest.mark.asyncio
-async def test_opaque_token_without_introspection_falls_through_to_jwt() -> None:
-    # bsv_sk_ prefix but introspection_client=None → fall through to JWT path,
-    # which should fail because the token is not a JWT.
-    with pytest.raises(MCPAuthError):
-        await resolve_tool_context(
-            authorization="Bearer bsv_sk_no_introspection",
-            settings=_settings(),
-            introspection_client=None,
-            introspection_cache=IntrospectionCache(ttl_s=30),
-        )
+    assert client.calls == []
 
 
 @pytest.mark.asyncio
@@ -254,8 +234,17 @@ async def test_audit_emit_factory_is_attached_to_context() -> None:
     async def emit(event: str, payload: dict) -> None:
         captured.append((event, payload))
 
+    # JWT-shaped PAT signed with a different secret → verify_user_jwt fails,
+    # introspection picks it up via the PAT-JWT fallback (now the only
+    # path that reaches introspection since bsvibe-authz 1.3.0).
+    pat = jwt.encode(
+        {"sub": "audit-emit-test", "exp": 9_999_999_999, "token_type": "pat"},
+        "different-signing-secret",
+        algorithm="HS256",
+    )
+
     ctx = await resolve_tool_context(
-        authorization="Bearer bsv_sk_emit",
+        authorization=f"Bearer {pat}",
         settings=settings,
         introspection_client=client,  # type: ignore[arg-type]
         introspection_cache=IntrospectionCache(ttl_s=30),

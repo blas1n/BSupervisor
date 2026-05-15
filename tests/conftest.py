@@ -84,13 +84,22 @@ _fake_user = User(
 
 
 class _AllowAllFGA:
-    """Test stub: every OpenFGA check returns True."""
+    """Test stub: every OpenFGA check returns True.
+
+    ``write_tuple`` is the forward-readiness lazy tuple-write hook added in
+    bsvibe-authz 1.3.0 — ``require_permission`` calls it to seed missing
+    user→role tuples (no-op when ``openfga_api_url`` is empty). The test
+    stub accepts the call as a successful no-op.
+    """
 
     async def check(self, user: str, relation: str, object_: str) -> bool:
         return True
 
     async def list_objects(self, user: str, relation: str, type_: str) -> list[str]:
         return []
+
+    async def write_tuple(self, user: str, relation: str, object_: str) -> None:
+        return None
 
 
 @pytest.fixture

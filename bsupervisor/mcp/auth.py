@@ -1,10 +1,12 @@
 """MCP-transport auth dispatcher.
 
 Thin delegate over :func:`bsvibe_authz.deps.get_current_user`. The
-library helper performs the full opaque → JWT → PAT-JWT
-introspection-fallback dispatch, so the only thing this module owns is
-the :class:`ToolContext` shape both transports (HTTP `/mcp` and stdio)
-return + translating ``HTTPException`` to :class:`MCPAuthError`.
+library helper performs the full JWT verify → PAT-JWT
+introspection-fallback dispatch (the legacy ``bsv_sk_*`` opaque-token
+branch was retired in bsvibe-authz 1.3.0), so the only thing this
+module owns is the :class:`ToolContext` shape both transports (HTTP
+``/mcp`` and stdio) return + translating ``HTTPException`` to
+:class:`MCPAuthError`.
 
 Token-redaction (never log raw tokens) is enforced inside bsvibe-authz.
 """
@@ -41,10 +43,10 @@ async def resolve_tool_context(
 ) -> ToolContext:
     """Resolve ``Authorization`` header → :class:`ToolContext`.
 
-    Delegates to :func:`bsvibe_authz.deps.get_current_user` for the full
-    2-way dispatch (opaque → JWT) plus the PAT-JWT
-    introspection fallback. Library-level changes propagate
-    automatically — no mirror fixes here.
+    Delegates to :func:`bsvibe_authz.deps.get_current_user` for the JWT
+    verify + PAT-JWT introspection fallback dispatch (the ``bsv_sk_*``
+    opaque branch was retired in bsvibe-authz 1.3.0). Library-level
+    changes propagate automatically — no mirror fixes here.
     """
     try:
         user = await get_current_user(

@@ -64,12 +64,12 @@ def _build_introspection_inputs() -> tuple[AuthzSettings | None, IntrospectionCl
 
     Mirrors the FastAPI dependency wiring so MCP and REST share one config
     surface. The introspection client is ``None`` whenever
-    ``introspection_url`` is empty — opaque tokens then fall through and
+    ``introspection_url`` is empty — PAT-JWT tokens then fall through and
     fail closed, matching the REST behaviour.
 
     If the bsvibe-authz Settings cannot be constructed (e.g. demo / smoke
     deployments that intentionally skip the auth env vars), return None for
-    settings + client so the opaque-token path still works. ``ValidationError``
+    settings + client so the PAT-JWT path still works. ``ValidationError``
     is caught explicitly because pydantic-settings raises it when required
     fields are missing — which is acceptable in demo envs.
     """
