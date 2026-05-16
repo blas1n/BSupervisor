@@ -335,8 +335,14 @@ class TestJwtDispatch:
             app.dependency_overrides.clear()
 
     async def test_jwt_without_admin_role_denied_on_require_admin_route(self, db_session) -> None:
-        """Phase 2a: require_admin is a real enforced check — non-admin JWT 403s."""
-        _wire_app(db_session=db_session, settings=_make_authz_settings())
+        """require_admin enforces — a caller the OpenFGA model does not grant
+        ``admin`` 403s.
+
+        Since bsvibe-authz 2.1.0 require_admin checks the OpenFGA ``admin``
+        relation (was the ``app_metadata.role`` claim), so a deny FGA — not
+        the role claim — is what drives the 403 branch.
+        """
+        _wire_app(db_session=db_session, settings=_make_authz_settings(), fga=_DenyAllFGA())
         try:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
