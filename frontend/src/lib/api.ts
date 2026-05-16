@@ -10,8 +10,10 @@
  * existing component tree keeps compiling.
  */
 
+import type { ApiClient, RequestOptions } from "@bsvibe/api";
 import { createApiFetch, setOnAuthError } from "@bsvibe/api";
-import { getAccessToken } from "../hooks/useAuth";
+import { isDemoMode } from "@bsvibe/demo";
+import { getAccessToken, getActiveTenantId } from "../hooks/useAuth";
 
 const AUTH_URL =
   process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? "https://auth.bsvibe.dev";
@@ -44,7 +46,7 @@ if (typeof window !== "undefined") {
   });
 }
 
-const api = createApiFetch({
+const baseApi = createApiFetch({
   baseUrl: BASE_URL,
   getToken: () => getAccessToken(),
   onUnauthorized: () => {
@@ -53,6 +55,42 @@ const api = createApiFetch({
     }
   },
 });
+
+// Tier 3.2 — the wrapped session JWT was collapsed to the raw Supabase
+// JWT, which carries no tenant claim. Product backends now resolve the
+// active tenant from the `X-Active-Tenant` request header. The shared
+// `createApiFetch` has no request-interceptor hook (it only injects
+// `Authorization` from `getToken()`), so we wrap every method to merge
+// the header into the per-request `RequestOptions`.
+//
+// Demo mode is single-tenant + cookie auth — the demo backend never
+// reads `X-Active-Tenant`, so the header is skipped there (mirrors the
+// BSNexus `isDemoMode()` carve-out).
+async function withActiveTenant(
+  opts?: RequestOptions,
+): Promise<RequestOptions | undefined> {
+  if (isDemoMode()) return opts;
+  const activeTenant = await getActiveTenantId();
+  if (!activeTenant) return opts;
+  return {
+    ...opts,
+    headers: { ...opts?.headers, "X-Active-Tenant": activeTenant },
+  };
+}
+
+const api: ApiClient = {
+  get: async (path, opts) => baseApi.get(path, await withActiveTenant(opts)),
+  post: async (path, body, opts) =>
+    baseApi.post(path, body, await withActiveTenant(opts)),
+  put: async (path, body, opts) =>
+    baseApi.put(path, body, await withActiveTenant(opts)),
+  patch: async (path, body, opts) =>
+    baseApi.patch(path, body, await withActiveTenant(opts)),
+  delete: async (path, opts) =>
+    baseApi.delete(path, await withActiveTenant(opts)),
+  request: async (path, init, opts) =>
+    baseApi.request(path, init, await withActiveTenant(opts)),
+};
 
 // --- Types ---
 
