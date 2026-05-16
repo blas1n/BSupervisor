@@ -10,12 +10,13 @@ is the BSupervisor-specific wrapper that:
 
 - re-exports ``CurrentUser``, ``ServiceKeyAuth``, etc. from bsvibe-authz so
   every router imports auth primitives from a single place.
-- wraps ``require_permission`` / ``require_admin`` / ``require_scope`` with
-  closure tags (``_bsvibe_permission`` / ``_bsvibe_admin`` /
-  ``_bsvibe_scope``) so the auth-matrix test (``tests/api/test_auth.py``)
-  can introspect each gate and pin the catalog — future refactors cannot
-  silently downgrade a gate.
-- ``require_scope`` is retained for service-token / legacy use cases.
+- wraps ``require_permission`` / ``require_admin`` with closure tags
+  (``_bsvibe_permission`` / ``_bsvibe_admin``) so the auth-matrix test
+  (``tests/api/test_auth.py``) can introspect each gate and pin the
+  catalog — future refactors cannot silently downgrade a gate.
+
+The legacy ``require_scope`` gate was removed in bsvibe-authz 2.0.0
+(Tier 5 Phase 4); all routes are on ``require_permission`` / OpenFGA.
 """
 
 from __future__ import annotations
@@ -40,9 +41,6 @@ from bsvibe_authz.deps import (
 )
 from bsvibe_authz.deps import (
     require_permission as _authz_require_permission,
-)
-from bsvibe_authz.deps import (
-    require_scope as _authz_require_scope,
 )
 
 logger = structlog.get_logger(__name__)
@@ -80,19 +78,6 @@ def require_admin(**kwargs: object) -> Callable[..., Awaitable[None]]:
     return dep
 
 
-def require_scope(scope: str) -> Callable[..., Awaitable[None]]:
-    """Wrap ``bsvibe_authz.require_scope`` and tag the closure.
-
-    Retained for service-token / legacy use cases — gates on scope strings
-    carried by service JWTs (``bsupervisor:<resource>:<action>``). The
-    ``_bsvibe_scope`` tag lets the auth-matrix test pin the catalog so
-    future refactors cannot silently downgrade a gate.
-    """
-    dep = _authz_require_scope(scope)
-    dep._bsvibe_scope = scope  # type: ignore[attr-defined]
-    return dep
-
-
 __all__ = [
     "CurrentUser",
     "ServiceKey",
@@ -105,5 +90,4 @@ __all__ = [
     "get_settings_dep",
     "require_admin",
     "require_permission",
-    "require_scope",
 ]
