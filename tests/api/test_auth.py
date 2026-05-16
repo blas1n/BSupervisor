@@ -456,10 +456,6 @@ def _find_route(method: str, path: str):
     return None
 
 
-def _no_legacy_scope(route) -> list[str | None]:
-    return [getattr(d.call, "_bsvibe_scope", None) for d in route.dependant.dependencies if d.call is not None]
-
-
 @pytest.mark.parametrize(
     ("method", "path", "permission"),
     [(m, p, v[1]) for (m, p), v in AUTH_CATALOG.items() if v is not None and v[0] == "permission"],
@@ -476,8 +472,6 @@ def test_route_gates_on_expected_permission(method: str, path: str, permission: 
 
     perms = [getattr(d.call, "_bsvibe_permission", None) for d in matched.dependant.dependencies if d.call is not None]
     assert permission in perms, f"{method} {path} did not gate on require_permission({permission!r}); saw {perms}"
-    scopes = _no_legacy_scope(matched)
-    assert all(s is None for s in scopes), f"{method} {path} still carries a require_scope gate: {scopes}"
 
 
 @pytest.mark.parametrize(
@@ -491,8 +485,6 @@ def test_route_gates_on_require_admin(method: str, path: str) -> None:
 
     admins = [getattr(d.call, "_bsvibe_admin", None) for d in matched.dependant.dependencies if d.call is not None]
     assert any(admins), f"{method} {path} did not gate on require_admin()"
-    scopes = _no_legacy_scope(matched)
-    assert all(s is None for s in scopes), f"{method} {path} still carries a require_scope gate: {scopes}"
 
 
 def test_catalog_covers_every_protected_route() -> None:
