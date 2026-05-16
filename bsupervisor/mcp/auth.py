@@ -16,7 +16,7 @@ from __future__ import annotations
 import structlog
 from bsvibe_authz import IntrospectionClient, Settings
 from bsvibe_authz.cache import IntrospectionCache
-from bsvibe_authz.deps import get_current_user
+from bsvibe_authz.deps import get_current_user, get_openfga_client, get_permission_cache
 from fastapi import HTTPException
 
 from bsupervisor.mcp.api import AuditEmit, ToolContext
@@ -47,6 +47,14 @@ async def resolve_tool_context(
     verify + PAT-JWT introspection fallback dispatch (the ``bsv_sk_*``
     opaque branch was retired in bsvibe-authz 1.3.0). Library-level
     changes propagate automatically — no mirror fixes here.
+
+    Tier 5 Phase 3a — the context also carries the bsvibe-authz OpenFGA
+    dependencies (``fga`` / ``cache`` / ``settings``) so the tool
+    dispatcher can run :func:`bsvibe_authz.check_tenant_permission`, the
+    same tenant-scoped check the REST ``require_permission`` gate uses.
+    ``get_openfga_client`` / ``get_permission_cache`` are the process-wide
+    singletons; calling them with an explicit ``settings`` bypasses the
+    FastAPI ``Depends`` machinery.
     """
     try:
         user = await get_current_user(
@@ -58,7 +66,13 @@ async def resolve_tool_context(
     except HTTPException as exc:
         raise MCPAuthError(str(exc.detail)) from exc
 
-    return ToolContext(user=user, audit_emit=audit_emit or _noop_audit)
+    return ToolContext(
+        user=user,
+        audit_emit=audit_emit or _noop_audit,
+        fga=get_openfga_client(settings),
+        cache=get_permission_cache(settings),
+        settings=settings,
+    )
 
 
 __all__ = [

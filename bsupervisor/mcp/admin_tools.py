@@ -1,7 +1,9 @@
 """Admin MCP tools — first-class definitions for the bsupervisor admin surface.
 
-Each :class:`Tool` mirrors a CLI sub-app command and gates on the same scope
-the corresponding REST route enforces. Handlers operate on ``ctx.db`` and
+Each :class:`Tool` mirrors a CLI sub-app command and gates on the same
+``<product>.<resource>.<action>`` OpenFGA permission the corresponding REST
+route enforces (Tier 5 — migrated from scope-claim checks). Handlers operate
+on ``ctx.db`` and
 reuse the same core helpers (``RuleEngine``, ``IncidentTracker``, ``Reporter``,
 ``secret_vault``) that REST handlers use, so behavior stays in lockstep with
 the REST surface without a typer auto-adapter.
@@ -746,7 +748,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AgentsListInput,
         output_schema=AgentsListOutput,
         handler=_agents_list,
-        required_scopes=["bsupervisor:agents:read"],
+        required_permission="bsupervisor.agents.read",
     ),
     Tool(
         name="bsupervisor_agents_add",
@@ -754,7 +756,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=RuleCreateRequest,
         output_schema=AgentsAddOutput,
         handler=_agents_add,
-        required_scopes=["bsupervisor:agents:write"],
+        required_permission="bsupervisor.agents.write",
         audit_event="supervisor.rule.created",
     ),
     Tool(
@@ -763,7 +765,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AgentsUpdateInput,
         output_schema=AgentsUpdateOutput,
         handler=_agents_update,
-        required_scopes=["bsupervisor:agents:write"],
+        required_permission="bsupervisor.agents.write",
         audit_event="supervisor.rule.updated",
     ),
     Tool(
@@ -772,7 +774,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AgentsDeleteInput,
         output_schema=AgentsDeleteOutput,
         handler=_agents_delete,
-        required_scopes=["bsupervisor:agents:write"],
+        required_permission="bsupervisor.agents.write",
         audit_event="supervisor.rule.deleted",
     ),
     Tool(
@@ -781,7 +783,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AgentsRunInput,
         output_schema=AgentsRunOutput,
         handler=_agents_run,
-        required_scopes=["bsupervisor:agents:write"],
+        required_permission="bsupervisor.agents.write",
         audit_event="supervisor.event.evaluated",
     ),
     Tool(
@@ -790,7 +792,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=IncidentsListInput,
         output_schema=IncidentsListOutput,
         handler=_incidents_list,
-        required_scopes=["bsupervisor:incidents:read"],
+        required_permission="bsupervisor.incidents.read",
     ),
     Tool(
         name="bsupervisor_incidents_show",
@@ -798,7 +800,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=IncidentsShowInput,
         output_schema=IncidentsShowOutput,
         handler=_incidents_show,
-        required_scopes=["bsupervisor:incidents:read"],
+        required_permission="bsupervisor.incidents.read",
     ),
     Tool(
         name="bsupervisor_incidents_ack",
@@ -806,7 +808,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=IncidentTransitionInput,
         output_schema=IncidentTransitionOutput,
         handler=_incidents_ack,
-        required_scopes=["bsupervisor:incidents:write"],
+        required_permission="bsupervisor.incidents.write",
         audit_event="supervisor.incident.acknowledged",
     ),
     Tool(
@@ -815,7 +817,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=IncidentTransitionInput,
         output_schema=IncidentTransitionOutput,
         handler=_incidents_resolve,
-        required_scopes=["bsupervisor:incidents:write"],
+        required_permission="bsupervisor.incidents.write",
         audit_event="supervisor.incident.resolved",
     ),
     Tool(
@@ -824,7 +826,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AuditListInput,
         output_schema=AuditListOutput,
         handler=_audit_list,
-        required_scopes=["bsupervisor:audit:read"],
+        required_permission="bsupervisor.audit.read",
     ),
     Tool(
         name="bsupervisor_audit_show",
@@ -832,7 +834,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=AuditShowInput,
         output_schema=AuditShowOutput,
         handler=_audit_show,
-        required_scopes=["bsupervisor:audit:read"],
+        required_permission="bsupervisor.audit.read",
     ),
     Tool(
         name="bsupervisor_costs_report",
@@ -840,7 +842,7 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=CostsReportInput,
         output_schema=CostDataResponse,
         handler=_costs_report,
-        required_scopes=["bsupervisor:audit:read"],
+        required_permission="bsupervisor.audit.read",
     ),
     Tool(
         name="bsupervisor_settings_get",
@@ -848,7 +850,10 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=SettingsGetInput,
         output_schema=SettingsGetOutput,
         handler=_settings_get,
-        required_scopes=["bsupervisor:*"],
+        # Tier 5: the old ``bsupervisor:*`` super-scope is retired — the
+        # OpenFGA model has no wildcard. settings_get reads the settings
+        # resource → the matrix-valid ``settings.read``.
+        required_permission="bsupervisor.settings.read",
     ),
     Tool(
         name="bsupervisor_settings_set",
@@ -856,7 +861,9 @@ ADMIN_TOOLS: list[Tool] = [
         input_schema=SettingsSetInput,
         output_schema=SettingsSetOutput,
         handler=_settings_set,
-        required_scopes=["bsupervisor:*"],
+        # Tier 5: the old ``bsupervisor:*`` super-scope is retired.
+        # settings_set mutates the settings resource → ``settings.write``.
+        required_permission="bsupervisor.settings.write",
         audit_event="supervisor.settings.updated",
     ),
 ]

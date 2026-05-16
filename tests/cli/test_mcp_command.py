@@ -48,9 +48,9 @@ def test_mcp_list_tools_prints_admin_catalog(runner: CliRunner) -> None:
     names = [t["name"] for t in payload]
     for expected in ADMIN_TOOL_NAMES:
         assert expected in names, f"missing tool {expected!r} in list-tools output"
-    # Each entry surfaces the scope + audit_event so operators can audit.
+    # Each entry surfaces the permission + audit_event so operators can audit.
     sample = next(t for t in payload if t["name"] == "bsupervisor_agents_add")
-    assert sample["required_scopes"] == ["bsupervisor:agents:write"]
+    assert sample["required_permission"] == "bsupervisor.agents.write"
     assert sample["audit_event"] == "supervisor.rule.created"
 
 

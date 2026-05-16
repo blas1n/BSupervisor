@@ -285,7 +285,9 @@ async def test_build_server_opens_session_for_admin_tool_when_factory_provided()
             input_schema=_Args,
             output_schema=_Out,
             handler=_handler,
-            required_scopes=[],
+            # Unguarded probe tool — Tier 5: required_permission=None skips
+            # the OpenFGA check so this session-injection test stays focused.
+            required_permission=None,
         )
     )
 
@@ -298,7 +300,7 @@ async def test_build_server_opens_session_for_admin_tool_when_factory_provided()
     async def ctx_provider():
         # Empty user / audit emit — we only care that session injection works.
         return mcp_transport.ToolContext(
-            user=MagicMock(scope=["*"], id="u", email=None, is_service=False),
+            user=MagicMock(id="u", email=None, is_service=False),
             audit_emit=AsyncMock(),
         )
 

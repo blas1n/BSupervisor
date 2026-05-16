@@ -6,12 +6,19 @@ Covers:
 - One ``CallTool`` per sub-app exercises the dispatcher end-to-end against
   a real ``db_session`` (no service-layer mocking — handlers call core
   helpers + ``ctx.db`` directly).
-- Scope strings on each tool match the REST route the CLI hits.
+- ``required_permission`` strings on each tool match the REST route the
+  CLI hits (Tier 5 ``<product>.<resource>.<action>`` dot strings).
 - Mutating tools have ``audit_event`` set; read-only tools do not.
 
 The tests deliberately avoid ``TestClient``/``ASGITransport`` — these are
 in-process registry calls, the same in-process pattern the rest of
 ``tests/mcp/`` uses (memory ``mcp-python-sdk-testing``).
+
+Tier 5 Phase 3a — tool authorization is the tenant-scoped OpenFGA check
+(``check_tenant_permission``). The happy-path tests build a context with
+OpenFGA unconfigured (``openfga_api_url=""``) so the check is permissive,
+matching the test/demo posture; the denied-path test injects a fake FGA
+client that returns False.
 """
 
 from __future__ import annotations
@@ -19,7 +26,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
-from bsvibe_authz import User
+from bsvibe_authz import Settings, User
+from bsvibe_authz.cache import PermissionCache
 
 from bsupervisor.mcp.admin_tools import ADMIN_TOOL_NAMES, build_admin_registry
 from bsupervisor.mcp.api import ToolContext, ToolPermissionError
@@ -30,13 +38,36 @@ from bsupervisor.models.incident import Incident, IncidentStatus
 _TEST_TENANT = "tenant-test"
 
 
-def _admin_user(scopes: list[str] | None = None) -> User:
+class _FakeFGA:
+    """OpenFGA stand-in — every ``check`` returns ``allow``; ``write_tuple``
+    is a no-op so the dispatcher's lazy role-tuple provisioning never errors."""
+
+    def __init__(self, *, allow: bool) -> None:
+        self.allow = allow
+
+    async def check(self, user: str, relation: str, object_: str) -> bool:
+        return self.allow
+
+    async def list_objects(self, user: str, relation: str, type_: str) -> list[str]:
+        return []
+
+    async def write_tuple(self, user: str, relation: str, object_: str) -> None:
+        return None
+
+
+def _admin_user() -> User:
+    """A real (non-service) tenant admin — the steady-state MCP caller.
+
+    ``app_metadata.role`` is set so the dispatcher's lazy role-tuple
+    provisioning has something to write; OpenFGA stays unconfigured in
+    the happy-path context so the check is permissive regardless.
+    """
     return User(
         id="admin-user",
         email="admin@example.com",
         active_tenant_id=_TEST_TENANT,
-        scope=scopes if scopes is not None else ["*"],
-        is_service=True,
+        app_metadata={"role": "admin"},
+        is_service=False,
     )
 
 
@@ -44,7 +75,14 @@ async def _noop_emit(event: str, payload: dict) -> None:
     return None
 
 
-def _ctx(session, user: User | None = None, captured: list | None = None) -> ToolContext:
+def _ctx(
+    session,
+    user: User | None = None,
+    captured: list | None = None,
+    *,
+    fga: _FakeFGA | None = None,
+    openfga_configured: bool = False,
+) -> ToolContext:
     audit = _noop_emit
     if captured is not None:
 
@@ -53,10 +91,16 @@ def _ctx(session, user: User | None = None, captured: list | None = None) -> Too
 
         audit = _capture
 
+    settings = Settings(
+        openfga_api_url="http://openfga.test" if openfga_configured else "",
+    )
     return ToolContext(
         user=user or _admin_user(),
         audit_emit=audit,
         db=session,
+        fga=fga or _FakeFGA(allow=True),
+        cache=PermissionCache(ttl_s=30),
+        settings=settings,
     )
 
 
@@ -100,22 +144,26 @@ def test_every_admin_tool_has_input_and_output_schema() -> None:
         assert tool.outputSchema, f"{tool.name} missing outputSchema"
 
 
-def test_mutating_tools_have_audit_event_and_writes_scope() -> None:
+def test_mutating_tools_have_audit_event_and_write_permission() -> None:
     registry = build_admin_registry()
 
     mutating = {
-        "bsupervisor_agents_add": "bsupervisor:agents:write",
-        "bsupervisor_agents_update": "bsupervisor:agents:write",
-        "bsupervisor_agents_delete": "bsupervisor:agents:write",
-        "bsupervisor_agents_run": "bsupervisor:agents:write",
-        "bsupervisor_incidents_ack": "bsupervisor:incidents:write",
-        "bsupervisor_incidents_resolve": "bsupervisor:incidents:write",
-        "bsupervisor_settings_set": "bsupervisor:*",
+        "bsupervisor_agents_add": "bsupervisor.agents.write",
+        "bsupervisor_agents_update": "bsupervisor.agents.write",
+        "bsupervisor_agents_delete": "bsupervisor.agents.write",
+        "bsupervisor_agents_run": "bsupervisor.agents.write",
+        "bsupervisor_incidents_ack": "bsupervisor.incidents.write",
+        "bsupervisor_incidents_resolve": "bsupervisor.incidents.write",
+        # Tier 5: the old ``bsupervisor:*`` super-scope is retired —
+        # settings_set maps to the matrix-valid ``settings.write``.
+        "bsupervisor_settings_set": "bsupervisor.settings.write",
     }
-    for name, expected_scope in mutating.items():
+    for name, expected_permission in mutating.items():
         tool = registry.get(name)
         assert tool.audit_event, f"{name} should have audit_event set"
-        assert expected_scope in tool.required_scopes, f"{name} missing scope {expected_scope}"
+        assert tool.required_permission == expected_permission, (
+            f"{name} expected {expected_permission}, got {tool.required_permission}"
+        )
 
 
 def test_read_only_tools_have_no_audit_event() -> None:
@@ -132,6 +180,31 @@ def test_read_only_tools_have_no_audit_event() -> None:
     for name in read_only:
         tool = registry.get(name)
         assert tool.audit_event is None, f"{name} should not emit audit events"
+
+
+def test_every_tool_permission_is_a_matrix_row() -> None:
+    """Tier 5 — every tool's ``required_permission`` is a
+    ``<product>.<resource>.<action>`` dot string drawn from the
+    bsvibe-authz permission matrix (no wildcard, no colon grammar)."""
+    registry = build_admin_registry()
+
+    # The matrix rows under ``bsupervisor:`` — agents.read/write,
+    # incidents.read/write, audit.read, settings.read/write.
+    valid = {
+        "bsupervisor.agents.read",
+        "bsupervisor.agents.write",
+        "bsupervisor.incidents.read",
+        "bsupervisor.incidents.write",
+        "bsupervisor.audit.read",
+        "bsupervisor.settings.read",
+        "bsupervisor.settings.write",
+    }
+    for name in ADMIN_TOOL_NAMES:
+        tool = registry.get(name)
+        assert tool.required_permission is not None, f"{name} has no required_permission"
+        assert "*" not in tool.required_permission, f"{name} keeps a wildcard"
+        assert ":" not in tool.required_permission, f"{name} keeps colon grammar"
+        assert tool.required_permission in valid, f"{name} permission {tool.required_permission} is not a matrix row"
 
 
 # ---------------------------------------------------------------------------
@@ -253,21 +326,38 @@ async def test_settings_set_updates_value_and_emits_audit(db_session) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Scope enforcement on admin tools — REST equivalence
+# Permission enforcement on admin tools — REST equivalence (Tier 5 OpenFGA)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_agents_add_denied_without_write_scope(db_session) -> None:
+async def test_agents_add_denied_when_openfga_denies(db_session) -> None:
+    """With OpenFGA configured and the FGA client returning False, the
+    write tool 403s before the handler runs — REST ``require_permission``
+    equivalence for the MCP surface."""
     registry = build_admin_registry()
-    user = _admin_user(scopes=["bsupervisor:agents:read"])
 
     with pytest.raises(ToolPermissionError):
         await registry.call_tool(
             "bsupervisor_agents_add",
             {"name": "x", "action": "block"},
-            _ctx(db_session, user=user),
+            _ctx(db_session, fga=_FakeFGA(allow=False), openfga_configured=True),
         )
+
+
+@pytest.mark.asyncio
+async def test_agents_add_allowed_when_openfga_grants(db_session) -> None:
+    """With OpenFGA configured and the FGA client returning True, the
+    write tool dispatches normally."""
+    registry = build_admin_registry()
+
+    out = await registry.call_tool(
+        "bsupervisor_agents_add",
+        {"name": "rule-fga-allow", "action": "block"},
+        _ctx(db_session, fga=_FakeFGA(allow=True), openfga_configured=True),
+    )
+
+    assert out["name"] == "rule-fga-allow"
 
 
 # ---------------------------------------------------------------------------
@@ -435,7 +525,10 @@ async def test_agents_run_evaluates_synthetic_event(db_session) -> None:
 async def test_agents_run_requires_active_tenant(db_session) -> None:
     from bsupervisor.mcp.admin_tools import AdminToolForbiddenError
 
-    user = User(id="no-tenant", email="x@y", scope=["*"], is_service=True)
+    # OpenFGA stays unconfigured in ``_ctx`` → check_tenant_permission is
+    # permissive even without a tenant, so the handler runs and it is the
+    # handler's own tenant guard that raises here.
+    user = User(id="no-tenant", email="x@y", is_service=False)
     registry = build_admin_registry()
     with pytest.raises(AdminToolForbiddenError):
         await registry.call_tool(
