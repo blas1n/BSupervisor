@@ -26,6 +26,12 @@ const AUTH_URL = process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? 'https://auth.bsvibe
 const LS_ACCESS_TOKEN = 'bsupervisor_access_token';
 const LS_REFRESH_TOKEN = 'bsupervisor_refresh_token';
 const LS_EXPIRES_AT = 'bsupervisor_expires_at';
+// Tier 3.2 — the wrapped session JWT was collapsed to the raw Supabase
+// JWT, which carries no tenant claim. Product backends now resolve the
+// active tenant from an `X-Active-Tenant` request header instead. The
+// frontend captures `active_tenant_id` from `/api/session` and caches it
+// alongside the access token (module variable + localStorage).
+const LS_ACTIVE_TENANT = 'bsupervisor_active_tenant';
 
 interface SessionResponse {
   access_token: string;
@@ -44,6 +50,7 @@ interface SessionResponse {
 }
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
+let cachedActiveTenant: string | null = null;
 
 function decodeJwt(token: string): Record<string, unknown> {
   const parts = token.split('.');
@@ -103,7 +110,45 @@ export async function getAccessToken(): Promise<string | null> {
       value: data.access_token,
       expiresAt: Date.now() + data.expires_in * 1000,
     };
+    if (data.active_tenant_id) {
+      cachedActiveTenant = data.active_tenant_id;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LS_ACTIVE_TENANT, data.active_tenant_id);
+      }
+    }
     return data.access_token;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve the active tenant id for the `X-Active-Tenant` request header
+ * (Tier 3.2). Order: module cache → localStorage → probe `/api/session`.
+ * Returns `null` when no tenant can be resolved (the API client then
+ * simply omits the header).
+ */
+export async function getActiveTenantId(): Promise<string | null> {
+  if (cachedActiveTenant) return cachedActiveTenant;
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem(LS_ACTIVE_TENANT);
+    if (stored) {
+      cachedActiveTenant = stored;
+      return stored;
+    }
+  }
+  try {
+    const res = await fetch(`${AUTH_URL}/api/session`, { credentials: 'include' });
+    if (!res.ok) return null;
+    const data: SessionResponse = await res.json();
+    if (data.active_tenant_id) {
+      cachedActiveTenant = data.active_tenant_id;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LS_ACTIVE_TENANT, data.active_tenant_id);
+      }
+      return data.active_tenant_id;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -111,10 +156,12 @@ export async function getAccessToken(): Promise<string | null> {
 
 export function clearTokenCache() {
   cachedToken = null;
+  cachedActiveTenant = null;
   if (typeof window !== 'undefined') {
     localStorage.removeItem(LS_ACCESS_TOKEN);
     localStorage.removeItem(LS_REFRESH_TOKEN);
     localStorage.removeItem(LS_EXPIRES_AT);
+    localStorage.removeItem(LS_ACTIVE_TENANT);
   }
 }
 
