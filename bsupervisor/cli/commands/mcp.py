@@ -83,7 +83,7 @@ def list_tools_cmd(ctx: typer.Context) -> None:
         {
             "name": tool.name,
             "description": tool.description,
-            "required_scopes": list(tool.required_scopes),
+            "required_permission": tool.required_permission,
             "audit_event": tool.audit_event,
         }
         for tool in ADMIN_TOOLS

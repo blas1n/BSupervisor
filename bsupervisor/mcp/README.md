@@ -3,8 +3,14 @@
 First-class MCP API surface for BSupervisor. Tools are defined on equal
 footing with REST routes — explicit Pydantic input/output schemas, async
 handler that calls the same service-layer functions REST handlers call,
-`required_scopes` enforced via the same `bsvibe_authz` semantics, and
-optional `audit_event` that fires on success.
+a `required_permission` enforced via the same `bsvibe_authz` OpenFGA
+check (`check_tenant_permission`) the REST `require_permission` gate
+uses, and optional `audit_event` that fires on success.
+
+> Tier 5 Phase 3a — tool authorization was migrated from scope-claim
+> checks (`required_scopes` + `_scope_grants`) to tenant-scoped OpenFGA.
+> Every tool's `required_permission` is a `<product>.<resource>.<action>`
+> dot string that MUST be a row in the bsvibe-authz permission matrix.
 
 The CLI is a presentation layer. MCP is its own API. There is **no typer
 auto-adapter**: every tool is hand-written against the same service
@@ -45,17 +51,19 @@ Tool(
     input_schema=MyInput,
     output_schema=MyOutput,
     handler=_handler,
-    required_scopes=["bsupervisor:my:write"],
+    required_permission="bsupervisor.agents.write",
     audit_event="supervisor.my.executed",  # mutating tools only
 )
 ```
 
 Dispatcher contract (`ToolRegistry.call_tool`):
 
-1. Validate args against `input_schema` (ValidationError → `ToolInputError`).
-2. Enforce `required_scopes` against `ctx.user.scopes` using the same
-   wildcard semantics as `bsvibe_authz.require_scope`
-   (`"*"`, `"bsupervisor:*"`, exact match).
+1. Enforce `required_permission` via `bsvibe_authz.check_tenant_permission`
+   (the tenant-scoped OpenFGA check). `None` means unguarded. The check is
+   permissive when OpenFGA is unconfigured / demo. The dispatcher fails
+   closed if the transport could not build `ctx.fga` / `ctx.cache` /
+   `ctx.settings`.
+2. Validate args against `input_schema` (ValidationError → `ToolInputError`).
 3. Run handler.
 4. Validate handler return against `output_schema`.
 5. If `audit_event` is set, emit on success only via `ctx.audit_emit`.
@@ -69,7 +77,9 @@ Transports are agnostic: the same registry serves HTTP `/mcp` and stdio.
 2. Write an async handler `(args, ctx) -> output_model` that calls the
    service function the REST router uses. Do not duplicate business
    logic in the handler.
-3. Pick `required_scopes` matching the REST route's `require_scope`.
+3. Pick `required_permission` matching the REST route's
+   `require_permission` — a matrix-valid `<product>.<resource>.<action>`
+   dot string.
 4. Set `audit_event` if the tool mutates state. Match the REST router's
    audit event name so MCP and REST share one audit trail.
 5. Append the `Tool(...)` to `ADMIN_TOOLS` in `admin_tools.py`.
@@ -89,22 +99,26 @@ Domain tools today: none. Future domain tools (e.g. `evaluate_event`,
 
 Admin tools (14, all `bsupervisor_<subapp>_<action>`):
 
-| Tool | Scope | Audit event |
+| Tool | Permission | Audit event |
 | --- | --- | --- |
-| `bsupervisor_agents_list` | `bsupervisor:agents:read` | — |
-| `bsupervisor_agents_add` | `bsupervisor:agents:write` | `supervisor.rule.created` |
-| `bsupervisor_agents_update` | `bsupervisor:agents:write` | `supervisor.rule.updated` |
-| `bsupervisor_agents_delete` | `bsupervisor:agents:write` | `supervisor.rule.deleted` |
-| `bsupervisor_agents_run` | `bsupervisor:agents:write` | `supervisor.event.evaluated` |
-| `bsupervisor_incidents_list` | `bsupervisor:incidents:read` | — |
-| `bsupervisor_incidents_show` | `bsupervisor:incidents:read` | — |
-| `bsupervisor_incidents_ack` | `bsupervisor:incidents:write` | `supervisor.incident.acknowledged` |
-| `bsupervisor_incidents_resolve` | `bsupervisor:incidents:write` | `supervisor.incident.resolved` |
-| `bsupervisor_audit_list` | `bsupervisor:audit:read` | — |
-| `bsupervisor_audit_show` | `bsupervisor:audit:read` | — |
-| `bsupervisor_costs_report` | `bsupervisor:audit:read` | — |
-| `bsupervisor_settings_get` | `bsupervisor:*` | — |
-| `bsupervisor_settings_set` | `bsupervisor:*` | `supervisor.settings.updated` |
+| `bsupervisor_agents_list` | `bsupervisor.agents.read` | — |
+| `bsupervisor_agents_add` | `bsupervisor.agents.write` | `supervisor.rule.created` |
+| `bsupervisor_agents_update` | `bsupervisor.agents.write` | `supervisor.rule.updated` |
+| `bsupervisor_agents_delete` | `bsupervisor.agents.write` | `supervisor.rule.deleted` |
+| `bsupervisor_agents_run` | `bsupervisor.agents.write` | `supervisor.event.evaluated` |
+| `bsupervisor_incidents_list` | `bsupervisor.incidents.read` | — |
+| `bsupervisor_incidents_show` | `bsupervisor.incidents.read` | — |
+| `bsupervisor_incidents_ack` | `bsupervisor.incidents.write` | `supervisor.incident.acknowledged` |
+| `bsupervisor_incidents_resolve` | `bsupervisor.incidents.write` | `supervisor.incident.resolved` |
+| `bsupervisor_audit_list` | `bsupervisor.audit.read` | — |
+| `bsupervisor_audit_show` | `bsupervisor.audit.read` | — |
+| `bsupervisor_costs_report` | `bsupervisor.audit.read` | — |
+| `bsupervisor_settings_get` | `bsupervisor.settings.read` | — |
+| `bsupervisor_settings_set` | `bsupervisor.settings.write` | `supervisor.settings.updated` |
+
+`bsupervisor_settings_get` / `bsupervisor_settings_set` previously used
+the `bsupervisor:*` super-scope; Tier 5 retires the wildcard and maps
+them to the matrix-valid `settings.read` / `settings.write`.
 
 Source of truth: `ADMIN_TOOLS` / `ADMIN_TOOL_NAMES` in
 `bsupervisor/mcp/admin_tools.py`. The exact event names emitted are

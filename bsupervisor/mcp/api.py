@@ -1,12 +1,18 @@
 """First-class MCP API — Tool primitive, ToolContext, ToolRegistry dispatcher.
 
 Phase 7 design: tools are first-class definitions with explicit Pydantic
-``input_schema`` + ``output_schema``, an async handler, ``required_scopes``
-checked via the same ``bsvibe_authz`` semantics REST routes use, and an
-optional ``audit_event`` that fires on success — mirroring how REST routers
-are defined. CLI is a presentation layer; MCP is its own API surface that
-calls the same service-layer functions REST handlers call. **No typer
-auto-adapter.**
+``input_schema`` + ``output_schema``, an async handler, a
+``required_permission`` checked via the same ``bsvibe_authz`` OpenFGA
+``check_tenant_permission`` REST routes use, and an optional ``audit_event``
+that fires on success — mirroring how REST routers are defined. CLI is a
+presentation layer; MCP is its own API surface that calls the same
+service-layer functions REST handlers call. **No typer auto-adapter.**
+
+Tier 5 Phase 3a — tool authorization migrated from scope-claim checks
+(``required_scopes`` + ``_scope_grants``) to tenant-scoped OpenFGA
+(``check_tenant_permission``), unifying MCP with the REST
+``require_permission`` gate. ``check_tenant_permission`` is permissive when
+OpenFGA is unconfigured / demo, so non-prod surfaces keep working.
 
 The dispatcher is transport-agnostic: HTTP ``/mcp`` and stdio both wrap the
 same :class:`ToolRegistry`. Auth resolution lives in :mod:`bsupervisor.mcp.auth`
@@ -20,7 +26,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import structlog
-from bsvibe_authz import User
+from bsvibe_authz import Settings, User, check_tenant_permission
+from bsvibe_authz.cache import PermissionCache
+from bsvibe_authz.deps import FGAClientProtocol
 from mcp import types as mcp_types
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,7 +58,7 @@ class ToolOutputError(ToolError):
 
 
 class ToolPermissionError(ToolError):
-    """User scope does not grant ``required_scopes``."""
+    """User does not hold the tool's ``required_permission``."""
 
 
 # ---------------------------------------------------------------------------
@@ -70,11 +78,21 @@ class ToolContext:
     Mirrors the FastAPI request-scope context REST handlers see (``user`` for
     auth, ``db`` for the request session, ``audit_emit`` for outbox writes).
     Transports build this once per call via :func:`bsupervisor.mcp.auth.resolve_tool_context`.
+
+    Tier 5 Phase 3a — ``fga`` / ``cache`` / ``settings`` carry the
+    bsvibe-authz OpenFGA dependencies so the dispatcher can run
+    :func:`bsvibe_authz.check_tenant_permission` (the same check the REST
+    ``require_permission`` gate uses). They are optional so demo / smoke
+    transports that skip the auth env vars can still build a context;
+    ``check_tenant_permission`` is only invoked when all three are present.
     """
 
     user: User
     audit_emit: AuditEmit
     db: AsyncSession | None = None
+    fga: FGAClientProtocol | None = None
+    cache: PermissionCache | None = None
+    settings: Settings | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
 
@@ -86,8 +104,13 @@ class Tool:
     """First-class MCP tool definition.
 
     Equivalent to a single FastAPI route: input/output schemas plus the
-    scope guard and audit event are part of the tool's identity, not glued
-    on at registration time.
+    permission guard and audit event are part of the tool's identity, not
+    glued on at registration time.
+
+    ``required_permission`` is a ``<product>.<resource>.<action>`` dot
+    string (Tier 5) — every value MUST be a row in the bsvibe-authz
+    permission matrix. ``None`` means the tool is unguarded (no current
+    admin tool uses this).
     """
 
     name: str
@@ -95,23 +118,8 @@ class Tool:
     input_schema: type[BaseModel]
     output_schema: type[BaseModel]
     handler: Handler
-    required_scopes: list[str]
+    required_permission: str | None
     audit_event: str | None = None
-
-
-# ---------------------------------------------------------------------------
-# Scope semantics — copied from bsvibe_authz.deps._scope_grants so the MCP
-# transport behaves exactly like require_scope on REST.
-# ---------------------------------------------------------------------------
-
-
-def _scope_grants(user_scopes: list[str], required: str) -> bool:
-    for granted in user_scopes:
-        if granted == "*" or granted == required:
-            return True
-        if granted.endswith(":*") and required.startswith(granted[:-1]):
-            return True
-    return False
 
 
 # ---------------------------------------------------------------------------
@@ -179,24 +187,53 @@ class ToolRegistry:
     ) -> dict[str, Any]:
         """Validate → authorise → execute → validate output → audit emit.
 
-        The handler is only invoked once scope and input validation pass, so a
-        denial never executes user-visible side effects. ``audit_event`` only
-        fires after a successful handler + output-schema validation.
+        The handler is only invoked once the permission check and input
+        validation pass, so a denial never executes user-visible side
+        effects. ``audit_event`` only fires after a successful handler +
+        output-schema validation.
+
+        Tier 5 Phase 3a — authorization is a tenant-scoped OpenFGA check
+        (:func:`bsvibe_authz.check_tenant_permission`) keyed by the tool's
+        ``required_permission`` dot string, the same model the REST
+        ``require_permission`` gate enforces. It is permissive (returns
+        True) for demo sessions and when OpenFGA is unconfigured, so test
+        and demo surfaces keep working without an OpenFGA model.
         """
 
         tool = self.get(name)
 
-        # 1. enforce scopes — never invoke the handler on denial.
-        for required in tool.required_scopes:
-            if not _scope_grants(ctx.user.scope, required):
+        # 1. enforce the permission — never invoke the handler on denial.
+        if tool.required_permission is not None:
+            if ctx.fga is None or ctx.cache is None or ctx.settings is None:
+                # The transport could not build the OpenFGA deps. Fail
+                # closed — a guarded tool must never dispatch without an
+                # authorization decision.
                 logger.info(
                     "mcp_tool_denied",
                     tool=tool.name,
                     user_id=ctx.user.id,
-                    required_scope=required,
+                    required_permission=tool.required_permission,
+                    reason="authz_deps_unavailable",
                 )
                 raise ToolPermissionError(
-                    f"missing required scope: {required}",
+                    f"permission denied: {tool.required_permission}",
+                )
+            allowed = await check_tenant_permission(
+                ctx.user,
+                tool.required_permission,
+                fga=ctx.fga,
+                cache=ctx.cache,
+                settings=ctx.settings,
+            )
+            if not allowed:
+                logger.info(
+                    "mcp_tool_denied",
+                    tool=tool.name,
+                    user_id=ctx.user.id,
+                    required_permission=tool.required_permission,
+                )
+                raise ToolPermissionError(
+                    f"permission denied: {tool.required_permission}",
                 )
 
         # 2. validate input against the Pydantic schema.
