@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+import { useT } from "@bsvibe/i18n";
 import { cn, formatNumber } from "../lib/utils";
 import { theme } from "../lib/theme";
 import { fetchCosts, fetchAnomalies } from "../lib/api";
@@ -47,6 +48,7 @@ function Sparkline({ data, anomaly }: { data: number[]; anomaly?: boolean }) {
 }
 
 export function CostMonitor() {
+  const t = useT("supervisor.costs");
   const [costs, setCosts] = useState<CostData | null>(null);
   const [anomalyDetails, setAnomalyDetails] = useState<AnomalyEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,9 @@ export function CostMonitor() {
         setCosts(data);
         setAnomalyDetails(anomalies);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load cost data");
+        // Empty sentinel = "failed without a message"; the i18n fallback
+        // is resolved at render so `t` stays out of the effect deps.
+        setError(err instanceof Error ? err.message : "");
       } finally {
         setLoading(false);
       }
@@ -78,10 +82,10 @@ export function CostMonitor() {
     );
   }
 
-  if (error || !costs) {
+  if (error !== null || !costs) {
     return (
       <div className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-8 text-center text-sm text-accent">
-        {error ?? "No cost data available"}
+        {error ? error : error === "" ? t("loadError") : t("emptyData")}
       </div>
     );
   }
@@ -96,25 +100,25 @@ export function CostMonitor() {
       <div className="bg-gray-900 rounded-lg p-6 relative overflow-hidden border border-gray-800/10">
         <div className="flex justify-between items-end mb-4">
           <div>
-            <span className="text-[10px] uppercase tracking-widest text-gray-500 block mb-1">Current Day Consumption</span>
+            <span className="text-[10px] uppercase tracking-widest text-gray-500 block mb-1">{t("consumptionLabel")}</span>
             <div className="text-3xl font-extrabold tracking-tighter text-gray-50">
-              {costs.spent} <span className="text-sm font-normal text-gray-500">/ {costs.budget} Budget</span>
+              {costs.spent} <span className="text-sm font-normal text-gray-500">{t("budgetSuffix", { budget: costs.budget })}</span>
             </div>
           </div>
           <div className="text-right">
             {isOverBudget ? (
               <span className="text-xs font-bold text-accent flex items-center gap-1">
                 <MaterialIcon icon="trending_up" className="text-sm" />
-                {Math.round(costs.budget_percentage - 100)}% OVER BUDGET
+                {t("overBudget", { percent: Math.round(costs.budget_percentage - 100) })}
               </span>
             ) : isWarning ? (
               <span className="text-xs font-bold text-warning flex items-center gap-1">
                 <MaterialIcon icon="trending_up" className="text-sm" />
-                Approaching limit
+                {t("approachingLimit")}
               </span>
             ) : (
               <span className="text-xs font-bold text-success-light flex items-center gap-1">
-                On track
+                {t("onTrack")}
               </span>
             )}
           </div>
@@ -143,7 +147,7 @@ export function CostMonitor() {
       <div>
         <div className="flex items-center gap-2 mb-6">
           <div className="w-0.5 h-4 bg-accent" />
-          <h2 className="text-sm font-bold tracking-tight uppercase text-gray-50">Daily Cost Evolution (30D)</h2>
+          <h2 className="text-sm font-bold tracking-tight uppercase text-gray-50">{t("trendTitle")}</h2>
         </div>
       <div className="bg-gray-900 rounded-lg p-8 flex flex-col">
         <div className="flex justify-between items-center mb-8">
@@ -152,13 +156,13 @@ export function CostMonitor() {
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-accent" />
               <span className="text-[10px] uppercase font-bold text-gray-400">
-                Cost
+                {t("legendCost")}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-5 border-t-2 border-dashed border-warning" />
               <span className="text-[10px] uppercase font-bold text-gray-400">
-                Budget
+                {t("legendBudget")}
               </span>
             </div>
           </div>
@@ -189,7 +193,7 @@ export function CostMonitor() {
                 strokeDasharray="4 4"
                 strokeOpacity={0.5}
                 label={{
-                  value: "Budget",
+                  value: t("legendBudget"),
                   fill: theme.warning,
                   fontSize: 10,
                   position: "right",
@@ -202,7 +206,7 @@ export function CostMonitor() {
                   borderRadius: 8,
                   fontSize: 12,
                 }}
-                formatter={(value) => [`$${Number(value).toFixed(2)}`, "Cost"]}
+                formatter={(value) => [`$${Number(value).toFixed(2)}`, t("legendCost")]}
                 labelStyle={{ color: theme.gray300 }}
               />
               <Line
@@ -223,34 +227,34 @@ export function CostMonitor() {
       <div>
         <div className="flex items-center gap-2 mb-6">
           <div className="w-0.5 h-4 bg-accent" />
-          <h2 className="text-sm font-bold tracking-tight uppercase text-gray-50">Executor Breakdown</h2>
+          <h2 className="text-sm font-bold tracking-tight uppercase text-gray-50">{t("breakdownTitle")}</h2>
         </div>
       <div className="bg-gray-900 rounded-lg overflow-hidden">
 
         {costs.agents.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-500">No agent cost data</p>
+          <p className="py-8 text-center text-sm text-gray-500">{t("breakdownEmpty")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-950">
                 <tr>
                   <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                    Agent
+                    {t("colAgent")}
                   </th>
                   <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                    Requests
+                    {t("colRequests")}
                   </th>
                   <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                    Tokens
+                    {t("colTokens")}
                   </th>
                   <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                    Cost
+                    {t("colCost")}
                   </th>
                   <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                    %
+                    {t("colPercent")}
                   </th>
                   <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                    7d Trend
+                    {t("colTrend")}
                   </th>
                 </tr>
               </thead>
@@ -280,13 +284,16 @@ export function CostMonitor() {
                           </span>
                           {isAnomaly && (
                             <span className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent" data-testid="anomaly-badge">
-                              Anomaly
+                              {t("anomalyBadge")}
                             </span>
                           )}
                         </div>
                         {anomalyInfo && (
                           <p className="text-[10px] text-accent mt-1" data-testid="anomaly-detail">
-                            {anomalyInfo.multiplier}x above baseline (avg: {anomalyInfo.baseline_mean})
+                            {t("anomalyDetail", {
+                              multiplier: anomalyInfo.multiplier,
+                              baseline: anomalyInfo.baseline_mean,
+                            })}
                           </p>
                         )}
                       </td>

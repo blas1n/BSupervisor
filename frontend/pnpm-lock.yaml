@@ -21,8 +21,8 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0(tailwindcss@4.2.2)
       '@bsvibe/i18n':
-        specifier: 0.1.0
-        version: 0.1.0(next-intl@4.11.0(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
+        specifier: 0.2.0
+        version: 0.2.0(next-intl@4.11.0(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
       '@bsvibe/layout':
         specifier: ^0.7.0
         version: 0.7.0(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -190,6 +190,9 @@ packages:
       '@playwright/test': '>=1.40'
       react: '>=19.0.0'
       react-dom: '>=19.0.0'
+    peerDependenciesMeta:
+      '@playwright/test':
+        optional: true
 
   '@bsvibe/design-tokens@0.1.0':
     resolution: {integrity: sha512-vSpyuWIV/dfBoaLzPpVA+VORH0w9sx+7K1mDICRds1CaMsZ5dCpuDVNQProdyoy6UmDYyj74AufS5gucdXhYQg==, tarball: https://npm.pkg.github.com/download/@bsvibe/design-tokens/0.1.0/686fc3f050d96568d81150b5ce0e42bf09579d38}
@@ -207,15 +210,12 @@ packages:
       tailwindcss:
         optional: true
 
-  '@bsvibe/i18n@0.1.0':
-    resolution: {integrity: sha512-sh9i71sq5zX5eEnj3ugcBnn1g9SNWj9loKM2MHqlV3jr6JJ05EBDVhDMSZxYhW2OACCEGlIcv4t9vvNi48gvEQ==, tarball: https://npm.pkg.github.com/download/@bsvibe/i18n/0.1.0/0cbbc9648828746c72f1f5292d0dbf803afde983}
+  '@bsvibe/i18n@0.2.0':
+    resolution: {integrity: sha512-Cs48KJP5cfguM58eBVJd134l5D6+Te0jKFf8RPG1D9oUBXsSlxcihkz8ZumGmZrAiwxEB+gVihyDhDlUxG31+Q==, tarball: https://npm.pkg.github.com/download/@bsvibe/i18n/0.2.0/14dd19b059acf525074a93c640c13c0a2cb8e570}
     peerDependencies:
       next: '>=15.0.0'
       next-intl: '>=4.0.0'
       react: '>=19.0.0'
-    peerDependenciesMeta:
-      next:
-        optional: true
 
   '@bsvibe/layout@0.7.0':
     resolution: {integrity: sha512-6j8y8Juk71yzXajE46aTxhInyvEI0cFNKnmuAAy7XOa3/saRCdw4Wr7xsM7W1IbMhZbJ7krcbh6gu6kQ76l0Tw==, tarball: https://npm.pkg.github.com/download/@bsvibe/layout/0.7.0/da8b14e9b115349feb7f1bb6a70b8bab0ef24257}
@@ -1980,9 +1980,10 @@ snapshots:
 
   '@bsvibe/demo@0.3.3(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@playwright/test': 1.59.1
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
+    optionalDependencies:
+      '@playwright/test': 1.59.1
 
   '@bsvibe/design-tokens@0.1.0(tailwindcss@4.2.2)':
     optionalDependencies:
@@ -1992,12 +1993,11 @@ snapshots:
     optionalDependencies:
       tailwindcss: 4.2.2
 
-  '@bsvibe/i18n@0.1.0(next-intl@4.11.0(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)':
+  '@bsvibe/i18n@0.2.0(next-intl@4.11.0(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)':
     dependencies:
+      next: 15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       next-intl: 4.11.0(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
       react: 19.2.4
-    optionalDependencies:
-      next: 15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
 
   '@bsvibe/layout@0.7.0(next@15.5.15(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:

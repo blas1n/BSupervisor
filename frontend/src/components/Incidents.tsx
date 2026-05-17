@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useT } from "@bsvibe/i18n";
 import { cn, formatTime } from "../lib/utils";
 import { fetchIncidents, fetchIncident, resolveIncident } from "../lib/api";
 import type { IncidentListItem, IncidentDetail } from "../lib/api";
@@ -8,6 +9,7 @@ import { SeverityBadge } from "../components/SeverityBadge";
 import { MaterialIcon } from "../components/MaterialIcon";
 
 export function Incidents() {
+  const t = useT("supervisor.incidents");
   const [incidents, setIncidents] = useState<IncidentListItem[]>([]);
   const [selected, setSelected] = useState<IncidentDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,8 +47,8 @@ export function Incidents() {
   return (
     <div className="space-y-8 flex flex-col min-h-full">
       <div>
-        <h3 className="text-lg font-bold tracking-tight text-gray-50">Incident Timeline</h3>
-        <p className="text-xs text-gray-400">Forensic view of blocked events grouped by agent</p>
+        <h3 className="text-lg font-bold tracking-tight text-gray-50">{t("heading")}</h3>
+        <p className="text-xs text-gray-400">{t("subtitle")}</p>
       </div>
 
       {/* Grid grows to fill the remaining viewport so empty states don't
@@ -54,11 +56,11 @@ export function Incidents() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
         <div className="lg:col-span-1 bg-gray-900 rounded-2xl overflow-hidden flex flex-col">
           <div className="px-6 py-4 border-b border-gray-800/10">
-            <h4 className="text-sm font-bold text-gray-50">Incidents ({incidents.length})</h4>
+            <h4 className="text-sm font-bold text-gray-50">{t("listTitle", { count: incidents.length })}</h4>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {incidents.length === 0 ? (
-              <p className="py-8 text-center text-sm text-gray-500">No incidents detected</p>
+              <p className="py-8 text-center text-sm text-gray-500">{t("listEmpty")}</p>
             ) : (
               incidents.map((inc) => (
                 <button
@@ -80,14 +82,14 @@ export function Incidents() {
                           : "bg-success/15 text-success",
                       )}
                     >
-                      {inc.status}
+                      {inc.status === "open" ? t("statusOpen") : t("statusResolved")}
                     </span>
                   </div>
                   <p className="text-xs font-medium text-gray-100 truncate mt-1">{inc.title}</p>
                   <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-500">
                     <span>{inc.agent_id}</span>
                     <span>|</span>
-                    <span>{inc.event_count} events</span>
+                    <span>{t("eventCount", { count: inc.event_count })}</span>
                     <span>|</span>
                     <span>{formatTime(inc.started_at)}</span>
                   </div>
@@ -104,8 +106,12 @@ export function Incidents() {
                 <div>
                   <h4 className="text-sm font-bold text-gray-50">{selected.title}</h4>
                   <p className="text-[10px] text-gray-500 mt-1">
-                    Agent: {selected.agent_id} &bull; {selected.event_count} events &bull;{" "}
-                    {formatTime(selected.started_at)} &mdash; {formatTime(selected.updated_at)}
+                    {t("detailMeta", {
+                      agent: selected.agent_id,
+                      count: selected.event_count,
+                      start: formatTime(selected.started_at),
+                      end: formatTime(selected.updated_at),
+                    })}
                   </p>
                 </div>
                 {selected.status === "open" && (
@@ -114,7 +120,7 @@ export function Incidents() {
                     data-testid="resolve-btn"
                     className="px-4 py-2 text-xs font-bold bg-success/15 text-success rounded-lg hover:bg-success/25 transition-colors"
                   >
-                    Resolve
+                    {t("resolve")}
                   </button>
                 )}
               </div>
@@ -144,7 +150,7 @@ export function Incidents() {
                                 entry.allowed ? "text-success" : "text-accent",
                               )}
                             >
-                              {entry.allowed ? "Allowed" : "Blocked"}
+                              {entry.allowed ? t("entryAllowed") : t("entryBlocked")}
                             </span>
                             <span className="text-[10px] text-gray-500">
                               {formatTime(entry.timestamp)}
@@ -163,7 +169,7 @@ export function Incidents() {
             <div className="flex-1 flex items-center justify-center text-gray-500">
               <div className="text-center">
                 <MaterialIcon icon="timeline" className="text-4xl mb-3 opacity-30" />
-                <p className="text-sm">Select an incident to view its timeline</p>
+                <p className="text-sm">{t("emptyDetail")}</p>
               </div>
             </div>
           )}
