@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useT } from "@bsvibe/i18n";
 import { SeverityBadge } from "../components/SeverityBadge";
 import { cn, formatNumber } from "../lib/utils";
 import {
@@ -37,6 +38,7 @@ const emptyForm: RuleFormData = {
 };
 
 export function RulesManager() {
+  const t = useT("supervisor.rules");
   const [rules, setRules] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +63,9 @@ export function RulesManager() {
       const data = await fetchRules();
       setRules(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load rules");
+      // Empty sentinel = "failed without a message"; the i18n fallback
+      // is resolved at render so `t` stays out of loadRules' closure.
+      setError(err instanceof Error ? err.message : "");
     } finally {
       setLoading(false);
     }
@@ -109,7 +113,7 @@ export function RulesManager() {
       }
       setModalOpen(false);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save rule");
+      setSaveError(err instanceof Error ? err.message : t("saveError"));
     } finally {
       setSaving(false);
     }
@@ -164,10 +168,10 @@ export function RulesManager() {
     );
   }
 
-  if (error) {
+  if (error !== null) {
     return (
       <div className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-8 text-center text-sm text-accent">
-        {error}
+        {error || t("loadError")}
       </div>
     );
   }
@@ -178,10 +182,10 @@ export function RulesManager() {
       <section className="flex justify-between items-end">
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-50">
-            Audit Rules Management
+            {t("heading")}
           </h1>
           <p className="text-gray-500 mt-2 font-medium">
-            Configure safety triggers and thresholds for active AI models.
+            {t("subtitle")}
           </p>
         </div>
         <button
@@ -189,7 +193,7 @@ export function RulesManager() {
           className="flex items-center gap-2 px-6 py-3 bg-accent text-gray-50 font-bold rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-accent/10"
         >
           <MaterialIcon icon="add" className="text-lg" />
-          <span>Create Rule</span>
+          <span>{t("createRule")}</span>
         </button>
       </section>
 
@@ -202,7 +206,7 @@ export function RulesManager() {
           />
           <input
             type="text"
-            placeholder="Search rules by name or pattern..."
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-lg border-none bg-gray-900 py-2.5 pl-10 pr-4 text-sm text-gray-100 placeholder-gray-500 outline-none transition-colors focus:ring-1 focus:ring-accent/30"
@@ -213,7 +217,7 @@ export function RulesManager() {
           onChange={(e) => setFilterType(e.target.value)}
           className="appearance-none rounded-lg border-none bg-gray-900 py-2.5 px-4 text-sm text-gray-300 outline-none transition-colors focus:ring-1 focus:ring-accent/30"
         >
-          <option value="all">All types</option>
+          <option value="all">{t("filterAllTypes")}</option>
           {ruleTypes.map((t) => (
             <option key={t} value={t}>
               {t}
@@ -229,25 +233,25 @@ export function RulesManager() {
             <thead>
               <tr className="bg-gray-950/50 border-b border-gray-800/10">
                 <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                  Name
+                  {t("colName")}
                 </th>
                 <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                  Type
+                  {t("colType")}
                 </th>
                 <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                  Pattern
+                  {t("colPattern")}
                 </th>
                 <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                  Severity
+                  {t("colSeverity")}
                 </th>
                 <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                  Action
+                  {t("colAction")}
                 </th>
                 <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-center">
-                  Status
+                  {t("colStatus")}
                 </th>
                 <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                  Hits
+                  {t("colHits")}
                 </th>
                 <th className="px-6 py-4"></th>
               </tr>
@@ -266,7 +270,7 @@ export function RulesManager() {
                       <div>
                         <div className="text-sm font-bold text-gray-100">{rule.name}</div>
                         {rule.built_in && (
-                          <div className="text-[10px] text-gray-500">PROTECTED SYSTEM RULE</div>
+                          <div className="text-[10px] text-gray-500">{t("protectedRule")}</div>
                         )}
                       </div>
                       {rule.built_in && (
@@ -349,7 +353,7 @@ export function RulesManager() {
                     colSpan={8}
                     className="px-6 py-8 text-center text-sm text-gray-500"
                   >
-                    {rules.length === 0 ? "No rules configured" : "No rules match your search"}
+                    {rules.length === 0 ? t("emptyNoRules") : t("emptyNoMatch")}
                   </td>
                 </tr>
               )}
@@ -362,8 +366,8 @@ export function RulesManager() {
       {packs.length > 0 && (
         <div className="bg-gray-900 rounded-xl border border-gray-800/10 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-800/10">
-            <h4 className="font-bold tracking-tight text-gray-50">Rule Template Packs</h4>
-            <p className="text-xs text-gray-500 mt-1">Pre-built safety rule collections — install with one click</p>
+            <h4 className="font-bold tracking-tight text-gray-50">{t("packsTitle")}</h4>
+            <p className="text-xs text-gray-500 mt-1">{t("packsSubtitle")}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
             {packs.map((pack) => (
@@ -372,7 +376,7 @@ export function RulesManager() {
                   <span className="px-2 py-0.5 bg-gray-800 text-gray-400 text-[10px] font-bold rounded-full uppercase">
                     {pack.category}
                   </span>
-                  <span className="text-[10px] text-gray-500">{pack.rule_count} rules</span>
+                  <span className="text-[10px] text-gray-500">{t("packRuleCount", { count: pack.rule_count })}</span>
                 </div>
                 <h5 className="text-sm font-bold text-gray-100 mb-1">{pack.name}</h5>
                 <p className="text-[10px] text-gray-500 flex-1 mb-4">{pack.description}</p>
@@ -383,10 +387,10 @@ export function RulesManager() {
                   className="w-full px-3 py-2 text-xs font-bold bg-accent/15 text-accent rounded-lg hover:bg-accent/25 transition-colors disabled:opacity-40"
                 >
                   {installingPack === pack.id
-                    ? "Installing..."
+                    ? t("packInstalling")
                     : packResult?.id === pack.id
-                      ? `${packResult.installed} installed, ${packResult.skipped} skipped`
-                      : "Install Pack"}
+                      ? t("packResult", { installed: packResult.installed, skipped: packResult.skipped })
+                      : t("packInstall")}
                 </button>
               </div>
             ))}
@@ -400,7 +404,7 @@ export function RulesManager() {
           <div className="w-full max-w-lg rounded-xl border border-gray-800/40 bg-gray-900 p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <h3 id="rule-modal-title" className="text-lg font-bold tracking-tight text-gray-50">
-                {editingId ? "Edit Rule" : "Create Rule"}
+                {editingId ? t("modalEditTitle") : t("modalCreateTitle")}
               </h3>
               <button
                 onClick={() => setModalOpen(false)}
@@ -413,7 +417,7 @@ export function RulesManager() {
             <div className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-[10px] uppercase font-bold tracking-widest text-gray-400">
-                  Name
+                  {t("fieldName")}
                 </label>
                 <input
                   type="text"
@@ -428,7 +432,7 @@ export function RulesManager() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="mb-1.5 block text-[10px] uppercase font-bold tracking-widest text-gray-400">
-                    Type
+                    {t("fieldType")}
                   </label>
                   <select
                     value={form.type}
@@ -446,7 +450,7 @@ export function RulesManager() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-[10px] uppercase font-bold tracking-widest text-gray-400">
-                    Severity
+                    {t("fieldSeverity")}
                   </label>
                   <select
                     value={form.severity}
@@ -464,7 +468,7 @@ export function RulesManager() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-[10px] uppercase font-bold tracking-widest text-gray-400">
-                    Action
+                    {t("fieldAction")}
                   </label>
                   <select
                     value={form.action}
@@ -484,7 +488,7 @@ export function RulesManager() {
 
               <div>
                 <label className="mb-1.5 block text-[10px] uppercase font-bold tracking-widest text-gray-400">
-                  Pattern
+                  {t("fieldPattern")}
                 </label>
                 <input
                   type="text"
@@ -498,7 +502,7 @@ export function RulesManager() {
 
               <div>
                 <label className="mb-1.5 block text-[10px] uppercase font-bold tracking-widest text-gray-400">
-                  Description
+                  {t("fieldDescription")}
                 </label>
                 <textarea
                   value={form.description}
@@ -519,14 +523,14 @@ export function RulesManager() {
                 onClick={() => setModalOpen(false)}
                 className="rounded-xl border border-gray-800/40 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-800"
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 onClick={handleSave}
                 disabled={!form.name || !form.pattern || saving}
                 className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-gray-50 transition-colors hover:bg-accent-dark disabled:opacity-40"
               >
-                {saving ? "Saving..." : editingId ? "Update" : "Create"}
+                {saving ? t("saving") : editingId ? t("update") : t("create")}
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useT } from "@bsvibe/i18n";
 import {
   fetchSettings,
   updateSettings,
@@ -44,6 +45,7 @@ interface TestResult {
 }
 
 export function Settings() {
+  const t = useT("supervisor.settings");
   const [form, setForm] = useState<ConnectionSettings>(emptyConnections);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,7 +59,9 @@ export function Settings() {
         const data = await fetchSettings();
         setForm(data.connections);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load settings");
+        // Empty sentinel = "failed without a message"; the i18n fallback
+        // is resolved at render so `t` stays out of the effect deps.
+        setError(err instanceof Error ? err.message : "");
       } finally {
         setLoading(false);
       }
@@ -73,7 +77,7 @@ export function Settings() {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save settings");
+      setError(err instanceof Error ? err.message : t("saveError"));
     } finally {
       setSaving(false);
     }
@@ -149,18 +153,22 @@ export function Settings() {
       if (response.ok) {
         setTestResults((prev) => ({
           ...prev,
-          [integrationId]: { key: integrationId, status: "success", message: "Connected" },
+          [integrationId]: { key: integrationId, status: "success", message: t("testConnected") },
         }));
       } else {
         setTestResults((prev) => ({
           ...prev,
-          [integrationId]: { key: integrationId, status: "error", message: `HTTP ${response.status}` },
+          [integrationId]: {
+            key: integrationId,
+            status: "error",
+            message: t("testHttpError", { status: response.status }),
+          },
         }));
       }
     } catch {
       setTestResults((prev) => ({
         ...prev,
-        [integrationId]: { key: integrationId, status: "error", message: "Connection failed" },
+        [integrationId]: { key: integrationId, status: "error", message: t("testFailed") },
       }));
     }
   }
@@ -181,18 +189,18 @@ export function Settings() {
       {/* Header */}
       <section>
         <h1 className="text-4xl font-extrabold tracking-tight text-gray-50">
-          Settings
+          {t("heading")}
         </h1>
         <p className="text-gray-500 mt-2 font-medium">
-          Configure connections to external services and notification channels.
+          {t("subtitle")}
         </p>
       </section>
 
       {/* Agent Platforms */}
       <SettingsCard
         icon="hub"
-        title="Agent Platforms"
-        description="Connect to AI agent systems — BSVibe products or any external platform."
+        title={t("platformsTitle")}
+        description={t("platformsDescription")}
       >
         <div className="space-y-4">
           {form.integrations.map((integration) => (
@@ -212,7 +220,7 @@ export function Settings() {
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-700 py-3 text-sm font-medium text-gray-400 transition-colors hover:border-accent/50 hover:text-accent"
           >
             <MaterialIcon icon="add" className="text-lg" />
-            <span>Add Integration</span>
+            <span>{t("addIntegration")}</span>
           </button>
         </div>
       </SettingsCard>
@@ -220,22 +228,22 @@ export function Settings() {
       {/* Notification Channels */}
       <SettingsCard
         icon="notifications"
-        title="Notification Channels"
-        description="Configure where to send alerts and notifications."
+        title={t("notificationsTitle")}
+        description={t("notificationsDescription")}
       >
         <FieldGroup>
           <Field
-            label="Telegram Bot Token"
+            label={t("fieldTelegram")}
             value={form.telegram_bot_token}
             onChange={(v) => updateNotification("telegram_bot_token", v)}
-            placeholder="123456:ABC-DEF..."
+            placeholder={t("fieldTelegramPlaceholder")}
             type="password"
           />
           <Field
-            label="Slack Webhook URL"
+            label={t("fieldSlack")}
             value={form.slack_webhook_url}
             onChange={(v) => updateNotification("slack_webhook_url", v)}
-            placeholder="https://hooks.slack.com/services/..."
+            placeholder={t("fieldSlackPlaceholder")}
           />
         </FieldGroup>
       </SettingsCard>
@@ -248,20 +256,20 @@ export function Settings() {
           className="flex items-center gap-2 px-6 py-3 bg-accent text-gray-50 font-bold rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-accent/10 disabled:opacity-40"
         >
           <MaterialIcon icon={saving ? "progress_activity" : "save"} className={cn("text-lg", saving && "animate-spin")} />
-          <span>{saving ? "Saving..." : "Save Settings"}</span>
+          <span>{saving ? t("saving") : t("save")}</span>
         </button>
 
         {saved && (
           <span className="flex items-center gap-1.5 text-sm font-medium text-success">
             <MaterialIcon icon="check_circle" className="text-lg" filled />
-            Settings saved
+            {t("saved")}
           </span>
         )}
 
-        {error && (
+        {error !== null && (
           <span className="flex items-center gap-1.5 text-sm font-medium text-accent">
             <MaterialIcon icon="error" className="text-lg" filled />
-            {error}
+            {error || t("loadError")}
           </span>
         )}
       </div>
@@ -284,6 +292,7 @@ function IntegrationCard({
   onRemove: () => void;
   onTest: () => void;
 }) {
+  const t = useT("supervisor.settings");
   const preset = TYPE_PRESETS[integration.type] ?? TYPE_PRESETS.custom;
 
   return (
@@ -294,7 +303,7 @@ function IntegrationCard({
             <MaterialIcon icon={preset.icon} className="text-base text-accent" />
           </div>
           <span className="text-sm font-semibold text-gray-200">
-            {integration.name || "New Integration"}
+            {integration.name || t("newIntegration")}
           </span>
         </div>
         <button
@@ -303,20 +312,20 @@ function IntegrationCard({
           className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-accent/10 hover:text-accent"
         >
           <MaterialIcon icon="delete" className="text-sm" />
-          <span>Remove</span>
+          <span>{t("remove")}</span>
         </button>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field
-          label="Name"
+          label={t("fieldName")}
           value={integration.name}
           onChange={(v) => onUpdate({ name: v })}
-          placeholder="My Agent Platform"
+          placeholder={t("fieldNamePlaceholder")}
         />
         <div>
           <label className="mb-1.5 block text-[10px] uppercase font-bold tracking-widest text-gray-400">
-            Type
+            {t("fieldType")}
           </label>
           <select
             value={integration.type}
@@ -335,10 +344,10 @@ function IntegrationCard({
       <div className="flex items-end gap-2">
         <div className="flex-1">
           <Field
-            label="Endpoint URL"
+            label={t("fieldEndpoint")}
             value={integration.endpoint_url}
             onChange={(v) => onUpdate({ endpoint_url: v })}
-            placeholder={preset.defaultUrl || "https://..."}
+            placeholder={preset.defaultUrl || t("fieldEndpointPlaceholder")}
           />
         </div>
         <TestButton
@@ -349,10 +358,10 @@ function IntegrationCard({
       </div>
 
       <Field
-        label="API Key"
+        label={t("fieldApiKey")}
         value={integration.api_key}
         onChange={(v) => onUpdate({ api_key: v })}
-        placeholder="sk-..."
+        placeholder={t("fieldApiKeyPlaceholder")}
         type="password"
       />
     </div>
@@ -430,6 +439,7 @@ function TestButton({
   onClick: () => void;
   disabled: boolean;
 }) {
+  const t = useT("supervisor.settings");
   const status = result?.status ?? "idle";
   const isTesting = status === "testing";
 
@@ -460,7 +470,7 @@ function TestButton({
         }
         className={cn("text-sm", isTesting && "animate-spin")}
       />
-      <span>Test</span>
+      <span>{t("test")}</span>
     </button>
   );
 }

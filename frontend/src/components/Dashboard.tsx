@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useT } from "@bsvibe/i18n";
 import {
   AreaChart,
   Area,
@@ -50,34 +51,36 @@ function buildTopRules(rules: Rule[]) {
 
 const SEVERITY_STYLES: Record<
   string,
-  { icon: string; iconBg: string; text: string; dot: string; label: string }
+  { icon: string; iconBg: string; text: string; dot: string; labelKey: string }
 > = {
   blocked: {
     icon: "gpp_maybe",
     iconBg: "bg-accent/10 text-accent",
     text: "text-accent",
     dot: "bg-accent",
-    label: "Blocked",
+    labelKey: "severityBlocked",
   },
   warning: {
     icon: "visibility_off",
     iconBg: "bg-warning/10 text-warning",
     text: "text-warning",
     dot: "bg-warning",
-    label: "Warning",
+    labelKey: "severityWarning",
   },
   safe: {
     icon: "check_circle",
     iconBg: "bg-success/10 text-success",
     text: "text-success-light",
     dot: "bg-success",
-    label: "Safe",
+    labelKey: "severitySafe",
   },
 };
 
 const severityStyle = (s: string) => SEVERITY_STYLES[s] ?? SEVERITY_STYLES.safe;
 
 export function Dashboard() {
+  const t = useT("supervisor.dashboard");
+  const tCommon = useT("supervisor.common");
   const [status, setStatus] = useState<StatusMetrics | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
@@ -97,9 +100,10 @@ export function Dashboard() {
         setEvents(e);
         setRules(r);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load dashboard data",
-        );
+        // Store the raw message (or an empty sentinel when the throw
+        // carried no message); the i18n fallback is resolved at render
+        // time so `t` does not become an effect dependency.
+        setError(err instanceof Error ? err.message : "");
       } finally {
         setLoading(false);
       }
@@ -121,10 +125,10 @@ export function Dashboard() {
     );
   }
 
-  if (error) {
+  if (error !== null) {
     return (
       <div className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-8 text-center text-sm text-accent">
-        {error}
+        {error || t("loadError")}
       </div>
     );
   }
@@ -144,13 +148,13 @@ export function Dashboard() {
             </div>
             <div>
               <h4 className="font-bold text-accent tracking-tight">
-                CRITICAL VIOLATION DETECTED
+                {t("alertTitle")}
               </h4>
               <p className="text-sm text-gray-400">
-                {status.violations} violation
-                {status.violations !== 1 && "s"} detected today &mdash;{" "}
-                {status.blocked_actions} action
-                {status.blocked_actions !== 1 && "s"} blocked
+                {t("alertSummary", {
+                  violations: status.violations,
+                  blocked: status.blocked_actions,
+                })}
               </p>
             </div>
           </div>
@@ -165,7 +169,7 @@ export function Dashboard() {
             <MaterialIcon icon="analytics" className="text-4xl" />
           </div>
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-2">
-            Events Today
+            {t("statEventsToday")}
           </p>
           <div className="flex items-baseline gap-2">
             <h3 className="text-3xl font-bold tracking-tighter text-gray-50">
@@ -180,7 +184,7 @@ export function Dashboard() {
             <MaterialIcon icon="security_update_warning" className="text-4xl text-accent" />
           </div>
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-2">
-            Violations
+            {t("statViolations")}
           </p>
           <div className="flex items-baseline gap-2">
             <h3 className="text-3xl font-bold tracking-tighter text-accent">
@@ -195,7 +199,7 @@ export function Dashboard() {
             <MaterialIcon icon="block" className="text-4xl" />
           </div>
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-2">
-            Blocked Actions
+            {t("statBlockedActions")}
           </p>
           <div className="flex items-baseline gap-2">
             <h3 className="text-3xl font-bold tracking-tighter text-gray-50">
@@ -210,7 +214,7 @@ export function Dashboard() {
             <MaterialIcon icon="payments" className="text-4xl" />
           </div>
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-2">
-            Cost Total
+            {t("statCostTotal")}
           </p>
           <div className="flex items-baseline gap-2">
             <h3 className="text-3xl font-bold tracking-tighter text-gray-400">
@@ -227,29 +231,29 @@ export function Dashboard() {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h4 className="text-lg font-bold tracking-tight text-gray-50">
-                Event Timeline
+                {t("timelineTitle")}
               </h4>
               <p className="text-xs text-gray-400">
-                Real-time event frequency (24h Window)
+                {t("timelineSubtitle")}
               </p>
             </div>
             <div className="flex gap-4">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-success" />
                 <span className="text-[10px] uppercase font-bold text-gray-400">
-                  Safe
+                  {tCommon("severitySafe")}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-warning" />
                 <span className="text-[10px] uppercase font-bold text-gray-400">
-                  Warning
+                  {tCommon("severityWarning")}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-accent" />
                 <span className="text-[10px] uppercase font-bold text-gray-400">
-                  Blocked
+                  {tCommon("severityBlocked")}
                 </span>
               </div>
             </div>
@@ -351,13 +355,13 @@ export function Dashboard() {
         <div className="bg-gray-900 rounded-3xl overflow-hidden flex flex-col h-[420px]">
           <div className="p-6 border-b border-gray-800/10">
             <h4 className="text-sm font-bold tracking-tight text-gray-50">
-              Live Event Feed
+              {t("feedTitle")}
             </h4>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-2">
             {events.length === 0 ? (
               <p className="py-8 text-center text-sm text-gray-500">
-                No events yet
+                {t("feedEmpty")}
               </p>
             ) : (
               events.slice(0, 20).map((event) => {
@@ -385,7 +389,7 @@ export function Dashboard() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center mb-1">
                         <span className={cn("text-[10px] font-bold uppercase", style.text)}>
-                          {style.label}
+                          {tCommon(style.labelKey)}
                         </span>
                         <span className="text-[10px] text-gray-500">
                           {formatTime(event.timestamp)}
@@ -405,14 +409,14 @@ export function Dashboard() {
                     <div className="mt-3 ml-12 p-3 bg-gray-900 rounded-lg border border-gray-800/30" data-testid="explanation-panel">
                       <div className="flex items-center gap-2 mb-2">
                         <MaterialIcon icon="info" className="text-sm text-accent" />
-                        <span className="text-[10px] font-bold uppercase text-accent">Why this was blocked</span>
+                        <span className="text-[10px] font-bold uppercase text-accent">{t("explanationTitle")}</span>
                       </div>
                       <div className="space-y-1 text-[10px]">
-                        <p className="text-gray-300"><span className="text-gray-500">Rule:</span> {event.explanation.rule_description}</p>
-                        <p className="text-gray-300"><span className="text-gray-500">Matched:</span> <code className="bg-gray-950 px-1 rounded">{event.explanation.matched_pattern}</code> in {event.explanation.matched_field}</p>
-                        <p className="text-gray-300"><span className="text-gray-500">Value:</span> <code className="bg-gray-950 px-1 rounded">{event.explanation.matched_value}</code></p>
+                        <p className="text-gray-300"><span className="text-gray-500">{t("explanationRule")}</span> {event.explanation.rule_description}</p>
+                        <p className="text-gray-300"><span className="text-gray-500">{t("explanationMatched")}</span> <code className="bg-gray-950 px-1 rounded">{event.explanation.matched_pattern}</code> {t("explanationMatchedIn")} {event.explanation.matched_field}</p>
+                        <p className="text-gray-300"><span className="text-gray-500">{t("explanationValue")}</span> <code className="bg-gray-950 px-1 rounded">{event.explanation.matched_value}</code></p>
                         {event.explanation.suggestion && (
-                          <p className="text-success mt-1"><span className="text-gray-500">Suggestion:</span> {event.explanation.suggestion}</p>
+                          <p className="text-success mt-1"><span className="text-gray-500">{t("explanationSuggestion")}</span> {event.explanation.suggestion}</p>
                         )}
                       </div>
                     </div>
@@ -429,13 +433,13 @@ export function Dashboard() {
       <div className="bg-gray-900 rounded-3xl overflow-hidden">
         <div className="px-8 py-6 border-b border-gray-800/10 flex items-center justify-between">
           <h4 className="font-bold tracking-tight text-gray-50">
-            Top Triggered Rules
+            {t("topRulesTitle")}
           </h4>
-          <button className="text-xs font-bold text-accent hover:underline">View All Rules</button>
+          <button className="text-xs font-bold text-accent hover:underline">{t("viewAllRules")}</button>
         </div>
         {topRules.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-500">
-            No rules configured
+            {t("topRulesEmpty")}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -443,13 +447,13 @@ export function Dashboard() {
               <thead className="bg-gray-950">
                 <tr>
                   <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                    Rule Name
+                    {t("colRuleName")}
                   </th>
                   <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                    Severity
+                    {t("colSeverity")}
                   </th>
                   <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                    Hits
+                    {t("colHits")}
                   </th>
                 </tr>
               </thead>
