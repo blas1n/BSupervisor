@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useT } from "@bsvibe/i18n";
+import { ResponsiveTable } from "@bsvibe/ui";
+import type { ResponsiveTableColumn } from "@bsvibe/ui";
 import {
   AreaChart,
   Area,
@@ -42,7 +44,13 @@ function buildTimelineData(events: Event[]) {
   }));
 }
 
-function buildTopRules(rules: Rule[]) {
+interface TopRule {
+  name: string;
+  hits: number;
+  severity: string;
+}
+
+function buildTopRules(rules: Rule[]): TopRule[] {
   return [...rules]
     .sort((a, b) => b.hit_count - a.hit_count)
     .slice(0, 5)
@@ -113,6 +121,40 @@ export function Dashboard() {
 
   const timelineData = useMemo(() => buildTimelineData(events), [events]);
   const topRules = useMemo(() => buildTopRules(rules), [rules]);
+
+  const topRuleColumns: ResponsiveTableColumn<TopRule>[] = [
+    {
+      key: "name",
+      header: t("colRuleName"),
+      cell: (rule) => (
+        <div className="flex items-center gap-3">
+          <div
+            className={cn(
+              "w-2 h-2 rounded-full",
+              severityStyle(rule.severity).dot,
+            )}
+          />
+          <span className="text-sm font-semibold text-gray-100">
+            {rule.name}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "severity",
+      header: t("colSeverity"),
+      cell: (rule) => <SeverityBadge severity={rule.severity} />,
+    },
+    {
+      key: "hits",
+      header: t("colHits"),
+      cell: (rule) => (
+        <span className="font-mono text-sm text-gray-300">
+          {formatNumber(rule.hits)}
+        </span>
+      ),
+    },
+  ];
 
   if (loading) {
     return (
@@ -437,57 +479,14 @@ export function Dashboard() {
           </h4>
           <button className="text-xs font-bold text-accent hover:underline">{t("viewAllRules")}</button>
         </div>
-        {topRules.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-500">
-            {t("topRulesEmpty")}
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-950">
-                <tr>
-                  <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                    {t("colRuleName")}
-                  </th>
-                  <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                    {t("colSeverity")}
-                  </th>
-                  <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                    {t("colHits")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/30">
-                {topRules.map((rule) => (
-                  <tr
-                    key={rule.name}
-                    className="hover:bg-gray-850 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={cn(
-                            "w-2 h-2 rounded-full",
-                            severityStyle(rule.severity).dot,
-                          )}
-                        />
-                        <span className="text-sm font-semibold text-gray-100">
-                          {rule.name}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <SeverityBadge severity={rule.severity} />
-                    </td>
-                    <td className="px-6 py-4 font-mono text-sm text-gray-300">
-                      {formatNumber(rule.hits)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className="p-4">
+          <ResponsiveTable
+            columns={topRuleColumns}
+            rows={topRules}
+            rowKey={(rule) => rule.name}
+            emptyMessage={t("topRulesEmpty")}
+          />
+        </div>
       </div>
     </div>
   );

@@ -44,8 +44,12 @@ test.describe("Dashboard: Stitch design", () => {
     await expect(page.getByText("agent-alpha").first()).toBeVisible();
   });
 
-  test("renders Top Triggered Rules table", async ({ page }) => {
+  // ResponsiveTable renders a desktop <table> (>= sm) and a mobile card
+  // stack (< sm). The section heading shows on both; the <th> column
+  // headers only exist in the desktop tree.
+  test("renders Top Triggered Rules table", async ({ page }, testInfo) => {
     await expect(page.getByText("Top Triggered Rules")).toBeVisible();
+    testInfo.skip(testInfo.project.name !== "chromium", "Desktop-only: table headers hidden < sm");
     await expect(page.getByRole("columnheader", { name: /rule name/i })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: /severity/i })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: /hits/i })).toBeVisible();

@@ -29,7 +29,7 @@ test.describe("Phase C: Korean locale — view components", () => {
     await expect(page.getByText("최다 트리거 규칙")).toBeVisible();
   });
 
-  test("/ko/rules renders the Korean Rules Manager copy", async ({ page }) => {
+  test("/ko/rules renders the Korean Rules Manager copy", async ({ page }, testInfo) => {
     await page.goto("/ko/rules");
     // supervisor.rules.heading
     await expect(page.getByText("감사 규칙 관리")).toBeVisible();
@@ -37,7 +37,9 @@ test.describe("Phase C: Korean locale — view components", () => {
     await expect(page.getByRole("button", { name: "규칙 생성" })).toBeVisible();
     // supervisor.rules.searchPlaceholder
     await expect(page.getByPlaceholder("이름 또는 패턴으로 규칙 검색...")).toBeVisible();
-    // supervisor.rules.colName column header
+    // supervisor.rules.colName column header — ResponsiveTable hides the
+    // <table> below the sm breakpoint, so this is a desktop-only check.
+    testInfo.skip(testInfo.project.name !== "chromium", "Desktop-only: table headers hidden < sm");
     await expect(page.getByRole("columnheader", { name: "이름" })).toBeVisible();
   });
 

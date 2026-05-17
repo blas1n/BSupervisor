@@ -12,10 +12,14 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useT } from "@bsvibe/i18n";
+import { ResponsiveTable } from "@bsvibe/ui";
+import type { ResponsiveTableColumn } from "@bsvibe/ui";
 import { cn, formatNumber } from "../lib/utils";
 import { theme } from "../lib/theme";
 import { fetchCosts, fetchAnomalies } from "../lib/api";
 import type { CostData, AnomalyEntry } from "../lib/api";
+
+type AgentCost = CostData["agents"][number];
 import { MaterialIcon } from "../components/MaterialIcon";
 
 function Sparkline({ data, anomaly }: { data: number[]; anomaly?: boolean }) {
@@ -93,6 +97,166 @@ export function CostMonitor() {
   const isOverBudget = costs.budget_percentage > 100;
   const isWarning = costs.budget_percentage > 80;
   const budgetNum = parseFloat(costs.budget.replace("$", ""));
+
+  const isAnomalyAgent = (agent: AgentCost) =>
+    costs.anomalies.includes(agent.agent_id);
+  const anomalyInfoFor = (agent: AgentCost) =>
+    anomalyDetails.find((a) => a.agent_id === agent.agent_id);
+
+  const agentColumns: ResponsiveTableColumn<AgentCost>[] = [
+    {
+      key: "agent",
+      header: t("colAgent"),
+      cellClassName: "px-6 py-4",
+      cell: (agent) => {
+        const isAnomaly = isAnomalyAgent(agent);
+        const anomalyInfo = anomalyInfoFor(agent);
+        return (
+          <>
+            <div className="flex items-center gap-2">
+              {isAnomaly && (
+                <MaterialIcon
+                  icon="warning"
+                  className="text-sm text-accent"
+                  filled
+                />
+              )}
+              <span className="font-semibold text-sm text-gray-100">
+                {agent.agent_name}
+              </span>
+              {isAnomaly && (
+                <span
+                  className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent"
+                  data-testid="anomaly-badge"
+                >
+                  {t("anomalyBadge")}
+                </span>
+              )}
+            </div>
+            {anomalyInfo && (
+              <p
+                className="text-[10px] text-accent mt-1"
+                data-testid="anomaly-detail"
+              >
+                {t("anomalyDetail", {
+                  multiplier: anomalyInfo.multiplier,
+                  baseline: anomalyInfo.baseline_mean,
+                })}
+              </p>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      key: "requests",
+      header: t("colRequests"),
+      cellClassName: "px-6 py-4 text-right font-mono text-sm text-gray-300",
+      cell: (agent) => formatNumber(agent.requests),
+    },
+    {
+      key: "tokens",
+      header: t("colTokens"),
+      cellClassName: "px-6 py-4 text-right font-mono text-sm text-gray-300",
+      cell: (agent) => `${(agent.tokens / 1000).toFixed(0)}k`,
+    },
+    {
+      key: "cost",
+      header: t("colCost"),
+      cellClassName:
+        "px-6 py-4 text-right font-mono text-sm font-semibold text-gray-100",
+      cell: (agent) => agent.cost,
+    },
+    {
+      key: "percent",
+      header: t("colPercent"),
+      cellClassName: "px-6 py-4 text-right text-sm text-gray-400",
+      cell: (agent) => `${agent.percentage.toFixed(1)}%`,
+    },
+    {
+      key: "trend",
+      header: t("colTrend"),
+      cellClassName: "px-6 py-4 text-right",
+      cell: (agent) => (
+        <Sparkline data={agent.daily_costs} anomaly={isAnomalyAgent(agent)} />
+      ),
+    },
+  ];
+
+  const renderAgentMobileCard = (agent: AgentCost) => {
+    const isAnomaly = isAnomalyAgent(agent);
+    const anomalyInfo = anomalyInfoFor(agent);
+    return (
+      <article
+        data-testid="bsvibe-table-card"
+        className={cn(
+          "rounded-md border border-gray-800 bg-gray-900 p-4 flex flex-col gap-2",
+          isAnomaly && "border-accent/30 bg-accent/5",
+        )}
+      >
+        <div className="flex items-center gap-2">
+          {isAnomaly && (
+            <MaterialIcon
+              icon="warning"
+              className="text-sm text-accent"
+              filled
+            />
+          )}
+          <span className="font-semibold text-sm text-gray-100">
+            {agent.agent_name}
+          </span>
+          {isAnomaly && (
+            <span
+              className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent"
+              data-testid="anomaly-badge"
+            >
+              {t("anomalyBadge")}
+            </span>
+          )}
+        </div>
+        {anomalyInfo && (
+          <p className="text-[10px] text-accent" data-testid="anomaly-detail">
+            {t("anomalyDetail", {
+              multiplier: anomalyInfo.multiplier,
+              baseline: anomalyInfo.baseline_mean,
+            })}
+          </p>
+        )}
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+          <dt className="uppercase tracking-wide text-gray-400">
+            {t("colRequests")}
+          </dt>
+          <dd className="text-right font-mono text-gray-300">
+            {formatNumber(agent.requests)}
+          </dd>
+          <dt className="uppercase tracking-wide text-gray-400">
+            {t("colTokens")}
+          </dt>
+          <dd className="text-right font-mono text-gray-300">
+            {(agent.tokens / 1000).toFixed(0)}k
+          </dd>
+          <dt className="uppercase tracking-wide text-gray-400">
+            {t("colCost")}
+          </dt>
+          <dd className="text-right font-mono font-semibold text-gray-100">
+            {agent.cost}
+          </dd>
+          <dt className="uppercase tracking-wide text-gray-400">
+            {t("colPercent")}
+          </dt>
+          <dd className="text-right text-gray-400">
+            {agent.percentage.toFixed(1)}%
+          </dd>
+        </dl>
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-xs uppercase tracking-wide text-gray-400">
+            {t("colTrend")}
+          </span>
+          <Sparkline data={agent.daily_costs} anomaly={isAnomaly} />
+        </div>
+      </article>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -229,96 +393,14 @@ export function CostMonitor() {
           <div className="w-0.5 h-4 bg-accent" />
           <h2 className="text-sm font-bold tracking-tight uppercase text-gray-50">{t("breakdownTitle")}</h2>
         </div>
-      <div className="bg-gray-900 rounded-lg overflow-hidden">
-
-        {costs.agents.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-500">{t("breakdownEmpty")}</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-950">
-                <tr>
-                  <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                    {t("colAgent")}
-                  </th>
-                  <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                    {t("colRequests")}
-                  </th>
-                  <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                    {t("colTokens")}
-                  </th>
-                  <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                    {t("colCost")}
-                  </th>
-                  <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                    {t("colPercent")}
-                  </th>
-                  <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                    {t("colTrend")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800/30">
-                {costs.agents.map((agent) => {
-                  const isAnomaly = costs.anomalies.includes(agent.agent_id);
-                  const anomalyInfo = anomalyDetails.find((a) => a.agent_id === agent.agent_id);
-                  return (
-                    <tr
-                      key={agent.agent_id}
-                      className={cn(
-                        "hover:bg-gray-850 transition-colors",
-                        isAnomaly && "bg-accent/5",
-                      )}
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          {isAnomaly && (
-                            <MaterialIcon
-                              icon="warning"
-                              className="text-sm text-accent"
-                              filled
-                            />
-                          )}
-                          <span className="font-semibold text-sm text-gray-100">
-                            {agent.agent_name}
-                          </span>
-                          {isAnomaly && (
-                            <span className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent" data-testid="anomaly-badge">
-                              {t("anomalyBadge")}
-                            </span>
-                          )}
-                        </div>
-                        {anomalyInfo && (
-                          <p className="text-[10px] text-accent mt-1" data-testid="anomaly-detail">
-                            {t("anomalyDetail", {
-                              multiplier: anomalyInfo.multiplier,
-                              baseline: anomalyInfo.baseline_mean,
-                            })}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right font-mono text-sm text-gray-300">
-                        {formatNumber(agent.requests)}
-                      </td>
-                      <td className="px-6 py-4 text-right font-mono text-sm text-gray-300">
-                        {(agent.tokens / 1000).toFixed(0)}k
-                      </td>
-                      <td className="px-6 py-4 text-right font-mono text-sm font-semibold text-gray-100">
-                        {agent.cost}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm text-gray-400">
-                        {agent.percentage.toFixed(1)}%
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Sparkline data={agent.daily_costs} anomaly={isAnomaly} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="bg-gray-900 rounded-lg overflow-hidden p-4">
+        <ResponsiveTable
+          columns={agentColumns}
+          rows={costs.agents}
+          rowKey={(agent) => agent.agent_id}
+          renderMobileCard={renderAgentMobileCard}
+          emptyMessage={t("breakdownEmpty")}
+        />
       </div>
       </div>
     </div>

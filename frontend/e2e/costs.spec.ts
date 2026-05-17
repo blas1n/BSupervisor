@@ -22,7 +22,10 @@ test.describe("Cost Monitor: Stitch design", () => {
     await expect(page.getByText("Executor Breakdown")).toBeVisible();
   });
 
-  test("agent table shows all column headers", async ({ page }) => {
+  // ResponsiveTable renders a desktop <table> (>= sm) and a mobile card
+  // stack (< sm). Column-header assertions only apply to the desktop tree.
+  test("agent table shows all column headers", async ({ page }, testInfo) => {
+    testInfo.skip(testInfo.project.name !== "chromium", "Desktop-only: table headers hidden < sm");
     await expect(page.getByRole("columnheader", { name: /agent/i })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: /requests/i })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: /tokens/i })).toBeVisible();
@@ -37,8 +40,13 @@ test.describe("Cost Monitor: Stitch design", () => {
     await expect(page.getByText("Gamma Worker")).toBeVisible();
   });
 
+  // Row container differs by viewport: a desktop <tr> or a mobile
+  // <article data-testid="bsvibe-table-card">. `tr, article` matches both.
   test("anomaly agent shows warning icon and Anomaly badge", async ({ page }) => {
-    const row = page.getByRole("row").filter({ hasText: "Alpha Assistant" });
+    const row = page
+      .locator("tr, article[data-testid='bsvibe-table-card']")
+      .filter({ hasText: "Alpha Assistant" })
+      .first();
     await expect(row.locator(".material-symbols-outlined").filter({ hasText: "warning" })).toBeVisible();
     await expect(row.getByText("Anomaly")).toBeVisible();
   });
