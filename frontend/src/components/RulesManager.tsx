@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useT } from "@bsvibe/i18n";
+import { ResponsiveTable } from "@bsvibe/ui";
+import type { ResponsiveTableColumn } from "@bsvibe/ui";
 import { SeverityBadge } from "../components/SeverityBadge";
 import { cn, formatNumber } from "../lib/utils";
 import {
@@ -176,6 +178,178 @@ export function RulesManager() {
     );
   }
 
+  const actionBadge = (rule: Rule) => (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize",
+        rule.action === "block"
+          ? "bg-accent/10 text-accent"
+          : rule.action === "warn"
+            ? "bg-warning/10 text-warning"
+            : "bg-gray-800 text-gray-400",
+      )}
+    >
+      {rule.action}
+    </span>
+  );
+
+  const statusToggle = (rule: Rule) => (
+    <button
+      onClick={() => toggleEnabled(rule.id)}
+      className={cn(
+        "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors",
+        rule.enabled ? "bg-success" : "bg-gray-700",
+      )}
+    >
+      <span
+        className={cn(
+          "mt-0.5 inline-block h-4 w-4 transform rounded-full bg-gray-50 shadow transition-transform",
+          rule.enabled ? "translate-x-4.5" : "translate-x-0.5",
+        )}
+      />
+    </button>
+  );
+
+  const rowActions = (rule: Rule) =>
+    rule.built_in ? null : (
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => openEdit(rule)}
+          className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+        >
+          <MaterialIcon icon="edit" className="text-sm" />
+        </button>
+        <button
+          onClick={() => handleDelete(rule.id)}
+          className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-accent/10 hover:text-accent"
+        >
+          <MaterialIcon icon="delete" className="text-sm" />
+        </button>
+      </div>
+    );
+
+  const ruleColumns: ResponsiveTableColumn<Rule>[] = [
+    {
+      key: "name",
+      header: t("colName"),
+      cellClassName: "px-6 py-4",
+      cell: (rule) => (
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gray-800 rounded text-accent">
+            <MaterialIcon icon="shield" className="text-lg" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-gray-100">{rule.name}</div>
+            {rule.built_in && (
+              <div className="text-[10px] text-gray-500">
+                {t("protectedRule")}
+              </div>
+            )}
+          </div>
+          {rule.built_in && (
+            <MaterialIcon icon="lock" className="text-sm text-gray-500/40" />
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "type",
+      header: t("colType"),
+      cellClassName: "px-6 py-4",
+      cell: (rule) => (
+        <span className="px-2 py-1 bg-gray-800 text-gray-300 text-[10px] font-bold rounded-full">
+          {rule.type}
+        </span>
+      ),
+    },
+    {
+      key: "pattern",
+      header: t("colPattern"),
+      cellClassName: "max-w-48 px-6 py-4",
+      cell: (rule) => (
+        <code className="text-xs font-mono text-gray-400 bg-gray-950 px-2 py-1 rounded truncate block">
+          {rule.pattern}
+        </code>
+      ),
+    },
+    {
+      key: "severity",
+      header: t("colSeverity"),
+      cellClassName: "px-6 py-4",
+      cell: (rule) => <SeverityBadge severity={rule.severity} />,
+    },
+    {
+      key: "action",
+      header: t("colAction"),
+      cellClassName: "px-6 py-4",
+      cell: actionBadge,
+    },
+    {
+      key: "status",
+      header: t("colStatus"),
+      cellClassName: "px-6 py-4 text-center",
+      cell: statusToggle,
+    },
+    {
+      key: "hits",
+      header: t("colHits"),
+      cellClassName: "px-6 py-4 text-right font-mono text-sm text-gray-300",
+      cell: (rule) => formatNumber(rule.hit_count),
+    },
+    {
+      key: "actions",
+      header: "",
+      cellClassName: "px-6 py-4",
+      cell: rowActions,
+    },
+  ];
+
+  const renderRuleMobileCard = (rule: Rule) => (
+    <article
+      data-testid="bsvibe-table-card"
+      className="rounded-md border border-gray-800 bg-gray-900 p-4 flex flex-col gap-3"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2 bg-gray-800 rounded text-accent flex-shrink-0">
+            <MaterialIcon icon="shield" className="text-lg" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-bold text-gray-100 truncate">
+              {rule.name}
+            </div>
+            {rule.built_in && (
+              <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                <MaterialIcon icon="lock" className="text-xs text-gray-500/40" />
+                {t("protectedRule")}
+              </div>
+            )}
+          </div>
+        </div>
+        {statusToggle(rule)}
+      </div>
+      <code className="text-xs font-mono text-gray-400 bg-gray-950 px-2 py-1 rounded truncate block">
+        {rule.pattern}
+      </code>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="px-2 py-1 bg-gray-800 text-gray-300 text-[10px] font-bold rounded-full">
+          {rule.type}
+        </span>
+        <SeverityBadge severity={rule.severity} />
+        {actionBadge(rule)}
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-wide text-gray-400">
+          {t("colHits")}:{" "}
+          <span className="font-mono text-gray-300">
+            {formatNumber(rule.hit_count)}
+          </span>
+        </span>
+        {rowActions(rule)}
+      </div>
+    </article>
+  );
+
   return (
     <div className="space-y-8">
       {/* Header Section */}
@@ -227,139 +401,14 @@ export function RulesManager() {
       </div>
 
       {/* Table */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800/10 overflow-hidden shadow-2xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-950/50 border-b border-gray-800/10">
-                <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                  {t("colName")}
-                </th>
-                <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                  {t("colType")}
-                </th>
-                <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                  {t("colPattern")}
-                </th>
-                <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                  {t("colSeverity")}
-                </th>
-                <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500">
-                  {t("colAction")}
-                </th>
-                <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-center">
-                  {t("colStatus")}
-                </th>
-                <th className="px-6 py-4 text-[10px] uppercase font-bold tracking-widest text-gray-500 text-right">
-                  {t("colHits")}
-                </th>
-                <th className="px-6 py-4"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800/30">
-              {filtered.map((rule) => (
-                <tr
-                  key={rule.id}
-                  className="hover:bg-gray-850 transition-colors"
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gray-800 rounded text-accent">
-                        <MaterialIcon icon="shield" className="text-lg" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-gray-100">{rule.name}</div>
-                        {rule.built_in && (
-                          <div className="text-[10px] text-gray-500">{t("protectedRule")}</div>
-                        )}
-                      </div>
-                      {rule.built_in && (
-                        <MaterialIcon
-                          icon="lock"
-                          className="text-sm text-gray-500/40"
-                        />
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-gray-800 text-gray-300 text-[10px] font-bold rounded-full">
-                      {rule.type}
-                    </span>
-                  </td>
-                  <td className="max-w-48 px-6 py-4">
-                    <code className="text-xs font-mono text-gray-400 bg-gray-950 px-2 py-1 rounded truncate block">
-                      {rule.pattern}
-                    </code>
-                  </td>
-                  <td className="px-6 py-4">
-                    <SeverityBadge severity={rule.severity} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize",
-                        rule.action === "block"
-                          ? "bg-accent/10 text-accent"
-                          : rule.action === "warn"
-                            ? "bg-warning/10 text-warning"
-                            : "bg-gray-800 text-gray-400",
-                      )}
-                    >
-                      {rule.action}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <button
-                      onClick={() => toggleEnabled(rule.id)}
-                      className={cn(
-                        "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors",
-                        rule.enabled ? "bg-success" : "bg-gray-700",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "mt-0.5 inline-block h-4 w-4 transform rounded-full bg-gray-50 shadow transition-transform",
-                          rule.enabled ? "translate-x-4.5" : "translate-x-0.5",
-                        )}
-                      />
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-right font-mono text-sm text-gray-300">
-                    {formatNumber(rule.hit_count)}
-                  </td>
-                  <td className="px-6 py-4">
-                    {!rule.built_in && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => openEdit(rule)}
-                          className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
-                        >
-                          <MaterialIcon icon="edit" className="text-sm" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(rule.id)}
-                          className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-accent/10 hover:text-accent"
-                        >
-                          <MaterialIcon icon="delete" className="text-sm" />
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-6 py-8 text-center text-sm text-gray-500"
-                  >
-                    {rules.length === 0 ? t("emptyNoRules") : t("emptyNoMatch")}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      <div className="bg-gray-900 rounded-xl border border-gray-800/10 overflow-hidden shadow-2xl p-4">
+        <ResponsiveTable
+          columns={ruleColumns}
+          rows={filtered}
+          rowKey={(rule) => rule.id}
+          renderMobileCard={renderRuleMobileCard}
+          emptyMessage={rules.length === 0 ? t("emptyNoRules") : t("emptyNoMatch")}
+        />
       </div>
 
       {/* Rule Template Packs */}

@@ -13,7 +13,10 @@ test.describe("Rules Manager: Stitch design", () => {
     await expect(page.getByText("Configure safety triggers and thresholds")).toBeVisible();
   });
 
-  test("renders rules table with all column headers", async ({ page }) => {
+  // ResponsiveTable renders a desktop <table> (>= sm) and a mobile card
+  // stack (< sm). Column-header assertions only apply to the desktop tree.
+  test("renders rules table with all column headers", async ({ page }, testInfo) => {
+    testInfo.skip(testInfo.project.name !== "chromium", "Desktop-only: table headers hidden < sm");
     await expect(page.getByRole("columnheader", { name: /name/i })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: /type/i })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: /pattern/i })).toBeVisible();
@@ -65,13 +68,21 @@ test.describe("Rules Manager: Stitch design", () => {
     await expect(page.getByRole("dialog")).not.toBeVisible();
   });
 
+  // Row container differs by viewport: a desktop <tr> or a mobile
+  // <article data-testid="bsvibe-table-card">. `tr, article` matches both.
   test("built-in rules show lock icon", async ({ page }) => {
-    const row = page.getByRole("row").filter({ hasText: "System File Protection" });
+    const row = page
+      .locator("tr, article[data-testid='bsvibe-table-card']")
+      .filter({ hasText: "System File Protection" })
+      .first();
     await expect(row.locator(".material-symbols-outlined").filter({ hasText: "lock" })).toBeVisible();
   });
 
   test("non-built-in rules show edit and delete buttons", async ({ page }) => {
-    const row = page.getByRole("row").filter({ hasText: "External API Monitor" });
+    const row = page
+      .locator("tr, article[data-testid='bsvibe-table-card']")
+      .filter({ hasText: "External API Monitor" })
+      .first();
     await expect(row.locator(".material-symbols-outlined").filter({ hasText: "edit" })).toBeVisible();
     await expect(row.locator(".material-symbols-outlined").filter({ hasText: "delete" })).toBeVisible();
   });
