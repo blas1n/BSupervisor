@@ -353,7 +353,7 @@ export function RulesManager() {
   return (
     <div className="space-y-8">
       {/* Header Section */}
-      <section className="flex justify-between items-end">
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-50">
             {t("heading")}
@@ -364,7 +364,7 @@ export function RulesManager() {
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-6 py-3 bg-accent text-gray-50 font-bold rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-accent/10"
+          className="flex shrink-0 items-center justify-center gap-2 px-6 py-3 bg-accent text-gray-50 font-bold rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-accent/10"
         >
           <MaterialIcon icon="add" className="text-lg" />
           <span>{t("createRule")}</span>

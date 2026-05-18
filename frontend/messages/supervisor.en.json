@@ -3,6 +3,17 @@
     "tagline": "AI Sentinel",
     "liveStatus": "Live Surveillance"
   },
+  "login": {
+    "tagline": "Monitor, audit, and secure your AI agents",
+    "featureBehaviorTitle": "Behavior Logging",
+    "featureBehaviorDescription": "Track every AI agent action in real-time with structured event capture",
+    "featureRiskTitle": "Risk Detection",
+    "featureRiskDescription": "Evaluate agent behavior against safety rules and block dangerous actions",
+    "featureReportsTitle": "Daily Reports",
+    "featureReportsDescription": "Automated safety analysis with cost tracking and anomaly summaries",
+    "signIn": "Sign in with BSVibe",
+    "poweredBy": "Powered by BSVibe"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "incidents": "Incidents",

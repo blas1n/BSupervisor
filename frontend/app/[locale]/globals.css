@@ -16,10 +16,18 @@
 
 @import "tailwindcss";
 
-/* Tailwind 4 source scan — pull in @bsvibe/layout's compiled JS so that
- * inline utility classes from the shared sidebar (border-l-4, min-h-[44px],
- * bg-gray-950, etc.) are present in the generated CSS. */
+/* Tailwind 4 source scan — pull in the shared packages' compiled JS so that
+ * their inline utility classes are present in the generated CSS.
+ *
+ * - @bsvibe/layout: the shared sidebar/header utilities (border-l-4,
+ *   min-h-[44px], bg-gray-950, etc.).
+ * - @bsvibe/ui: the ResponsiveTable's responsive utilities (`hidden sm:table`,
+ *   `sm:hidden`, `hover:bg-gray-900/60`, …). WITHOUT this scan Tailwind never
+ *   generates the `sm:` variants, so `hidden` always wins — the desktop
+ *   `<table>` stays permanently hidden and the mobile card stack renders at
+ *   every viewport (Dashboard / Rules / Costs tables). */
 @source "../../node_modules/@bsvibe/layout/dist/**/*.js";
+@source "../../node_modules/@bsvibe/ui/dist/**/*.js";
 @import "@bsvibe/design-tokens/css";
 
 @theme {

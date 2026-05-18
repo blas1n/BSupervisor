@@ -266,7 +266,10 @@ export function CostMonitor() {
           <div>
             <span className="text-[10px] uppercase tracking-widest text-gray-500 block mb-1">{t("consumptionLabel")}</span>
             <div className="text-3xl font-extrabold tracking-tighter text-gray-50">
-              {costs.spent} <span className="text-sm font-normal text-gray-500">{t("budgetSuffix", { budget: costs.budget })}</span>
+              {costs.spent}{" "}
+              <span className="ml-1 text-sm font-normal tracking-normal text-gray-500">
+                {t("budgetSuffix", { budget: costs.budget })}
+              </span>
             </div>
           </div>
           <div className="text-right">

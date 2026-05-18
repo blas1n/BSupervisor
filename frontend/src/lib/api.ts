@@ -38,22 +38,25 @@ const BASE_URL = !RAW_API_URL
     ? RAW_API_URL.replace(/\/+$/, "")
     : `${RAW_API_URL.replace(/\/+$/, "")}/api`;
 
+// Redirect to the auth app's SSO login, always carrying an explicit
+// `redirect_uri` back to BSupervisor. Without it the auth app falls back to
+// its default landing page (`bsvibe.dev/account`) instead of returning here.
+function redirectToLogin(): void {
+  if (typeof window === "undefined") return;
+  const redirectUri = `${window.location.origin}/`;
+  window.location.href = `${AUTH_URL}/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
+}
+
 // Register the 401 cascading-logout latch exactly once per page load.
 // Subsequent 401s are absorbed by the shared guard until the latch is reset.
 if (typeof window !== "undefined") {
-  setOnAuthError(() => {
-    window.location.href = `${AUTH_URL}/login`;
-  });
+  setOnAuthError(redirectToLogin);
 }
 
 const baseApi = createApiFetch({
   baseUrl: BASE_URL,
   getToken: () => getAccessToken(),
-  onUnauthorized: () => {
-    if (typeof window !== "undefined") {
-      window.location.href = `${AUTH_URL}/login`;
-    }
-  },
+  onUnauthorized: redirectToLogin,
 });
 
 // Tier 3.2 — the wrapped session JWT was collapsed to the raw Supabase

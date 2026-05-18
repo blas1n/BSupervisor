@@ -60,6 +60,47 @@ function decodeJwt(token: string): Record<string, unknown> {
   return JSON.parse(atob(base64));
 }
 
+/**
+ * Capture tokens from the URL hash fragment that `auth.bsvibe.dev` appends
+ * after a successful SSO redirect (`#access_token=…&refresh_token=…&expires_in=…`)
+ * and persist them to `localStorage`.
+ *
+ * Without this, the SSO round-trip lands back on BSupervisor with the token
+ * sitting in the hash and nothing reading it: `readStoredSession()` returns
+ * `null`, `@bsvibe/auth`'s `AuthProvider` resolves no `user`, and
+ * `ProtectedRoute` bounces straight back to `/login` — an infinite loop that
+ * makes every authed surface unreachable in production.
+ *
+ * Mirrors the `consumeHashTokens()` pattern already shipped in BSGateway.
+ * Idempotent and SSR-safe; returns the captured access token (or `null`).
+ */
+export function consumeHashTokens(): string | null {
+  if (typeof window === 'undefined') return null;
+  const hash = window.location.hash.startsWith('#')
+    ? window.location.hash.slice(1)
+    : '';
+  if (!hash) return null;
+  const params = new URLSearchParams(hash);
+  const access = params.get('access_token');
+  if (!access) return null;
+  const refresh = params.get('refresh_token');
+  const expiresIn = Number(params.get('expires_in') ?? '3600');
+  localStorage.setItem(LS_ACCESS_TOKEN, access);
+  if (refresh) localStorage.setItem(LS_REFRESH_TOKEN, refresh);
+  localStorage.setItem(
+    LS_EXPIRES_AT,
+    String(Date.now() + (Number.isFinite(expiresIn) ? expiresIn : 3600) * 1000),
+  );
+  // Strip the token fragment from the address bar so it isn't left in
+  // history / shareable URLs.
+  window.history.replaceState(
+    null,
+    '',
+    window.location.pathname + window.location.search,
+  );
+  return access;
+}
+
 function readStoredToken(): { value: string; refreshToken: string; expiresAt: number } | null {
   if (typeof window === 'undefined') return null;
   const value = localStorage.getItem(LS_ACCESS_TOKEN);
@@ -97,6 +138,9 @@ export async function getAccessToken(): Promise<string | null> {
   if (cachedToken && Date.now() < cachedToken.expiresAt - 30_000) {
     return cachedToken.value;
   }
+  // Pull any tokens left in the URL hash by a just-completed SSO redirect
+  // into localStorage so the `readStoredToken()` path below resolves them.
+  consumeHashTokens();
   const stored = readStoredToken();
   if (stored) {
     cachedToken = { value: stored.value, expiresAt: stored.expiresAt };
@@ -225,7 +269,11 @@ export function useAuth() {
     liveTenants.find((t) => t.id === activeTenantId)?.name ?? null;
 
   function login() {
-    window.location.href = `${AUTH_URL}/login`;
+    // Pass an explicit `redirect_uri` back to BSupervisor so the SSO flow
+    // returns the user here (with the token in the URL hash) instead of
+    // falling back to the auth app's default landing page (`bsvibe.dev/account`).
+    const redirectUri = `${window.location.origin}/`;
+    window.location.href = `${AUTH_URL}/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
   }
 
   async function logout() {
