@@ -1,30 +1,37 @@
 "use client";
 
 import { Shield, Activity, AlertTriangle, FileText, ArrowRight } from "lucide-react";
+import { useT } from "@bsvibe/i18n";
 
 const AUTH_URL = process.env.NEXT_PUBLIC_BSVIBE_AUTH_URL ?? "https://auth.bsvibe.dev";
 
-const features = [
-  {
-    icon: Activity,
-    title: "Behavior Logging",
-    description: "Track every AI agent action in real-time with structured event capture",
-  },
-  {
-    icon: AlertTriangle,
-    title: "Risk Detection",
-    description: "Evaluate agent behavior against safety rules and block dangerous actions",
-  },
-  {
-    icon: FileText,
-    title: "Daily Reports",
-    description: "Automated safety analysis with cost tracking and anomaly summaries",
-  },
-];
-
 export function Login() {
+  const t = useT("supervisor.login");
+
+  const features = [
+    {
+      icon: Activity,
+      title: t("featureBehaviorTitle"),
+      description: t("featureBehaviorDescription"),
+    },
+    {
+      icon: AlertTriangle,
+      title: t("featureRiskTitle"),
+      description: t("featureRiskDescription"),
+    },
+    {
+      icon: FileText,
+      title: t("featureReportsTitle"),
+      description: t("featureReportsDescription"),
+    },
+  ];
+
   function login() {
-    window.location.href = `${AUTH_URL}/login`;
+    // Pass an explicit `redirect_uri` back to BSupervisor so the SSO flow
+    // returns the user here (with the token in the URL hash) instead of
+    // landing on the auth app's default page (`bsvibe.dev/account`).
+    const redirectUri = `${window.location.origin}/`;
+    window.location.href = `${AUTH_URL}/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
   }
 
   return (
@@ -49,9 +56,7 @@ export function Login() {
             <h1 className="text-3xl font-bold tracking-tight text-gray-50">
               BSupervisor
             </h1>
-            <p className="mt-2 text-base text-gray-400">
-              Monitor, audit, and secure your AI agents
-            </p>
+            <p className="mt-2 text-base text-gray-400">{t("tagline")}</p>
           </div>
         </div>
 
@@ -84,15 +89,13 @@ export function Login() {
             onClick={login}
             className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-accent px-4 py-3.5 text-sm font-semibold text-gray-50 shadow-lg shadow-accent/25 transition-all hover:shadow-accent/40 hover:brightness-110"
           >
-            Sign in with BSVibe
+            {t("signIn")}
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-gray-600">
-          Powered by BSVibe
-        </p>
+        <p className="text-center text-xs text-gray-600">{t("poweredBy")}</p>
       </div>
     </div>
   );

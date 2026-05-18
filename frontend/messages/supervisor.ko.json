@@ -3,6 +3,17 @@
     "tagline": "AI 감시자",
     "liveStatus": "실시간 감시"
   },
+  "login": {
+    "tagline": "AI 에이전트를 모니터링하고 감사하며 보호하세요",
+    "featureBehaviorTitle": "행동 로깅",
+    "featureBehaviorDescription": "구조화된 이벤트 캡처로 모든 AI 에이전트 작업을 실시간으로 추적합니다",
+    "featureRiskTitle": "위험 탐지",
+    "featureRiskDescription": "안전 규칙에 따라 에이전트 행동을 평가하고 위험한 작업을 차단합니다",
+    "featureReportsTitle": "일일 보고서",
+    "featureReportsDescription": "비용 추적 및 이상 징후 요약과 함께 자동화된 안전 분석을 제공합니다",
+    "signIn": "BSVibe로 로그인",
+    "poweredBy": "Powered by BSVibe"
+  },
   "nav": {
     "dashboard": "대시보드",
     "incidents": "사건",
