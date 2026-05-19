@@ -335,7 +335,7 @@ export function CostMonitor() {
           </div>
         </div>
         <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={costs.trend}>
               <defs>
                 <linearGradient id="costGrad" x1="0" y1="0" x2="0" y2="1">
