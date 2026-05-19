@@ -301,7 +301,7 @@ export function Dashboard() {
             </div>
           </div>
           <div className="flex-1 min-h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
               <AreaChart data={timelineData}>
                 <defs>
                   <linearGradient id="gradSafe" x1="0" y1="0" x2="0" y2="1">
