@@ -13,6 +13,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useMeasuredRef } from "../hooks/useMeasuredRef";
 import { formatNumber, formatTime, cn } from "../lib/utils";
 import { theme } from "../lib/theme";
 import { fetchStatus, fetchEvents, fetchRules } from "../lib/api";
@@ -89,6 +90,8 @@ const severityStyle = (s: string) => SEVERITY_STYLES[s] ?? SEVERITY_STYLES.safe;
 export function Dashboard() {
   const t = useT("supervisor.dashboard");
   const tCommon = useT("supervisor.common");
+  // Gate the recharts <ResponsiveContainer> mount until the box is sized.
+  const timelineChart = useMeasuredRef<HTMLDivElement>();
   const [status, setStatus] = useState<StatusMetrics | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
@@ -300,7 +303,8 @@ export function Dashboard() {
               </div>
             </div>
           </div>
-          <div className="h-[300px]">
+          <div ref={timelineChart.ref} className="h-[300px]">
+            {timelineChart.ready && (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={timelineData}>
                 <defs>
@@ -390,6 +394,7 @@ export function Dashboard() {
                 />
               </AreaChart>
             </ResponsiveContainer>
+            )}
           </div>
         </div>
 

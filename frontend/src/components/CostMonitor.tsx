@@ -14,6 +14,7 @@ import {
 import { useT } from "@bsvibe/i18n";
 import { ResponsiveTable } from "@bsvibe/ui";
 import type { ResponsiveTableColumn } from "@bsvibe/ui";
+import { useMeasuredRef } from "../hooks/useMeasuredRef";
 import { cn, formatNumber } from "../lib/utils";
 import { theme } from "../lib/theme";
 import { fetchCosts, fetchAnomalies } from "../lib/api";
@@ -53,6 +54,8 @@ function Sparkline({ data, anomaly }: { data: number[]; anomaly?: boolean }) {
 
 export function CostMonitor() {
   const t = useT("supervisor.costs");
+  // Gate the recharts <ResponsiveContainer> mount until the box is sized.
+  const trendChart = useMeasuredRef<HTMLDivElement>();
   const [costs, setCosts] = useState<CostData | null>(null);
   const [anomalyDetails, setAnomalyDetails] = useState<AnomalyEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -334,7 +337,8 @@ export function CostMonitor() {
             </div>
           </div>
         </div>
-        <div className="h-[300px]">
+        <div ref={trendChart.ref} className="h-[300px]">
+          {trendChart.ready && (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={costs.trend}>
               <defs>
@@ -386,6 +390,7 @@ export function CostMonitor() {
               />
             </LineChart>
           </ResponsiveContainer>
+          )}
         </div>
       </div>
       </div>
